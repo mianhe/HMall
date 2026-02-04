@@ -1,0 +1,19 @@
+# 第 0 次迭代：只起一个 PostgreSQL，供后端连接
+# 启动：在项目根目录执行  docker compose -f infra/docker-compose.yml up -d
+# 停止：docker compose -f infra/docker-compose.yml down
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: hmall-postgres
+    environment:
+      POSTGRES_DB: hmall
+      POSTGRES_USER: hmall
+      POSTGRES_PASSWORD: hmall_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - hmall_pgdata:/var/lib/postgresql/data
+
+volumes:
+  hmall_pgdata:
