@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HMall 链路检查</title>
+    <style>
+        body { font-family: system-ui, sans-serif; padding: 2rem; max-width: 600px; margin: 0 auto; }
+        h1 { font-size: 1.25rem; }
+        .result { margin: 1rem 0; padding: 0.75rem; border-radius: 6px; }
+        .ok { background: #e8f5e9; color: #2e7d32; }
+        .err { background: #ffebee; color: #c62828; }
+        button { padding: 0.5rem 1rem; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>HMall 最小链路检查</h1>
+    <p>点击按钮检查：浏览器 → 后端 → 数据库 是否连通。</p>
+    <button onclick="check()">检查</button>
+    <div id="ping-result" class="result" style="display:none;"></div>
+    <div id="db-result" class="result" style="display:none;"></div>
+
+    <script>
+        async function check() {
+            const pingEl = document.getElementById('ping-result');
+            const dbEl = document.getElementById('db-result');
+            pingEl.style.display = dbEl.style.display = 'block';
+
+            try {
+                const r = await fetch('/api/ping');
+                const data = await r.json();
+                pingEl.className = 'result ' + (r.ok ? 'ok' : 'err');
+                pingEl.textContent = r.ok ? '后端 Ping: ' + (data.message || 'ok') : '后端 Ping 失败: ' + r.status;
+            } catch (e) {
+                pingEl.className = 'result err';
+                pingEl.textContent = '后端 Ping 失败: ' + e.message;
+            }
+
+            try {
+                const r = await fetch('/api/db-ping');
+                const data = await r.json();
+                dbEl.className = 'result ' + (r.ok ? 'ok' : 'err');
+                dbEl.textContent = r.ok ? '数据库: ' + (data.message || 'connected') : '数据库检查失败: ' + r.status;
+            } catch (e) {
+                dbEl.className = 'result err';
+                dbEl.textContent = '数据库检查失败: ' + e.message;
+            }
+        }
+    </script>
+</body>
+</html>
