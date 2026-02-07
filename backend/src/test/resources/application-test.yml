@@ -1,0 +1,5 @@
+# 验收测试用 profile：由 Hibernate 自动建表/删表
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop

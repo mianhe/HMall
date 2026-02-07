@@ -1,0 +1,196 @@
+openapi: 3.0.3
+info:
+  title: 商品限定上下文 API
+  description: 类别与商品（SPU）的 REST 契约。Step Definitions 与实现均按此规范。
+  version: 0.1.0
+
+paths:
+  /api/categories:
+    post:
+      summary: 创建类别
+      description: 创建根级类别（不传 parentId）或在已有类别下创建子类别（传 parentId）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryCreate'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '404':
+          description: 父类别不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      summary: 查询类别列表（按父类别）
+      description: 不传 parentId 或为空表示查根目录下所有类别；传 parentId 表示查该类别下所有子类别。
+      parameters:
+        - name: parentId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+            nullable: true
+          description: 父类别 ID，不传或空为根目录
+      responses:
+        '200':
+          description: 类别列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+
+  /api/products:
+    post:
+      summary: 创建商品
+      description: 仅在叶子类别下可创建；类别非叶子时返回 400/422。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreate'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: 业务校验失败（如仅叶子类别可挂商品）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: 业务校验失败（如仅叶子类别可挂商品）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 类别不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      summary: 按类别查商品列表
+      parameters:
+        - name: categoryId
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 商品列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+
+  /api/products/{id}:
+    get:
+      summary: 按 ID 查商品详情
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 商品详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: 商品不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Category:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+          format: int64
+        parentId:
+          type: integer
+          format: int64
+          nullable: true
+          description: 根类别为 null
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+    CategoryCreate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        parentId:
+          type: integer
+          format: int64
+          nullable: true
+          description: 不传或 null 表示根级类别
+    Product:
+      type: object
+      required: [id, categoryId, name]
+      properties:
+        id:
+          type: integer
+          format: int64
+        categoryId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+    ProductCreate:
+      type: object
+      required: [categoryId, name]
+      properties:
+        categoryId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          description: 错误说明，便于 Step 断言
