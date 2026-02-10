@@ -6,6 +6,7 @@ import com.hmall.catalog.application.SpuApplicationService;
 import com.hmall.catalog.domain.Spu;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -49,6 +50,12 @@ public class ProductController {
     public ResponseEntity<ProductDto> getById(@PathVariable Long id) {
         Spu spu = applicationService.getById(id);
         return ResponseEntity.ok(toDto(spu));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        applicationService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 
     private ProductDto toDto(Spu s) {

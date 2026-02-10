@@ -43,4 +43,11 @@ public class SpuApplicationService {
         return spuRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("商品不存在"));
     }
+
+    @Transactional
+    public void delete(Long id) {
+        spuRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("商品不存在"));
+        spuRepository.deleteById(id);
+    }
 }

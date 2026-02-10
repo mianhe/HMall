@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: 商品限定上下文 API
-  description: 类别与商品（SPU）的 REST 契约。Step Definitions 与实现均按此规范。
+  description: 类别、商品（SPU）、规格维度与选项、SKU 的 REST 契约。Step Definitions 与实现均按此规范。
   version: 0.1.0
 
 paths:
@@ -127,6 +127,218 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+    delete:
+      summary: 删除商品
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 删除成功，无响应体
+        '404':
+          description: 商品不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ---------- 规格维度与选项 ----------
+  /api/products/{spuId}/dimensions:
+    post:
+      summary: 为 SPU 添加规格维度
+      parameters:
+        - name: spuId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpecDimensionCreate'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpecDimension'
+        '404':
+          description: SPU 不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: 业务校验失败（如同 SPU 内维度名称重复）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      summary: 查询某 SPU 下所有维度及选项
+      parameters:
+        - name: spuId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 维度列表（含各维度下选项）
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SpecDimensionWithOptions'
+        '404':
+          description: SPU 不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/products/{spuId}/dimensions/{dimensionId}/options:
+    post:
+      summary: 为某维度添加可选项
+      parameters:
+        - name: spuId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: dimensionId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpecOptionCreate'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpecOption'
+        '404':
+          description: SPU 或维度不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: 业务校验失败（如同维度内选项值重复）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ---------- SKU ----------
+  /api/products/{spuId}/skus:
+    post:
+      summary: 在 SPU 下创建 SKU（选齐必填维度 Option + 价格）
+      parameters:
+        - name: spuId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SkuCreate'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sku'
+        '404':
+          description: SPU 不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: 业务校验失败（未选齐必填维度、Option 不属于该 SPU、价格不能为负等）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      summary: 按 SPU 查该 SPU 下所有 SKU
+      parameters:
+        - name: spuId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: SKU 列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Sku'
+        '404':
+          description: SPU 不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/products/{spuId}/skus/{skuId}:
+    get:
+      summary: 按 SPU 与 SKU ID 查 SKU 详情
+      parameters:
+        - name: spuId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: skuId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: SKU 详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sku'
+        '404':
+          description: SKU 不存在或不属于该 SPU
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
 components:
   schemas:
@@ -194,3 +406,128 @@ components:
         message:
           type: string
           description: 错误说明，便于 Step 断言
+
+    # ---------- 规格维度与选项 ----------
+    SpecDimension:
+      type: object
+      required: [id, spuId, name, required]
+      properties:
+        id:
+          type: integer
+          format: int64
+        spuId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        required:
+          type: boolean
+          description: 创建 SKU 时是否必选
+        sortOrder:
+          type: integer
+          nullable: true
+        affectsAppearance:
+          type: boolean
+          description: 该维度的 Option 才允许填图片；同 SPU 下至多一个为 true
+    SpecDimensionCreate:
+      type: object
+      required: [name, required]
+      properties:
+        name:
+          type: string
+        required:
+          type: boolean
+        sortOrder:
+          type: integer
+          nullable: true
+        affectsAppearance:
+          type: boolean
+          default: false
+    SpecOption:
+      type: object
+      required: [id, specDimensionId, optionValue]
+      properties:
+        id:
+          type: integer
+          format: int64
+        specDimensionId:
+          type: integer
+          format: int64
+        optionValue:
+          type: string
+        sortOrder:
+          type: integer
+          nullable: true
+        image:
+          type: string
+          nullable: true
+          description: 仅当所属维度 affectsAppearance 时可有值
+    SpecOptionCreate:
+      type: object
+      required: [optionValue]
+      properties:
+        optionValue:
+          type: string
+        sortOrder:
+          type: integer
+          nullable: true
+        image:
+          type: string
+          nullable: true
+    SpecDimensionWithOptions:
+      type: object
+      description: 维度 + 其下选项列表（GET 维度及选项时用）
+      allOf:
+        - $ref: '#/components/schemas/SpecDimension'
+        - type: object
+          properties:
+            options:
+              type: array
+              items:
+                $ref: '#/components/schemas/SpecOption'
+
+    # ---------- SKU ----------
+    Sku:
+      type: object
+      required: [id, spuId, priceCents]
+      properties:
+        id:
+          type: integer
+          format: int64
+        spuId:
+          type: integer
+          format: int64
+        priceCents:
+          type: integer
+          format: int64
+          minimum: 0
+        displayName:
+          type: string
+          nullable: true
+        specValues:
+          type: array
+          description: 所选 Option 信息，便于展示（如 [{ dimensionName, optionValue }]）
+          items:
+            type: object
+            properties:
+              dimensionName:
+                type: string
+              optionValue:
+                type: string
+    SkuCreate:
+      type: object
+      required: [specOptionIds, priceCents]
+      properties:
+        specOptionIds:
+          type: array
+          description: 每个必填维度选一 Option 的 ID，顺序不限
+          items:
+            type: integer
+            format: int64
+        priceCents:
+          type: integer
+          format: int64
+          minimum: 0
+        displayName:
+          type: string
+          nullable: true

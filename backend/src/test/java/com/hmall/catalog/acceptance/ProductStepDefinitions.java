@@ -29,39 +29,58 @@ public class ProductStepDefinitions {
 
     private final TestRestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final CatalogTestContext context;
 
     /** 类别名称 -> id（用于创建商品、断言所属类别） */
     private final Map<String, Long> categoryNameToId = new ConcurrentHashMap<>();
-    /** 商品名称 -> id（用于“请求该商品的详情”） */
+    /** 商品名称 -> id（用于“请求该商品的详情”）；同时写入 context 供 SpecDimension/Sku 步骤用） */
     private final Map<String, Long> productNameToId = new ConcurrentHashMap<>();
 
     private ResponseEntity<ProductApiDto.Response> lastCreateProductResponse;
     private ResponseEntity<List<ProductApiDto.Response>> lastProductListResponse;
     private ResponseEntity<ProductApiDto.Response> lastProductDetailResponse;
     private ResponseEntity<ProductApiDto.Error> lastErrorResponse;
-    /** 最后创建的商品 ID（用于“请求该商品的详情”） */
+    /** 最后创建的商品 ID（用于“请求该商品的详情”、删除该商品） */
     private Long lastCreatedProductId;
+    /** 最后一次删除请求的响应（无 body，仅状态码） */
+    private ResponseEntity<Void> lastDeleteResponse;
 
-    public ProductStepDefinitions(TestRestTemplate restTemplate, ObjectMapper objectMapper) {
+    public ProductStepDefinitions(TestRestTemplate restTemplate, ObjectMapper objectMapper, CatalogTestContext context) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper != null ? objectMapper : new ObjectMapper();
+        this.context = context != null ? context : new CatalogTestContext();
     }
 
     private String baseUrl() {
         return restTemplate.getRootUri().toString();
     }
 
-    // ---------- 已存在叶子类别 ----------
+    // ---------- 已存在叶子类别/类目（类目与需求文档一致，实现相同） ----------
     @Given("已存在叶子类别 {string}")
     public void 已存在叶子类别(String name) {
+        do已存在叶子类目(name);
+    }
+
+    @Given("已存在叶子类目 {string}")
+    public void 已存在叶子类目(String name) {
+        do已存在叶子类目(name);
+    }
+
+    private void do已存在叶子类目(String name) {
         CategoryApiDto.Create body = new CategoryApiDto.Create();
         body.name = name;
         body.parentId = null;
         ResponseEntity<CategoryApiDto.Response> res = postCategory(body);
+        context.setLastStatusCode(res.getStatusCode().value());
         assertThat(res.getStatusCode().value()).isEqualTo(201);
         if (res.getBody() != null) {
             categoryNameToId.put(name, res.getBody().id);
         }
+    }
+
+    @Given("已存在商品 {string} 描述 {string} 属于类目 {string}")
+    public void 已存在商品描述属于类目(String productName, String description, String categoryName) {
+        已存在商品描述属于类别(productName, description, categoryName);
     }
 
     // ---------- 在叶子类别下创建商品 ----------
@@ -74,8 +93,12 @@ public class ProductStepDefinitions {
         body.name = productName;
         body.description = description;
         lastCreateProductResponse = postProduct(body);
+        context.setLastStatusCode(lastCreateProductResponse.getStatusCode().value());
         if (lastCreateProductResponse.getStatusCode().is2xxSuccessful() && lastCreateProductResponse.getBody() != null) {
-            productNameToId.put(productName, lastCreateProductResponse.getBody().id);
+            Long id = lastCreateProductResponse.getBody().id;
+            productNameToId.put(productName, id);
+            context.putSpuId(productName, id);
+            context.setLastProductName(productName);
         }
     }
 
@@ -100,6 +123,11 @@ public class ProductStepDefinitions {
 
     @And("该商品属于类别 {string}")
     public void 该商品属于类别(String categoryName) {
+        该商品属于类目(categoryName);
+    }
+
+    @And("该商品属于类目 {string}")
+    public void 该商品属于类目(String categoryName) {
         Long expectedCategoryId = categoryNameToId.get(categoryName);
         assertThat(lastCreateProductResponse.getBody()).isNotNull();
         assertThat(lastCreateProductResponse.getBody().categoryId).isEqualTo(expectedCategoryId);
@@ -121,13 +149,6 @@ public class ProductStepDefinitions {
         child.parentId = rootRes.getBody().id;
         ResponseEntity<CategoryApiDto.Response> childRes = postCategory(child);
         assertThat(childRes.getStatusCode().value()).isEqualTo(201);
-    }
-
-    @Then("应创建失败")
-    public void 应创建失败() {
-        assertThat(lastCreateProductResponse).isNotNull();
-        int status = lastCreateProductResponse.getStatusCode().value();
-        assertThat(status).isIn(400, 422);
     }
 
     @And("应返回错误提示（如仅叶子类别可挂商品）")
@@ -182,6 +203,22 @@ public class ProductStepDefinitions {
         postProductAndStore(categoryId, productName, description);
     }
 
+    @When("用户在类目 ID {long} 下创建商品 {string} 描述 {string}")
+    public void 用户在类目ID下创建商品(long categoryId, String name, String description) {
+        ProductApiDto.Create body = new ProductApiDto.Create();
+        body.categoryId = categoryId;
+        body.name = name;
+        body.description = description;
+        lastCreateProductResponse = postProduct(body);
+        context.setLastStatusCode(lastCreateProductResponse.getStatusCode().value());
+    }
+
+    @When("用户请求商品 ID {long} 的详情")
+    public void 用户请求商品ID的详情(long productId) {
+        lastProductDetailResponse = getProductById(productId);
+        context.setLastStatusCode(lastProductDetailResponse.getStatusCode().value());
+    }
+
     @When("用户请求该商品的详情")
     public void 用户请求该商品的详情() {
         Long productId = lastCreatedProductId != null ? lastCreatedProductId
@@ -211,6 +248,54 @@ public class ProductStepDefinitions {
         assertThat(lastProductDetailResponse.getBody().categoryId).isEqualTo(expectedCategoryId);
     }
 
+    // ---------- 删除商品 ----------
+    @When("用户删除该商品")
+    public void 用户删除该商品() {
+        Long productId = lastCreatedProductId != null ? lastCreatedProductId
+            : (lastCreateProductResponse != null && lastCreateProductResponse.getBody() != null
+                ? lastCreateProductResponse.getBody().id
+                : productNameToId.values().stream().findFirst().orElse(null));
+        assertThat(productId).as("应先存在商品").isNotNull();
+        lastDeleteResponse = deleteProduct(productId);
+        context.setLastStatusCode(lastDeleteResponse.getStatusCode().value());
+    }
+
+    @When("用户删除商品 ID {long}")
+    public void 用户删除商品ID(long id) {
+        lastDeleteResponse = deleteProduct(id);
+        context.setLastStatusCode(lastDeleteResponse.getStatusCode().value());
+    }
+
+    @Then("应删除成功")
+    public void 应删除成功() {
+        assertThat(lastDeleteResponse).isNotNull();
+        assertThat(lastDeleteResponse.getStatusCode().value()).isEqualTo(204);
+    }
+
+    @And("再次请求该商品详情应返回 404")
+    public void 再次请求该商品详情应返回404() {
+        Long productId = lastCreatedProductId != null ? lastCreatedProductId
+            : (lastCreateProductResponse != null && lastCreateProductResponse.getBody() != null
+                ? lastCreateProductResponse.getBody().id
+                : null);
+        assertThat(productId).as("应先有被删商品 id").isNotNull();
+        ResponseEntity<ProductApiDto.Response> getRes = getProductById(productId);
+        assertThat(getRes.getStatusCode().value()).isEqualTo(404);
+    }
+
+    private ResponseEntity<Void> deleteProduct(Long id) {
+        try {
+            return restTemplate.exchange(
+                baseUrl() + "/api/products/" + id,
+                HttpMethod.DELETE,
+                null,
+                Void.class
+            );
+        } catch (RestClientResponseException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(null);
+        }
+    }
+
     // ---------- 辅助：创建商品并存入 productNameToId ----------
     private void postProductAndStore(Long categoryId, String name, String description) {
         ProductApiDto.Create body = new ProductApiDto.Create();
@@ -218,10 +303,14 @@ public class ProductStepDefinitions {
         body.name = name;
         body.description = description;
         ResponseEntity<ProductApiDto.Response> res = postProduct(body);
+        context.setLastStatusCode(res.getStatusCode().value());
         assertThat(res.getStatusCode().value()).isEqualTo(201);
         if (res.getBody() != null) {
-            productNameToId.put(name, res.getBody().id);
-            lastCreatedProductId = res.getBody().id;
+            Long id = res.getBody().id;
+            productNameToId.put(name, id);
+            context.putSpuId(name, id);
+            context.setLastProductName(name);
+            lastCreatedProductId = id;
         }
     }
 

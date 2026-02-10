@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class CategoryStepDefinitions {
 
     private final TestRestTemplate restTemplate;
+    private final CatalogTestContext context;
 
     /** 类别名称 -> 创建后得到的 id（用于“在某某下创建子类别”等步骤） */
     private final Map<String, Long> categoryNameToId = new ConcurrentHashMap<>();
@@ -33,8 +34,9 @@ public class CategoryStepDefinitions {
     private ResponseEntity<CategoryApiDto.Response> lastCreateResponse;
     private ResponseEntity<List<CategoryApiDto.Response>> lastListResponse;
 
-    public CategoryStepDefinitions(TestRestTemplate restTemplate) {
+    public CategoryStepDefinitions(TestRestTemplate restTemplate, CatalogTestContext context) {
         this.restTemplate = restTemplate;
+        this.context = context != null ? context : new CatalogTestContext();
     }
 
     private String baseUrl() {
@@ -48,16 +50,12 @@ public class CategoryStepDefinitions {
         body.name = name;
         body.parentId = null;
         lastCreateResponse = postCategory(body);
+        if (context != null) {
+            context.setLastStatusCode(lastCreateResponse.getStatusCode().value());
+        }
         if (lastCreateResponse.getStatusCode().is2xxSuccessful() && lastCreateResponse.getBody() != null) {
             categoryNameToId.put(name, lastCreateResponse.getBody().id);
         }
-    }
-
-    @Then("应创建成功")
-    public void 应创建成功() {
-        assertThat(lastCreateResponse).isNotNull();
-        assertThat(lastCreateResponse.getStatusCode().value()).isEqualTo(201);
-        assertThat(lastCreateResponse.getBody()).isNotNull();
     }
 
     @And("返回的类别名称为 {string}")
@@ -79,6 +77,9 @@ public class CategoryStepDefinitions {
         body.name = name;
         body.parentId = null;
         ResponseEntity<CategoryApiDto.Response> res = postCategory(body);
+        if (context != null) {
+            context.setLastStatusCode(res.getStatusCode().value());
+        }
         assertThat(res.getStatusCode().value()).isEqualTo(201);
         if (res.getBody() != null) {
             categoryNameToId.put(name, res.getBody().id);
@@ -86,6 +87,20 @@ public class CategoryStepDefinitions {
     }
 
     // ---------- 在已有类别下创建子类别 ----------
+    @When("用户在父类目 ID {long} 下创建子类别 {string}")
+    public void 用户在父类目ID下创建子类别(long parentId, String childName) {
+        CategoryApiDto.Create body = new CategoryApiDto.Create();
+        body.name = childName;
+        body.parentId = parentId;
+        lastCreateResponse = postCategory(body);
+        if (context != null) {
+            context.setLastStatusCode(lastCreateResponse.getStatusCode().value());
+        }
+        if (lastCreateResponse.getStatusCode().is2xxSuccessful() && lastCreateResponse.getBody() != null) {
+            categoryNameToId.put(childName, lastCreateResponse.getBody().id);
+        }
+    }
+
     @When("用户在类别 {string} 下创建子类别 {string}")
     public void 用户在类别下创建子类别(String parentName, String childName) {
         Long parentId = categoryNameToId.get(parentName);
@@ -94,6 +109,9 @@ public class CategoryStepDefinitions {
         body.name = childName;
         body.parentId = parentId;
         lastCreateResponse = postCategory(body);
+        if (context != null) {
+            context.setLastStatusCode(lastCreateResponse.getStatusCode().value());
+        }
         if (lastCreateResponse.getStatusCode().is2xxSuccessful() && lastCreateResponse.getBody() != null) {
             categoryNameToId.put(childName, lastCreateResponse.getBody().id);
         }

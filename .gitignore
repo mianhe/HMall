@@ -30,3 +30,6 @@ Thumbs.db
 *.log
 tmp/
 temp/
+
+# 脚本运行时（PID、日志）
+.hmall/

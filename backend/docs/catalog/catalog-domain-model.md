@@ -1,67 +1,172 @@
 # 商品限定上下文 - 领域模型
 
-> 阶段零产出之一；与需求列表相互对照。实现时以本文档为准。
+与需求、契约对照；实现以本文档为准。
 
 ---
 
-## 领域模型图
+## 模型图（PlantUML）
 
-![类别与 SPU 领域模型](catalog-domain-model-diagram.png)
+修改模型时改此处即可；渲染见 [PlantUML](https://www.plantuml.com/plantuml) 或 IDE 插件。
+
+```plantuml
+@startuml catalog-domain
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+left to right direction
+
+title 商品限定上下文 - 领域模型
+
+class Category <<聚合根>> {
+  - categoryId: Long
+  - parentId: Long {null=根}
+  - name: String *
+  - description: String
+  --
+  不变式: 名称必填；父为 null 或已存在；仅叶子可挂 SPU
+}
+
+class Spu <<聚合根>> {
+  - spuId: Long
+  - categoryId: Long *
+  - name: String *
+  - description: String
+  --
+  不变式: 名称、categoryId 必填
+}
+
+class SpecDimension <<实体>> {
+  - specDimensionId: Long
+  - spuId: Long
+  - name: String * {同SPU内唯一}
+  - required: boolean
+  - sortOrder: Integer
+  - affectsAppearance: boolean
+  --
+  不变式: 名称必填；同 SPU 内至多一个 affectsAppearance=true
+}
+
+class SpecOption <<实体>> {
+  - specOptionId: Long
+  - specDimensionId: Long
+  - optionValue: String * {同维度内唯一}
+  - sortOrder: Integer
+  - image: String
+  --
+  不变式: 选项值必填；仅当所属维度 affectsAppearance 时可有 image
+}
+
+class Sku <<实体>> {
+  - skuId: Long
+  - spuId: Long *
+  - displayName: String
+  - priceCents: Long * {>=0}
+  --
+  不变式: spuId、价格必填，价格≥0
+}
+
+class SkuSpecValue <<值对象>> {
+  - specOptionId: Long
+  --
+  不变式: 须属该 SPU 下某维度；每个必填维度恰好一条
+}
+
+Category "0..*" -- "0..1" Category : parent >
+Spu "0..*" --> "0..1" Category : categoryId
+Spu "1" *-- "0..*" SpecDimension : 组合
+Spu "1" *-- "0..*" Sku : 组合
+SpecDimension "1" *-- "0..*" SpecOption : 组合
+Sku "1" *-- "0..*" SkuSpecValue : 组合
+SkuSpecValue --> SpecOption : specOptionId
+
+note right of SpecDimension
+  影响外观(affectsAppearance):
+  仅此维度下的 Option 可填图片；
+  同一 SPU 下至多一个维度为 true
+end note
+@enduml
+```
 
 ---
 
-## 1. 聚合与实体
+## 实体与属性说明
 
-### 1.1 类别（Category）— 聚合根
+### 类目（Category）— 聚合根
 
-| 属性     | 类型   | 说明 |
-|----------|--------|------|
-| ID       | Long   | 唯一标识 |
-| 父类别 ID | Long   | 根类别为 null；有值则指向父类别，形成树 |
-| 名称     | String | 必填 |
-| 描述     | String | 可选 |
+| 属性       | 类型   | 说明 |
+|------------|--------|------|
+| CategoryID | Long   | 唯一标识 |
+| 父类目 ID  | Long   | 根为 null，形成树 |
+| 名称       | String | 必填 |
+| 描述       | String | 可选 |
 
-- **子类别**：不存储；由「父类别 ID = 本类别 ID」查询得出。无子即为叶子节点。
+**不变式**：名称必填；父类目 ID 为 null（根）或已存在类目；只有叶子类目才可以加入 SPU（创建 SPU 时校验）。
 
-### 1.2 SPU（商品）— 聚合根
+### SPU — 聚合根
 
-| 属性   | 类型 | 说明 |
-|--------|------|------|
-| ID     | Long | 唯一标识 |
-| 类别 ID | Long | 所属类别，必填 |
-| 名称   | String | 必填 |
-| 描述   | String | 可选 |
+| 属性       | 类型   | 说明 |
+|------------|--------|------|
+| SpuID      | Long   | 唯一标识 |
+| CategoryID | Long   | 所属类目，必填 |
+| 名称       | String | 必填 |
+| 描述       | String | 可选 |
 
-- 当前不做价格；后续可加。
-- 与类别关系：多对一（多个 SPU 属一个类别）；SPU 只存类别 ID，不持有关联对象。
+组合 SpecDimension、SKU。**不变式**：名称、CategoryID 必填；描述可选。
+
+#### SpecDimension — 实体
+
+| 属性            | 类型    | 说明 |
+|-----------------|---------|------|
+| SpecDimensionID | Long    | 唯一标识 |
+| SpuID           | Long    | 所属 SPU |
+| 维度名称        | String  | 必填，同 SPU 内唯一 |
+| 是否必填        | boolean | 创建 SKU 时是否必选 |
+| 排序            | Integer | 可选 |
+| 影响外观        | boolean | 该维度的 Option 才允许填图片；同 SPU 下至多一个为 true |
+
+组合 SpecOption（0..*）。**不变式**：维度名称必填、同 SPU 内唯一；下至少一个 SpecOption；同一 SPU 下至多一个「影响外观」为 true。
+
+#### SpecOption — 实体
+
+| 属性            | 类型   | 说明 |
+|-----------------|--------|------|
+| SpecOptionID    | Long   | 唯一标识 |
+| SpecDimensionID | Long   | 所属维度 |
+| 选项值          | String | 必填，同维度内唯一 |
+| 排序            | Integer| 可选 |
+| 图片            | String | 可选（仅当所属维度「影响外观」为 true 时） |
+
+**不变式**：选项值必填、同维度内唯一；仅当所属维度「影响外观」为 true 时方可填图片。
+
+#### SKU — 实体
+
+| 属性       | 类型   | 说明 |
+|------------|--------|------|
+| SkuID      | Long   | 唯一标识，全局唯一 |
+| SpuID      | Long   | 所属 SPU，必填 |
+| 规格展示名 | String | 可选 |
+| 价格       | Long   | 单位：分，必填、≥0 |
+
+组合 SKUSpecValue（0..*）。**不变式**：SpuID、价格必填，价格≥0。
+
+#### SKUSpecValue — 值对象
+
+| 属性         | 类型 | 说明 |
+|--------------|------|------|
+| SpecOptionID | Long | 选中的 SpecOption |
+
+**不变式**：SpecOptionID 须属该 SPU 下某 SpecDimension；每个必填维度恰好一条。
 
 ---
 
-## 2. 关系
+## 实体与表
 
-- **类别 ↔ 类别**：树形，每节点存父类别 ID；子类别通过 `parent_id = ?` 查询。
-- **SPU → 类别**：SPU 存 `类别 ID`；一个类别下可有多个 SPU（0..*），一个 SPU 只属一个类别（0..1）。
+| 模型 | 表名 |
+|------|------|
+| Category | category |
+| Spu | spu |
+| SpecDimension | spec_dimension |
+| SpecOption | spec_option |
+| Sku | sku |
+| SKUSpecValue | sku_id + spec_option_id |
 
----
-
-## 3. 不变式
-
-- **只有叶子类别才可以加入 SPU**  
-  创建商品时，`类别 ID` 必须指向当前**没有子类别**的类别；若有子类别则拒绝创建并提示。
-- **类别**：名称必填；父类别 ID 要么 null（根），要么指向已存在类别。
-- **SPU**：名称、类别 ID 必填；描述可选。
-
----
-
-## 4. 实现对照（与代码同步）
-
-- **Category**：`com.hmall.catalog.domain.Category`。两构造：`(parentId, name, description)` 新建、`(id, parentId, name, description)` 持久化还原；`isRoot()` 即 `parentId == null`。
-- **Spu**：`com.hmall.catalog.domain.Spu`。两构造：`(categoryId, name, description)` 新建、`(id, categoryId, name, description)` 持久化还原。
-- **不变式落实**：类别名称/父类别存在性在应用层 `CategoryApplicationService` 校验；「仅叶子类别可挂 SPU」在 `SpuApplicationService.create` 中通过 `existsByParentId(categoryId)` 校验，违规则抛 `NotLeafCategoryException`（API 层映射为 400）。
-
----
-
-## 5. 与需求的对应
-
-- 需求「管理类别」→ 本模型中的 Category 聚合（创建根/子、查询根下/某类别下子类别）。
-- 需求「管理商品」→ 本模型中的 Spu 聚合（在叶子类别下创建、按类别/ID 查询）；不变式对应需求 2.2「在非叶子类别下创建商品应失败」。
+不变式由应用层校验。

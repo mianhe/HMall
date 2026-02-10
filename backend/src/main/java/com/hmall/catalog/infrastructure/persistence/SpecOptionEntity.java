@@ -1,0 +1,71 @@
+package com.hmall.catalog.infrastructure.persistence;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "spec_option")
+public class SpecOptionEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "spec_dimension_id", nullable = false)
+    private Long specDimensionId;
+
+    @Column(name = "option_value", nullable = false)
+    private String optionValue;
+
+    @Column(name = "sort_order")
+    private Integer sortOrder;
+
+    @Column(length = 2000)
+    private String image;
+
+    public SpecOptionEntity() {}
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Long getSpecDimensionId() {
+        return specDimensionId;
+    }
+
+    public void setSpecDimensionId(Long specDimensionId) {
+        this.specDimensionId = specDimensionId;
+    }
+
+    public String getOptionValue() {
+        return optionValue;
+    }
+
+    public void setOptionValue(String optionValue) {
+        this.optionValue = optionValue;
+    }
+
+    public Integer getSortOrder() {
+        return sortOrder;
+    }
+
+    public void setSortOrder(Integer sortOrder) {
+        this.sortOrder = sortOrder;
+    }
+
+    public String getImage() {
+        return image;
+    }
+
+    public void setImage(String image) {
+        this.image = image;
+    }
+}

@@ -38,6 +38,11 @@ public class SpuRepositoryImpl implements SpuRepository {
             .collect(Collectors.toList());
     }
 
+    @Override
+    public void deleteById(Long id) {
+        jpaRepository.deleteById(id);
+    }
+
     private SpuEntity toEntity(Spu domain) {
         SpuEntity e = new SpuEntity();
         if (domain.getId() != null) {
