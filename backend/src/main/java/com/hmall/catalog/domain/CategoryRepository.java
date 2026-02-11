@@ -21,4 +21,6 @@ public interface CategoryRepository {
 
     /** 是否存在以给定 ID 为父类别的子类别（用于判断是否叶子节点） */
     boolean existsByParentId(Long parentId);
+
+    void deleteById(Long id);
 }

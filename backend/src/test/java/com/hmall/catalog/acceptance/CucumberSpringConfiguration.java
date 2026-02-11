@@ -5,14 +5,15 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.hmall.catalog.acceptance.config.AcceptanceTestConfig;
+import com.hmall.user.acceptance.config.UserAcceptanceTestConfig;
 import com.hmall.HmallApplication;
 
 /**
- * Cucumber 与 Spring Boot 集成：启动应用。Bean 由 AcceptanceTestConfig 提供。
+ * Cucumber 与 Spring Boot 集成：启动应用。Bean 由各 BC 的 AcceptanceTestConfig 提供。
  */
 @CucumberContextConfiguration
 @SpringBootTest(
-    classes = { HmallApplication.class, AcceptanceTestConfig.class },
+    classes = { HmallApplication.class, AcceptanceTestConfig.class, UserAcceptanceTestConfig.class },
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT
 )
 @ActiveProfiles("test")

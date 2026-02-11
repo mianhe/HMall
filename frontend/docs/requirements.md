@@ -1,6 +1,6 @@
 # 前端功能需求
 
-前端有哪些页面、各做什么、对应哪些后端 API。后端需求见 `backend/docs/catalog/catalog-requirements.md`。
+前端有哪些页面、各做什么、对应哪些后端 API。后端需求见 `docs/bounded-contexts/catalog/requirements.md`。
 
 ---
 
@@ -58,5 +58,5 @@
 
 | 文档 | 用途 |
 |------|------|
-| `backend/docs/catalog/catalog-requirements.md` | 后端需求与 .feature |
-| `backend/docs/frontend/frontend-design-input.md` | 前端设计输入（FSD + Atomic、组件结构） |
+| `docs/bounded-contexts/catalog/requirements.md` | 后端需求与 .feature |
+| `frontend/docs/design-input.md` | 前端设计输入（FSD + Atomic、组件结构） |

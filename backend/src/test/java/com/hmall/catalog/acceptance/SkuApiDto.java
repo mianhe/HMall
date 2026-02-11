@@ -13,6 +13,11 @@ public final class SkuApiDto {
         public String displayName;
     }
 
+    public static class Update {
+        public Long priceCents;
+        public String displayName;
+    }
+
     public static class SpecValue {
         public String dimensionName;
         public String optionValue;

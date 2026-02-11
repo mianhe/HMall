@@ -50,6 +50,17 @@ public class SkuRepositoryImpl implements SkuRepository {
     }
 
     @Override
+    public boolean existsBySpecOptionId(Long optionId) {
+        return specValueJpaRepository.existsBySpecOptionId(optionId);
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        specValueJpaRepository.deleteBySkuId(id);
+        skuJpaRepository.deleteById(id);
+    }
+
+    @Override
     public List<Sku> findBySpuId(Long spuId) {
         return skuJpaRepository.findBySpuIdOrderByIdAsc(spuId).stream()
             .map(entity -> {

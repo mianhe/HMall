@@ -9,13 +9,13 @@
 ### ATDD 相关做法
 
 - **先写验收、再实现**：用 Gherkin 在 `.feature` 里写场景（假如/当/那么），用 Cucumber + Step Definitions 调 REST API 做断言；新场景先红（接口未实现），再按实现路径一步步做到绿。
-- **契约与实现一致**：接口形态以 OpenAPI（如 `backend/docs/catalog/catalog-api.yaml`）为准，Step Definitions 的请求与断言与契约对齐。
-- **分步实现与验收**：按「实现路径」文档（如 `backend/docs/catalog/implementation-path.md`）拆成小步，每步只实现最少接口、让对应用例先绿，再进入下一步。
+- **契约与实现一致**：接口形态以 OpenAPI（如 `docs/bounded-contexts/catalog/api.yaml`）为准，Step Definitions 的请求与断言与契约对齐。
+- **分步实现与验收**：按「实现路径」文档（如 `docs/bounded-contexts/catalog/process/implementation-path.md`）拆成小步，每步只实现最少接口、让对应用例先绿，再进入下一步。
 - **变绿后重构与清理**：实现全绿后对生产代码和测试代码做一次整理（去冗余、统一风格、语义相同的步骤收口到共用断言等），验收保持全绿。
 
 ### DDD 相关做法
 
-- **限界上下文**：后端按上下文划分（当前已做「商品限定上下文」Catalog：类目、商品 SPU、规格维度与选项、SKU），文档与代码目录按上下文组织（如 `docs/catalog/`、`features/catalog/`）。
+- **限界上下文**：后端按上下文划分（当前已做「商品限定上下文」Catalog：类目、商品 SPU、规格维度与选项、SKU），文档与代码目录按上下文组织（如 `docs/bounded-contexts/catalog/`、`features/catalog/`）。
 - **分层与职责**：领域层（实体、仓储接口）→ 基础设施层（JPA 实体、仓储实现）→ 应用层（用例、事务、业务校验与领域异常）→ API 层（Controller、DTO、统一异常转 HTTP 状态码）。依赖由外向内，领域不依赖框架。
 - **领域表达**：聚合与实体在领域层用纯 Java 表达；业务校验失败（如「未选齐必填维度」「价格不能为负」）用领域异常（如 `SkuValidationException`）抛出，由 API 层统一转 400 等。
 
@@ -30,8 +30,8 @@
 
 | 端 | 文档 | 说明 |
 |----|------|------|
-| **后端** | `backend/docs/catalog/catalog-requirements.md` | 后端功能列表，与 .feature 一一对应 |
-| **前端** | `frontend/docs/requirements.md` | 前端功能列表：已实现页面/路由、待开发能力、与后端对应关系 |
+| **后端** | `docs/bounded-contexts/catalog/requirements.md` | 后端功能列表，与 .feature 一一对应 |
+| **前端** | `docs/frontend/requirements.md` | 前端功能：单页分层展示 Catalog（类目→商品→SKU） |
 | **MCP** | `hmall-mcp/README.md` | MCP Server 的 Tools 列表、stdio/HTTP 启动方式、Client 配置说明 |
 
 ## 环境要求
@@ -109,6 +109,11 @@ open backend/target/reports/cucumber.html
 
 ```
 ├── Readme.md               # 本文件
+├── docs/                   # 文档（按上下文分目录）
+│   ├── bounded-contexts/   # 限界上下文
+│   │   ├── context-map.md  # 上下文地图
+│   │   └── catalog/        # Catalog 需求、领域模型、API 契约、process/
+│   └── frontend/           # 前端设计输入、需求
 ├── scripts/                # 系统操作脚本（一键启动/停止/状态/重启/测试）
 │   ├── hmall.sh            # 入口脚本
 │   └── README.md           # 命令与参数说明
@@ -119,15 +124,14 @@ open backend/target/reports/cucumber.html
 │   ├── src/main/
 │   │   ├── java/com/hmall/  # 主类、API、应用层、领域、基础设施
 │   │   └── resources/      # application.yml、static/
-│   ├── src/test/
-│   │   ├── java/.../acceptance  # Cucumber 验收测试（Step Definitions）
-│   │   └── resources/features/catalog/  # .feature（category, product, spec-dimension, sku）
-│   └── docs/catalog/       # 需求、领域模型、API 契约、实现路径等
+│   └── src/test/
+│       ├── java/.../acceptance  # Cucumber 验收测试（Step Definitions）
+│       └── resources/features/catalog/  # .feature（category, product, spec-dimension, sku）
 ├── frontend/               # Vue 3 + Vite 管理后台
 │   ├── package.json
 │   ├── src/
 │   │   ├── shared/         # api（catalog 接口）、ui（AppHeader 等）
-│   │   ├── pages/          # 首页、类别列表/新建、商品列表/新建/详情
+│   │   ├── pages/          # 首页、Catalog 一页全览（展示为主，增删改由 MCP）
 │   │   └── router/
 │   └── vite.config.js      # 开发时代理 /api → localhost:8080
 └── hmall-mcp/              # MCP Server（stdio + HTTP，供 AI Client 调 Catalog API）

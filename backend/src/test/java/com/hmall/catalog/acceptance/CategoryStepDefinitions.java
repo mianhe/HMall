@@ -31,7 +31,8 @@ public class CategoryStepDefinitions {
     /** 类别名称 -> 创建后得到的 id（用于“在某某下创建子类别”等步骤） */
     private final Map<String, Long> categoryNameToId = new ConcurrentHashMap<>();
 
-    private ResponseEntity<CategoryApiDto.Response> lastCreateResponse;
+    /** 最后一次单条类别响应（创建 / 修改 / 查详情共用） */
+    private ResponseEntity<CategoryApiDto.Response> lastCategoryResponse;
     private ResponseEntity<List<CategoryApiDto.Response>> lastListResponse;
 
     public CategoryStepDefinitions(TestRestTemplate restTemplate, CatalogTestContext context) {
@@ -43,31 +44,35 @@ public class CategoryStepDefinitions {
         return restTemplate.getRootUri().toString();
     }
 
+    private void setContextStatus(ResponseEntity<?> res) {
+        if (context != null && res != null) {
+            context.setLastStatusCode(res.getStatusCode().value());
+        }
+    }
+
     // ---------- 创建根级类别 ----------
     @When("用户创建根级类别 {string}")
     public void 用户创建根级类别(String name) {
         CategoryApiDto.Create body = new CategoryApiDto.Create();
         body.name = name;
         body.parentId = null;
-        lastCreateResponse = postCategory(body);
-        if (context != null) {
-            context.setLastStatusCode(lastCreateResponse.getStatusCode().value());
-        }
-        if (lastCreateResponse.getStatusCode().is2xxSuccessful() && lastCreateResponse.getBody() != null) {
-            categoryNameToId.put(name, lastCreateResponse.getBody().id);
+        lastCategoryResponse = postCategory(body);
+        setContextStatus(lastCategoryResponse);
+        if (lastCategoryResponse.getStatusCode().is2xxSuccessful() && lastCategoryResponse.getBody() != null) {
+            categoryNameToId.put(name, lastCategoryResponse.getBody().id);
         }
     }
 
     @And("返回的类别名称为 {string}")
     public void 返回的类别名称为(String expectedName) {
-        assertThat(lastCreateResponse.getBody()).isNotNull();
-        assertThat(lastCreateResponse.getBody().name).isEqualTo(expectedName);
+        assertThat(lastCategoryResponse.getBody()).isNotNull();
+        assertThat(lastCategoryResponse.getBody().name).isEqualTo(expectedName);
     }
 
     @And("该类别无父类别")
     public void 该类别无父类别() {
-        assertThat(lastCreateResponse.getBody()).isNotNull();
-        assertThat(lastCreateResponse.getBody().parentId).isNull();
+        assertThat(lastCategoryResponse.getBody()).isNotNull();
+        assertThat(lastCategoryResponse.getBody().parentId).isNull();
     }
 
     // ---------- 已存在根级类别（Given） ----------
@@ -77,9 +82,7 @@ public class CategoryStepDefinitions {
         body.name = name;
         body.parentId = null;
         ResponseEntity<CategoryApiDto.Response> res = postCategory(body);
-        if (context != null) {
-            context.setLastStatusCode(res.getStatusCode().value());
-        }
+        setContextStatus(res);
         assertThat(res.getStatusCode().value()).isEqualTo(201);
         if (res.getBody() != null) {
             categoryNameToId.put(name, res.getBody().id);
@@ -92,12 +95,10 @@ public class CategoryStepDefinitions {
         CategoryApiDto.Create body = new CategoryApiDto.Create();
         body.name = childName;
         body.parentId = parentId;
-        lastCreateResponse = postCategory(body);
-        if (context != null) {
-            context.setLastStatusCode(lastCreateResponse.getStatusCode().value());
-        }
-        if (lastCreateResponse.getStatusCode().is2xxSuccessful() && lastCreateResponse.getBody() != null) {
-            categoryNameToId.put(childName, lastCreateResponse.getBody().id);
+        lastCategoryResponse = postCategory(body);
+        setContextStatus(lastCategoryResponse);
+        if (lastCategoryResponse.getStatusCode().is2xxSuccessful() && lastCategoryResponse.getBody() != null) {
+            categoryNameToId.put(childName, lastCategoryResponse.getBody().id);
         }
     }
 
@@ -108,20 +109,69 @@ public class CategoryStepDefinitions {
         CategoryApiDto.Create body = new CategoryApiDto.Create();
         body.name = childName;
         body.parentId = parentId;
-        lastCreateResponse = postCategory(body);
-        if (context != null) {
-            context.setLastStatusCode(lastCreateResponse.getStatusCode().value());
-        }
-        if (lastCreateResponse.getStatusCode().is2xxSuccessful() && lastCreateResponse.getBody() != null) {
-            categoryNameToId.put(childName, lastCreateResponse.getBody().id);
+        lastCategoryResponse = postCategory(body);
+        setContextStatus(lastCategoryResponse);
+        if (lastCategoryResponse.getStatusCode().is2xxSuccessful() && lastCategoryResponse.getBody() != null) {
+            categoryNameToId.put(childName, lastCategoryResponse.getBody().id);
         }
     }
 
     @And("该类别的父类别为 {string}")
     public void 该类别的父类别为(String parentName) {
         Long expectedParentId = categoryNameToId.get(parentName);
-        assertThat(lastCreateResponse.getBody()).isNotNull();
-        assertThat(lastCreateResponse.getBody().parentId).isEqualTo(expectedParentId);
+        assertThat(lastCategoryResponse.getBody()).isNotNull();
+        assertThat(lastCategoryResponse.getBody().parentId).isEqualTo(expectedParentId);
+    }
+
+    @And("返回的类别描述为 {string}")
+    public void 返回的类别描述为(String expectedDescription) {
+        assertThat(lastCategoryResponse.getBody()).isNotNull();
+        assertThat(lastCategoryResponse.getBody().description).isEqualTo(expectedDescription);
+    }
+
+    // ---------- 修改类别 ----------
+    @When("用户将类别 {string} 修改为名称 {string} 描述 {string}")
+    public void 用户将类别修改为名称描述(String categoryName, String newName, String newDescription) {
+        Long id = categoryNameToId.get(categoryName);
+        assertThat(id).as("类别「%s」应先存在", categoryName).isNotNull();
+        CategoryApiDto.Update body = new CategoryApiDto.Update();
+        body.name = newName;
+        body.description = newDescription;
+        lastCategoryResponse = putCategory(id, body);
+        setContextStatus(lastCategoryResponse);
+    }
+
+    @When("用户将类目 ID {long} 修改为名称 {string}")
+    public void 用户将类目ID修改为名称(long id, String newName) {
+        CategoryApiDto.Update body = new CategoryApiDto.Update();
+        body.name = newName;
+        body.description = null;
+        lastCategoryResponse = putCategory(id, body);
+        setContextStatus(lastCategoryResponse);
+    }
+
+    // ---------- 删除类别 ----------
+    @When("用户删除类别 {string}")
+    public void 用户删除类别(String categoryName) {
+        Long id = categoryNameToId.get(categoryName);
+        assertThat(id).as("类别「%s」应先存在", categoryName).isNotNull();
+        ResponseEntity<Void> res = deleteCategory(id);
+        setContextStatus(res);
+    }
+
+    @When("用户删除类目 ID {long}")
+    public void 用户删除类目ID(long id) {
+        ResponseEntity<Void> res = deleteCategory(id);
+        setContextStatus(res);
+    }
+
+    // ---------- 按 ID 查类别详情 ----------
+    @When("用户请求类别 {string} 的详情")
+    public void 用户请求类别详情(String categoryName) {
+        Long id = categoryNameToId.get(categoryName);
+        assertThat(id).as("类别「%s」应先存在（或曾存在）", categoryName).isNotNull();
+        lastCategoryResponse = getCategoryById(id);
+        setContextStatus(lastCategoryResponse);
     }
 
     // ---------- 已存在根级类别「手机」和「平板」 ----------
@@ -170,18 +220,7 @@ public class CategoryStepDefinitions {
 
     // ---------- API 调用封装 ----------
     private ResponseEntity<CategoryApiDto.Response> postCategory(CategoryApiDto.Create body) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        try {
-            return restTemplate.exchange(
-                baseUrl() + "/api/categories",
-                HttpMethod.POST,
-                new HttpEntity<>(body, headers),
-                CategoryApiDto.Response.class
-            );
-        } catch (RestClientResponseException e) {
-            return ResponseEntity.status(e.getStatusCode()).body(null);
-        }
+        return CategoryApiDto.postCategory(restTemplate, body);
     }
 
     private static final ParameterizedTypeReference<List<CategoryApiDto.Response>> LIST_OF_CATEGORY =
@@ -194,6 +233,43 @@ public class CategoryStepDefinitions {
         }
         try {
             return restTemplate.exchange(url, HttpMethod.GET, null, LIST_OF_CATEGORY);
+        } catch (RestClientResponseException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(null);
+        }
+    }
+
+    private ResponseEntity<CategoryApiDto.Response> getCategoryById(Long id) {
+        String url = baseUrl() + "/api/categories/" + id;
+        try {
+            return restTemplate.exchange(url, HttpMethod.GET, null, CategoryApiDto.Response.class);
+        } catch (RestClientResponseException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(null);
+        }
+    }
+
+    private ResponseEntity<CategoryApiDto.Response> putCategory(Long id, CategoryApiDto.Update body) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        try {
+            return restTemplate.exchange(
+                baseUrl() + "/api/categories/" + id,
+                HttpMethod.PUT,
+                new HttpEntity<>(body, headers),
+                CategoryApiDto.Response.class
+            );
+        } catch (RestClientResponseException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(null);
+        }
+    }
+
+    private ResponseEntity<Void> deleteCategory(Long id) {
+        try {
+            return restTemplate.exchange(
+                baseUrl() + "/api/categories/" + id,
+                HttpMethod.DELETE,
+                null,
+                Void.class
+            );
         } catch (RestClientResponseException e) {
             return ResponseEntity.status(e.getStatusCode()).body(null);
         }

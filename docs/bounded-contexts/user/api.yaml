@@ -1,0 +1,30 @@
+openapi: 3.0.3
+info:
+  title: 用户限定上下文 API
+  description: 用户管理的 REST 契约。Step Definitions 与实现均按此规范。
+  version: 0.1.0
+
+paths:
+  /api/users:
+    get:
+      summary: 查询用户列表（占位）
+      description: 占位接口，返回空列表。
+      responses:
+        '200':
+          description: 用户列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+
+components:
+  schemas:
+    Error:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: 错误信息

@@ -42,6 +42,11 @@ public class SpecOptionRepositoryImpl implements SpecOptionRepository {
         return jpaRepository.existsBySpecDimensionIdAndOptionValue(specDimensionId, optionValue);
     }
 
+    @Override
+    public void deleteById(Long id) {
+        jpaRepository.deleteById(id);
+    }
+
     private SpecOptionEntity toEntity(SpecOption domain) {
         SpecOptionEntity e = new SpecOptionEntity();
         if (domain.getId() != null) {

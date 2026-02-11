@@ -13,4 +13,9 @@ public interface SkuRepository {
     Optional<Sku> findById(Long id);
 
     List<Sku> findBySpuId(Long spuId);
+
+    /** 是否存在任意 SKU 使用了该规格选项 */
+    boolean existsBySpecOptionId(Long optionId);
+
+    void deleteById(Long id);
 }

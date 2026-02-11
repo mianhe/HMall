@@ -84,6 +84,9 @@ tool 的 description 和参数 schema 定义在 `tools/catalog.js` 的 `server.t
 |------|------|------|
 | `catalog_list_categories` | 查类目列表 | `parentId?`: number — 父类目 ID，不传查根类目 |
 | `catalog_create_category` | 创建类目 | `name`: string, `description?`: string, `parentId?`: number |
+| `catalog_get_category` | 查类目详情 | `categoryId`: number |
+| `catalog_update_category` | 修改类目（名称、描述） | `categoryId`: number, `name`: string, `description?`: string |
+| `catalog_delete_category` | 删除类目 | `categoryId`: number |
 
 ### 商品（SPU）
 
@@ -107,6 +110,8 @@ tool 的 description 和参数 schema 定义在 `tools/catalog.js` 的 `server.t
 |------|------|------|
 | `catalog_list_skus` | 查某 SPU 下 SKU 列表 | `spuId`: number |
 | `catalog_create_sku` | 创建 SKU | `spuId`: number, `specOptionIds`: number[], `priceCents`: number (>=0), `displayName?`: string |
+| `catalog_update_sku` | 修改 SKU（价格、展示名） | `spuId`: number, `skuId`: number, `priceCents?`: number (>=0), `displayName?`: string |
+| `catalog_delete_sku` | 删除 SKU | `spuId`: number, `skuId`: number |
 
 > 参数后带 `?` 表示可选，不带则必填。
 

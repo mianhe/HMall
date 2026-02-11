@@ -248,10 +248,27 @@ run_stop() {
 cmd_test() {
   local cucumber_only=0
   local clean=0
+  local bc_filter=""
   while [ $# -gt 0 ]; do
     case "$1" in
       --cucumber-only) cucumber_only=1 ;;
       --clean) clean=1 ;;
+      --bc)
+        shift
+        if [ -z "${1:-}" ]; then
+          echo "Error: --bc requires a value (catalog|user|all)" >&2
+          exit 1
+        fi
+        case "$1" in
+          catalog) bc_filter="@catalog" ;;
+          user) bc_filter="@user" ;;
+          all) bc_filter="" ;;
+          *)
+            echo "Error: --bc must be catalog, user, or all" >&2
+            exit 1
+            ;;
+        esac
+        ;;
     esac
     shift
   done
@@ -261,10 +278,13 @@ cmd_test() {
     start_db
   fi
 
+  local mvn_opts=""
+  [ -n "$bc_filter" ] && mvn_opts="$mvn_opts -Dcucumber.filter.tags=$bc_filter"
+
   (cd "${ROOT}/backend" && \
-    if [ $clean -eq 1 ]; then mvn clean test; \
-    elif [ $cucumber_only -eq 1 ]; then mvn test -Dtest=RunCucumberTest; \
-    else mvn test; fi)
+    if [ $clean -eq 1 ]; then mvn clean test $mvn_opts; \
+    elif [ $cucumber_only -eq 1 ]; then mvn test -Dtest=RunCucumberTest $mvn_opts; \
+    else mvn test $mvn_opts; fi)
 }
 
 # ---------- main ----------
@@ -272,7 +292,7 @@ usage() {
   echo "Usage: $0 <command> [options] [components]"
   echo "  command:  start | stop | status | restart | test"
   echo "  components: db | backend | frontend | mcp (default: all for start/stop/restart)"
-  echo "  test options: [--cucumber-only] [--clean]"
+  echo "  test options: [--cucumber-only] [--clean] [--bc catalog|user|all]"
   echo "See scripts/README.md for details."
 }
 

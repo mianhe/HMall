@@ -111,7 +111,7 @@
 - **框架**：Vue 3 + Vite + Vue Router
 - **样式**：Tailwind CSS
 - **请求**：axios，baseURL 开发时用 Vite 代理到 `http://localhost:8080`
-- **与后端对齐**：请求/响应结构与 `backend/docs/catalog/catalog-api.yaml` 一致（Category、CategoryCreate、Product、ProductCreate、Error）
+- **与后端对齐**：请求/响应结构与 `docs/bounded-contexts/catalog/api.yaml` 一致（Category、CategoryCreate、Product、ProductCreate、Error）
 
 ---
 

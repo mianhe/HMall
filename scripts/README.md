@@ -10,7 +10,7 @@
 | **stop** | 停止指定组件或全部 | `./scripts/hmall.sh stop`、`./scripts/hmall.sh stop backend mcp` |
 | **status** | 查看各组件运行状态与端口 | `./scripts/hmall.sh status` |
 | **restart** | 重启（先停再起） | `./scripts/hmall.sh restart`、`./scripts/hmall.sh restart backend` |
-| **test** | 执行后端用例（需数据库已启动） | `./scripts/hmall.sh test`、`./scripts/hmall.sh test --cucumber-only` |
+| **test** | 执行后端用例（需数据库已启动） | `./scripts/hmall.sh test`、`./scripts/hmall.sh test --cucumber-only`、`./scripts/hmall.sh test --bc user` |
 
 ## 组件名称
 
@@ -50,16 +50,20 @@
   - `./scripts/hmall.sh restart` — 重启全部
   - `./scripts/hmall.sh restart backend` — 仅重启后端
 
-### test [--cucumber-only] [--clean]
+### test [--cucumber-only] [--clean] [--bc catalog|user|all]
 
 - 在 **backend** 目录执行 Maven 测试；执行前会检查数据库是否已启动，未启动则先启动 db。
+- **测试与生产数据隔离**：验收测试使用 H2 内存库（`application-test.yml`），与 PostgreSQL 完全隔离，测试结束后不会清空生产/开发库。
 - 参数：
   - 无参数：`mvn test`（单元 + Cucumber 验收）
   - `--cucumber-only`：仅验收测试 `mvn test -Dtest=RunCucumberTest`
   - `--clean`：先清理再测 `mvn clean test`
+  - `--bc <catalog|user|all>`：仅执行指定 BC 的 Cucumber 场景（默认 all）
 - 示例：
   - `./scripts/hmall.sh test`
   - `./scripts/hmall.sh test --cucumber-only`
+  - `./scripts/hmall.sh test --cucumber-only --bc user` — 仅执行 User BC 验收测试
+  - `./scripts/hmall.sh test --cucumber-only --bc catalog` — 仅执行 Catalog BC 验收测试
   - `./scripts/hmall.sh test --clean`
 
 ## 环境与约定

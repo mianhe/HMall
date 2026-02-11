@@ -68,6 +68,46 @@ export function registerCatalogTools(server) {
     }
   )
 
+  server.tool(
+    'catalog_get_category',
+    '按 ID 查询类目详情',
+    { categoryId: z.number().describe('类目 ID') },
+    async ({ categoryId }) => {
+      try {
+        const c = await api('GET', `/categories/${categoryId}`)
+        return ok(`类目详情：\n- ID: ${c.id}\n- 名称: ${c.name}\n- 描述: ${c.description || '—'}\n- 父类目ID: ${c.parentId ?? '根'}`)
+      } catch (e) { return err(e) }
+    }
+  )
+
+  server.tool(
+    'catalog_update_category',
+    '修改类目（名称、描述）',
+    {
+      categoryId: z.number().describe('类目 ID'),
+      name: z.string().describe('新名称'),
+      description: z.string().optional().describe('新描述'),
+    },
+    async ({ categoryId, name, description }) => {
+      try {
+        const c = await api('PUT', `/categories/${categoryId}`, { name, description: description ?? null })
+        return ok(`修改成功：ID=${c.id}，名称="${c.name}"，描述="${c.description || '—'}"`)
+      } catch (e) { return err(e) }
+    }
+  )
+
+  server.tool(
+    'catalog_delete_category',
+    '删除类目',
+    { categoryId: z.number().describe('类目 ID') },
+    async ({ categoryId }) => {
+      try {
+        await api('DELETE', `/categories/${categoryId}`)
+        return ok(`删除成功：类目 ID=${categoryId} 已删除。`)
+      } catch (e) { return err(e) }
+    }
+  )
+
   // ── 商品(SPU) ──
 
   server.tool(
@@ -109,6 +149,34 @@ export function registerCatalogTools(server) {
       try {
         const p = await api('POST', '/products', { categoryId, name, description: description || null })
         return ok(`创建成功：ID=${p.id}，名称="${p.name}"`)
+      } catch (e) { return err(e) }
+    }
+  )
+
+  server.tool(
+    'catalog_update_product',
+    '修改商品（名称、描述）',
+    {
+      productId: z.number().describe('商品 ID'),
+      name: z.string().describe('新名称'),
+      description: z.string().optional().describe('新描述'),
+    },
+    async ({ productId, name, description }) => {
+      try {
+        const p = await api('PUT', `/products/${productId}`, { name, description: description ?? null })
+        return ok(`修改成功：ID=${p.id}，名称="${p.name}"，描述="${p.description || '—'}"`)
+      } catch (e) { return err(e) }
+    }
+  )
+
+  server.tool(
+    'catalog_delete_product',
+    '删除商品',
+    { productId: z.number().describe('商品 ID') },
+    async ({ productId }) => {
+      try {
+        await api('DELETE', `/products/${productId}`)
+        return ok(`删除成功：商品 ID=${productId} 已删除。`)
       } catch (e) { return err(e) }
     }
   )
@@ -172,6 +240,22 @@ export function registerCatalogTools(server) {
     }
   )
 
+  server.tool(
+    'catalog_delete_option',
+    '删除某维度的规格选项（若已被 SKU 使用则无法删除）',
+    {
+      spuId: z.number().describe('商品(SPU) ID'),
+      dimensionId: z.number().describe('维度 ID'),
+      optionId: z.number().describe('选项 ID'),
+    },
+    async ({ spuId, dimensionId, optionId }) => {
+      try {
+        await api('DELETE', `/products/${spuId}/dimensions/${dimensionId}/options/${optionId}`)
+        return ok(`已删除选项 ID=${optionId}`)
+      } catch (e) { return err(e) }
+    }
+  )
+
   // ── SKU ──
 
   server.tool(
@@ -211,6 +295,42 @@ export function registerCatalogTools(server) {
         })
         const spec = (s.specValues || []).map(v => `${v.dimensionName}:${v.optionValue}`).join(' · ')
         return ok(`创建 SKU 成功：ID=${s.id}，规格=${spec}，价格=${(s.priceCents / 100).toFixed(2)}元`)
+      } catch (e) { return err(e) }
+    }
+  )
+
+  server.tool(
+    'catalog_update_sku',
+    '修改 SKU（价格、展示名）',
+    {
+      spuId: z.number().describe('商品(SPU) ID'),
+      skuId: z.number().describe('SKU ID'),
+      priceCents: z.number().min(0).optional().describe('新价格（分），不传则不变'),
+      displayName: z.string().optional().describe('新展示名，不传则不变'),
+    },
+    async ({ spuId, skuId, priceCents, displayName }) => {
+      try {
+        const body = {}
+        if (priceCents != null) body.priceCents = priceCents
+        if (displayName !== undefined) body.displayName = displayName || null
+        const s = await api('PUT', `/products/${spuId}/skus/${skuId}`, body)
+        const spec = (s.specValues || []).map(v => `${v.dimensionName}:${v.optionValue}`).join(' · ')
+        return ok(`修改成功：ID=${s.id}，规格=${spec}，价格=${(s.priceCents / 100).toFixed(2)}元`)
+      } catch (e) { return err(e) }
+    }
+  )
+
+  server.tool(
+    'catalog_delete_sku',
+    '删除 SKU',
+    {
+      spuId: z.number().describe('商品(SPU) ID'),
+      skuId: z.number().describe('SKU ID'),
+    },
+    async ({ spuId, skuId }) => {
+      try {
+        await api('DELETE', `/products/${spuId}/skus/${skuId}`)
+        return ok(`已删除 SKU ID=${skuId}`)
       } catch (e) { return err(e) }
     }
   )

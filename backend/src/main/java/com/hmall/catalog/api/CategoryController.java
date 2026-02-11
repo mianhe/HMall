@@ -2,12 +2,16 @@ package com.hmall.catalog.api;
 
 import com.hmall.catalog.api.dto.CategoryCreateDto;
 import com.hmall.catalog.api.dto.CategoryDto;
+import com.hmall.catalog.api.dto.CategoryUpdateDto;
 import com.hmall.catalog.application.CategoryApplicationService;
 import com.hmall.catalog.domain.Category;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -42,6 +46,24 @@ public class CategoryController {
         return applicationService.listByParentId(parentId).stream()
             .map(this::toDto)
             .toList();
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<CategoryDto> getById(@PathVariable Long id) {
+        Category category = applicationService.getById(id);
+        return ResponseEntity.ok(toDto(category));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<CategoryDto> update(@PathVariable Long id, @RequestBody CategoryUpdateDto dto) {
+        Category updated = applicationService.update(id, dto.name(), dto.description());
+        return ResponseEntity.ok(toDto(updated));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        applicationService.delete(id);
+        return ResponseEntity.noContent().build();
     }
 
     private CategoryDto toDto(Category c) {

@@ -12,6 +12,12 @@ public final class ProductApiDto {
         public String description;
     }
 
+    /** 修改商品请求体 */
+    public static class Update {
+        public String name;
+        public String description;
+    }
+
     /** 商品响应体 */
     public static class Response {
         public Long id;

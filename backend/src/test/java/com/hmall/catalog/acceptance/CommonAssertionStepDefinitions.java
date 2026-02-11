@@ -6,7 +6,7 @@ import io.cucumber.java.en.Then;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * 共享的 Then 步骤：应创建失败、应返回 404。
+ * 共享的 Then 步骤：成功/失败与 404 断言。
  * 各 Step Definition 在发起请求后需将响应状态码写入 {@link CatalogTestContext#setLastStatusCode(int)}。
  */
 public class CommonAssertionStepDefinitions {
@@ -24,13 +24,37 @@ public class CommonAssertionStepDefinitions {
 
     @Then("应创建失败")
     public void 应创建失败() {
-        int status = context.getLastStatusCode();
-        assertThat(status).isGreaterThanOrEqualTo(0);
-        assertThat(status < 200 || status >= 300).as("期望状态码为 4xx/5xx 或 <200，实际 %d", status).isTrue();
+        assertNot2xx();
+    }
+
+    @Then("应修改成功")
+    public void 应修改成功() {
+        assertThat(context.getLastStatusCode()).isEqualTo(200);
+    }
+
+    @Then("应修改失败")
+    public void 应修改失败() {
+        assertNot2xx();
+    }
+
+    @Then("应删除成功")
+    public void 应删除成功() {
+        assertThat(context.getLastStatusCode()).isEqualTo(204);
+    }
+
+    @Then("应删除失败")
+    public void 应删除失败() {
+        assertNot2xx();
     }
 
     @And("应返回 404")
     public void 应返回404() {
         assertThat(context.getLastStatusCode()).isEqualTo(404);
+    }
+
+    private void assertNot2xx() {
+        int status = context.getLastStatusCode();
+        assertThat(status).isGreaterThanOrEqualTo(0);
+        assertThat(status < 200 || status >= 300).as("期望状态码为 4xx/5xx 或 <200，实际 %d", status).isTrue();
     }
 }

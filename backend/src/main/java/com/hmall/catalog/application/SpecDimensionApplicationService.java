@@ -5,6 +5,7 @@ import com.hmall.catalog.domain.SpecDimensionRepository;
 import com.hmall.catalog.domain.SpecOption;
 import com.hmall.catalog.domain.SpecOptionRepository;
 import com.hmall.catalog.domain.SpuRepository;
+import com.hmall.catalog.domain.SkuRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,14 +20,17 @@ public class SpecDimensionApplicationService {
     private final SpecDimensionRepository dimensionRepository;
     private final SpecOptionRepository optionRepository;
     private final SpuRepository spuRepository;
+    private final SkuRepository skuRepository;
 
     public SpecDimensionApplicationService(
             SpecDimensionRepository dimensionRepository,
             SpecOptionRepository optionRepository,
-            SpuRepository spuRepository) {
+            SpuRepository spuRepository,
+            SkuRepository skuRepository) {
         this.dimensionRepository = dimensionRepository;
         this.optionRepository = optionRepository;
         this.spuRepository = spuRepository;
+        this.skuRepository = skuRepository;
     }
 
     @Transactional
@@ -65,6 +69,21 @@ public class SpecDimensionApplicationService {
                 return new DimensionWithOptions(dim, options);
             })
             .toList();
+    }
+
+    @Transactional
+    public void deleteOption(Long spuId, Long dimensionId, Long optionId) {
+        SpecOption option = optionRepository.findById(optionId)
+            .orElseThrow(() -> new IllegalArgumentException("选项不存在"));
+        SpecDimension dimension = dimensionRepository.findById(dimensionId)
+            .orElseThrow(() -> new IllegalArgumentException("维度不存在"));
+        if (!dimension.getSpuId().equals(spuId) || !option.getSpecDimensionId().equals(dimensionId)) {
+            throw new IllegalArgumentException("选项不存在");
+        }
+        if (skuRepository.existsBySpecOptionId(optionId)) {
+            throw new SpecOptionInUseException("该选项已被 SKU 使用，无法删除");
+        }
+        optionRepository.deleteById(optionId);
     }
 
     /** 维度及其下选项列表，供 GET 维度及选项使用 */

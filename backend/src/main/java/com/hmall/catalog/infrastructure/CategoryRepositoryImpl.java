@@ -8,7 +8,6 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Repository
 public class CategoryRepositoryImpl implements CategoryRepository {
@@ -36,12 +35,17 @@ public class CategoryRepositoryImpl implements CategoryRepository {
         List<CategoryEntity> list = parentId == null
             ? jpaRepository.findByParentIdIsNull()
             : jpaRepository.findByParentId(parentId);
-        return list.stream().map(this::toDomain).collect(Collectors.toList());
+        return list.stream().map(this::toDomain).toList();
     }
 
     @Override
     public boolean existsByParentId(Long parentId) {
         return jpaRepository.existsByParentId(parentId);
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        jpaRepository.deleteById(id);
     }
 
     private CategoryEntity toEntity(Category domain) {

@@ -15,4 +15,6 @@ public interface SpecOptionRepository {
     List<SpecOption> findBySpecDimensionId(Long specDimensionId);
 
     boolean existsBySpecDimensionIdAndOptionValue(Long specDimensionId, String optionValue);
+
+    void deleteById(Long id);
 }

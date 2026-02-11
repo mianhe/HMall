@@ -45,6 +45,14 @@ public class SpuApplicationService {
     }
 
     @Transactional
+    public Spu update(Long id, String name, String description) {
+        Spu existing = spuRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("商品不存在"));
+        Spu updated = new Spu(existing.getId(), existing.getCategoryId(), name, description);
+        return spuRepository.save(updated);
+    }
+
+    @Transactional
     public void delete(Long id) {
         spuRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("商品不存在"));

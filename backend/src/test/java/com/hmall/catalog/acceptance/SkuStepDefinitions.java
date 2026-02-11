@@ -32,6 +32,7 @@ public class SkuStepDefinitions {
     private ResponseEntity<SkuApiDto.Response> lastCreateSkuResponse;
     private ResponseEntity<List<SkuApiDto.Response>> lastSkuListResponse;
     private ResponseEntity<SkuApiDto.Response> lastSkuDetailResponse;
+    private ResponseEntity<SkuApiDto.Response> lastUpdateSkuResponse;
     private ResponseEntity<SkuApiDto.Error> lastSkuErrorResponse;
 
     public SkuStepDefinitions(TestRestTemplate restTemplate, CatalogTestContext context, ObjectMapper objectMapper) {
@@ -163,7 +164,52 @@ public class SkuStepDefinitions {
     public void 用户请求该SPU下SKU_ID的详情(long skuId) {
         Long spuId = resolveSpuId();
         lastSkuDetailResponse = getSkuDetail(spuId, skuId);
-        context.setLastStatusCode(lastSkuDetailResponse.getStatusCode().value());
+        context.setLastStatusCode(lastSkuDetailResponse != null ? lastSkuDetailResponse.getStatusCode().value() : 404);
+    }
+
+    @When("用户将该 SKU 价格修改为 {long} 分")
+    public void 用户将该SKU价格修改为(long priceCents) {
+        String productName = context.getLastProductName();
+        Long spuId = resolveSpuId();
+        Long skuId = context.getLastSkuId(productName);
+        assertThat(skuId).isNotNull();
+        lastUpdateSkuResponse = putSkuPrice(spuId, skuId, priceCents);
+        context.setLastStatusCode(lastUpdateSkuResponse.getStatusCode().value());
+        if (lastUpdateSkuResponse.getStatusCode().is2xxSuccessful() && lastUpdateSkuResponse.getBody() != null) {
+            lastSkuDetailResponse = lastUpdateSkuResponse;
+        }
+    }
+
+    @When("用户将 SPU ID {long} 下 SKU ID {long} 修改为价格 {long} 分")
+    public void 用户将SPU下SKU修改为价格(long spuId, long skuId, long priceCents) {
+        lastUpdateSkuResponse = putSkuPrice(spuId, skuId, priceCents);
+        context.setLastStatusCode(lastUpdateSkuResponse != null ? lastUpdateSkuResponse.getStatusCode().value() : 404);
+    }
+
+    @When("用户删除该 SKU")
+    public void 用户删除该SKU() {
+        String productName = context.getLastProductName();
+        Long spuId = resolveSpuId();
+        Long skuId = context.getLastSkuId(productName);
+        assertThat(skuId).isNotNull();
+        int status = deleteSku(spuId, skuId);
+        context.setLastStatusCode(status);
+    }
+
+    @When("用户删除 SPU ID {long} 下 SKU ID {long}")
+    public void 用户删除SPU下SKU(long spuId, long skuId) {
+        int status = deleteSku(spuId, skuId);
+        context.setLastStatusCode(status);
+    }
+
+    @And("再次请求该 SKU 详情应返回 404")
+    public void 再次请求该SKU详情应返回404() {
+        String productName = context.getLastProductName();
+        Long spuId = resolveSpuId();
+        Long skuId = context.getLastSkuId(productName);
+        assertThat(skuId).isNotNull();
+        ResponseEntity<SkuApiDto.Response> res = getSkuDetail(spuId, skuId);
+        assertThat(res.getStatusCode().value()).isEqualTo(404);
     }
 
     // ---------- Then: 创建成功与返回字段 ----------
@@ -176,8 +222,14 @@ public class SkuStepDefinitions {
 
     @And("返回的 SKU 价格为 {long} 分")
     public void 返回的SKU价格为(long expectedPrice) {
-        SkuApiDto.Response body = (lastCreateSkuResponse != null && lastCreateSkuResponse.getBody() != null)
-            ? lastCreateSkuResponse.getBody() : lastSkuDetailResponse.getBody();
+        SkuApiDto.Response body = null;
+        if (lastUpdateSkuResponse != null && lastUpdateSkuResponse.getBody() != null) {
+            body = lastUpdateSkuResponse.getBody();
+        } else if (lastCreateSkuResponse != null && lastCreateSkuResponse.getBody() != null) {
+            body = lastCreateSkuResponse.getBody();
+        } else if (lastSkuDetailResponse != null && lastSkuDetailResponse.getBody() != null) {
+            body = lastSkuDetailResponse.getBody();
+        }
         assertThat(body).isNotNull();
         assertSkuPrice(expectedPrice, body);
     }
@@ -290,6 +342,38 @@ public class SkuStepDefinitions {
             );
         } catch (RestClientResponseException e) {
             return ResponseEntity.status(e.getStatusCode()).body(null);
+        }
+    }
+
+    private ResponseEntity<SkuApiDto.Response> putSkuPrice(Long spuId, Long skuId, long priceCents) {
+        SkuApiDto.Update body = new SkuApiDto.Update();
+        body.priceCents = priceCents;
+        body.displayName = null;
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        try {
+            return restTemplate.exchange(
+                baseUrl() + "/api/products/" + spuId + "/skus/" + skuId,
+                HttpMethod.PUT,
+                new HttpEntity<>(body, headers),
+                SkuApiDto.Response.class
+            );
+        } catch (RestClientResponseException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(null);
+        }
+    }
+
+    private int deleteSku(Long spuId, Long skuId) {
+        try {
+            ResponseEntity<Void> res = restTemplate.exchange(
+                baseUrl() + "/api/products/" + spuId + "/skus/" + skuId,
+                HttpMethod.DELETE,
+                null,
+                Void.class
+            );
+            return res.getStatusCode().value();
+        } catch (RestClientResponseException e) {
+            return e.getStatusCode().value();
         }
     }
 

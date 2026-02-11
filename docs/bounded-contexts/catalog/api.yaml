@@ -50,6 +50,76 @@ paths:
                 items:
                   $ref: '#/components/schemas/Category'
 
+  /api/categories/{id}:
+    get:
+      summary: 按 ID 查类别详情
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 类别详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '404':
+          description: 类别不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: 修改类别
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryUpdate'
+      responses:
+        '200':
+          description: 修改成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '404':
+          description: 类别不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: 删除类别
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 删除成功，无响应体
+        '404':
+          description: 类别不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/products:
     post:
       summary: 创建商品
@@ -117,6 +187,34 @@ paths:
       responses:
         '200':
           description: 商品详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: 商品不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: 修改商品
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpdate'
+      responses:
+        '200':
+          description: 修改成功
           content:
             application/json:
               schema:
@@ -339,6 +437,70 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+    put:
+      summary: 修改 SKU（如价格）
+      parameters:
+        - name: spuId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: skuId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SkuUpdate'
+      responses:
+        '200':
+          description: 修改成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sku'
+        '404':
+          description: SKU 不存在或不属于该 SPU
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: 业务校验失败（如价格不能为负）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: 删除 SKU
+      parameters:
+        - name: spuId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: skuId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 删除成功
+        '404':
+          description: SKU 不存在或不属于该 SPU
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
 components:
   schemas:
@@ -373,6 +535,15 @@ components:
           format: int64
           nullable: true
           description: 不传或 null 表示根级类别
+    CategoryUpdate:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
     Product:
       type: object
       required: [id, categoryId, name]
@@ -395,6 +566,15 @@ components:
         categoryId:
           type: integer
           format: int64
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+    ProductUpdate:
+      type: object
+      required: [name]
+      properties:
         name:
           type: string
         description:
@@ -514,6 +694,17 @@ components:
                 type: string
               optionValue:
                 type: string
+    SkuUpdate:
+      type: object
+      properties:
+        priceCents:
+          type: integer
+          format: int64
+          minimum: 0
+          description: 新价格（分）
+        displayName:
+          type: string
+          nullable: true
     SkuCreate:
       type: object
       required: [specOptionIds, priceCents]

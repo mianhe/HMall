@@ -81,6 +81,34 @@ public class SkuApplicationService {
         return skuRepository.findBySpuId(spuId);
     }
 
+    @Transactional
+    public Sku updatePrice(Long spuId, Long skuId, long priceCents) {
+        Sku sku = getById(skuId);
+        if (!sku.getSpuId().equals(spuId)) {
+            throw new IllegalArgumentException("SKU 不属于该 SPU");
+        }
+        if (priceCents < 0) {
+            throw new SkuValidationException("价格不能为负");
+        }
+        Sku updated = new Sku(
+            sku.getId(),
+            sku.getSpuId(),
+            sku.getDisplayName(),
+            priceCents,
+            sku.getSpecOptionIds()
+        );
+        return skuRepository.save(updated);
+    }
+
+    @Transactional
+    public void delete(Long spuId, Long skuId) {
+        Sku sku = getById(skuId);
+        if (!sku.getSpuId().equals(spuId)) {
+            throw new IllegalArgumentException("SKU 不属于该 SPU");
+        }
+        skuRepository.deleteById(skuId);
+    }
+
     /** 解析 specOptionIds 为 dimensionName + optionValue 列表，供 API 返回 specValues */
     public List<SpecValueView> resolveSpecValues(List<Long> specOptionIds) {
         if (specOptionIds == null || specOptionIds.isEmpty()) {

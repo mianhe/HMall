@@ -15,7 +15,7 @@ import static io.cucumber.junit.platform.engine.Constants.PLUGIN_PROPERTY_NAME;
 @Suite
 @IncludeEngines("cucumber")
 @SelectClasspathResource("features")
-@ConfigurationParameter(key = GLUE_PROPERTY_NAME, value = "com.hmall.catalog.acceptance")
+@ConfigurationParameter(key = GLUE_PROPERTY_NAME, value = "com.hmall.catalog.acceptance,com.hmall.user.acceptance")
 @ConfigurationParameter(key = PLUGIN_PROPERTY_NAME, value = "pretty, html:target/reports/cucumber.html")
 public class RunCucumberTest {
 }

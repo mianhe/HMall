@@ -37,6 +37,7 @@ public class ProductStepDefinitions {
     private final Map<String, Long> productNameToId = new ConcurrentHashMap<>();
 
     private ResponseEntity<ProductApiDto.Response> lastCreateProductResponse;
+    private ResponseEntity<ProductApiDto.Response> lastUpdateProductResponse;
     private ResponseEntity<List<ProductApiDto.Response>> lastProductListResponse;
     private ResponseEntity<ProductApiDto.Response> lastProductDetailResponse;
     private ResponseEntity<ProductApiDto.Error> lastErrorResponse;
@@ -111,14 +112,24 @@ public class ProductStepDefinitions {
 
     @And("返回的商品名称为 {string}")
     public void 返回的商品名称为(String expectedName) {
-        assertThat(lastCreateProductResponse.getBody()).isNotNull();
-        assertThat(lastCreateProductResponse.getBody().name).isEqualTo(expectedName);
+        ProductApiDto.Response body = lastProductBody();
+        assertThat(body).isNotNull();
+        assertThat(body.name).isEqualTo(expectedName);
     }
 
     @And("返回的商品描述为 {string}")
     public void 返回的商品描述为(String expectedDesc) {
-        assertThat(lastCreateProductResponse.getBody()).isNotNull();
-        assertThat(lastCreateProductResponse.getBody().description).isEqualTo(expectedDesc);
+        ProductApiDto.Response body = lastProductBody();
+        assertThat(body).isNotNull();
+        assertThat(body.description).isEqualTo(expectedDesc);
+    }
+
+    /** 取最后一次创建或修改的商品响应体（修改优先） */
+    private ProductApiDto.Response lastProductBody() {
+        if (lastUpdateProductResponse != null && lastUpdateProductResponse.getBody() != null) {
+            return lastUpdateProductResponse.getBody();
+        }
+        return lastCreateProductResponse != null ? lastCreateProductResponse.getBody() : null;
     }
 
     @And("该商品属于类别 {string}")
@@ -248,6 +259,27 @@ public class ProductStepDefinitions {
         assertThat(lastProductDetailResponse.getBody().categoryId).isEqualTo(expectedCategoryId);
     }
 
+    // ---------- 修改商品 ----------
+    @When("用户将商品 {string} 修改为名称 {string} 描述 {string}")
+    public void 用户将商品修改为名称描述(String productName, String newName, String newDescription) {
+        Long id = productNameToId.get(productName);
+        assertThat(id).as("商品「%s」应先存在", productName).isNotNull();
+        ProductApiDto.Update body = new ProductApiDto.Update();
+        body.name = newName;
+        body.description = newDescription;
+        lastUpdateProductResponse = putProduct(id, body);
+        context.setLastStatusCode(lastUpdateProductResponse.getStatusCode().value());
+    }
+
+    @When("用户将商品 ID {long} 修改为名称 {string}")
+    public void 用户将商品ID修改为名称(long id, String newName) {
+        ProductApiDto.Update body = new ProductApiDto.Update();
+        body.name = newName;
+        body.description = null;
+        lastUpdateProductResponse = putProduct(id, body);
+        context.setLastStatusCode(lastUpdateProductResponse.getStatusCode().value());
+    }
+
     // ---------- 删除商品 ----------
     @When("用户删除该商品")
     public void 用户删除该商品() {
@@ -264,12 +296,6 @@ public class ProductStepDefinitions {
     public void 用户删除商品ID(long id) {
         lastDeleteResponse = deleteProduct(id);
         context.setLastStatusCode(lastDeleteResponse.getStatusCode().value());
-    }
-
-    @Then("应删除成功")
-    public void 应删除成功() {
-        assertThat(lastDeleteResponse).isNotNull();
-        assertThat(lastDeleteResponse.getStatusCode().value()).isEqualTo(204);
     }
 
     @And("再次请求该商品详情应返回 404")
@@ -315,18 +341,7 @@ public class ProductStepDefinitions {
     }
 
     private ResponseEntity<CategoryApiDto.Response> postCategory(CategoryApiDto.Create body) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        try {
-            return restTemplate.exchange(
-                baseUrl() + "/api/categories",
-                HttpMethod.POST,
-                new HttpEntity<>(body, headers),
-                CategoryApiDto.Response.class
-            );
-        } catch (RestClientResponseException e) {
-            return ResponseEntity.status(e.getStatusCode()).body(null);
-        }
+        return CategoryApiDto.postCategory(restTemplate, body);
     }
 
     private ResponseEntity<ProductApiDto.Response> postProduct(ProductApiDto.Create body) {
@@ -357,6 +372,21 @@ public class ProductStepDefinitions {
             ProductApiDto.Error e = new ProductApiDto.Error();
             e.message = json;
             return e;
+        }
+    }
+
+    private ResponseEntity<ProductApiDto.Response> putProduct(Long id, ProductApiDto.Update body) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        try {
+            return restTemplate.exchange(
+                baseUrl() + "/api/products/" + id,
+                HttpMethod.PUT,
+                new HttpEntity<>(body, headers),
+                ProductApiDto.Response.class
+            );
+        } catch (RestClientResponseException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(null);
         }
     }
 
