@@ -1,6 +1,6 @@
 ---
 name: frontend-development
-description: Implements or extends the HMall admin frontend using Vue 3, Vite, FSD-like structure, and Atomic Design. Uses design input doc for pages/entities/components; API in shared/api; UI shows backend responses without duplicating business rules. Use when adding frontend pages, new UI features, Vue components, or when the user asks for frontend development or 前端开发.
+description: Implements or extends the HMall admin frontend (frontend-admin) using Vue 3, Vite, FSD-like structure, and Atomic Design. Uses design input doc for pages/entities/components; API in shared/api; UI shows backend responses without duplicating business rules. Use when adding frontend pages, new UI features, Vue components, or when the user asks for frontend development or 前端开发.
 ---
 
 # 前端开发（HMall 管理后台）
@@ -10,19 +10,19 @@ description: Implements or extends the HMall admin frontend using Vue 3, Vite, F
 ## 技术栈与结构
 
 - **栈**：Vue 3（Composition API）、Vite、Vue Router、Tailwind CSS、axios。
-- **目录**：`frontend/src/` 下 `shared/`（api、ui）、`pages/`、`router/`。API 封装在 `shared/api/`，与后端契约一致（见 `docs/bounded-contexts/catalog/api.yaml`）。
+- **目录**：`frontend-admin/src/` 下 `shared/`（api、ui）、`pages/`、`router/`。API 封装在 `shared/api/`，与后端契约一致（见 `docs/bounded-contexts/catalog/api.yaml`）。
 - **代理**：开发时 Vite 将 `/api` 代理到 `http://localhost:8080`（见 `vite.config.js`）。
 
 ## 设计输入
 
-- **位置**：`docs/frontend/design-input.md`。
+- **位置**：`docs/frontend-admin/design-input.md`。
 - **内容**：FSD（实体、页面/路由、功能）、Atomic（atoms/molecules/organisms）、每页结构。
 - **用法**：加新页面或改交互前，先看或更新设计输入；实现时按其中的页面、实体、组件层级来写。
 
 ## 开发流程（加新页面/功能时）
 
 1. **更新设计输入（若需要）**  
-   在 `docs/frontend/design-input.md` 中补充或修改：新路由、新功能、新组件（含 Atomic 层级）。若用户有偏好（如弹窗 vs 独立页），先更新文档再实现。
+   在 `docs/frontend-admin/design-input.md` 中补充或修改：新路由、新功能、新组件（含 Atomic 层级）。若用户有偏好（如弹窗 vs 独立页），先更新文档再实现。
 
 2. **API 封装**  
    若后端有新接口，在 `shared/api/` 下对应文件（如 `catalog.js`）增加方法，请求路径与 `catalog-api.yaml` 一致。使用相对路径 `/api/...`，由 Vite 代理转发。
@@ -39,7 +39,7 @@ description: Implements or extends the HMall admin frontend using Vue 3, Vite, F
    参考华为商城 VMALL：主色 `vmall-red`、背景 `vmall-gray-bg`、文字 `vmall-gray-text`；顶栏红底白字；主按钮红底白字；简洁、留白充足。
 
 6. **验证**  
-   本地运行：先起后端与数据库，再在 `frontend` 下 `npm run dev`，在浏览器中验证新页面与接口调用。
+   本地运行：先起后端与数据库，再在 `frontend-admin` 下 `npm run dev`，在浏览器中验证新页面与接口调用。
 
 ## 原则
 
@@ -58,6 +58,6 @@ description: Implements or extends the HMall admin frontend using Vue 3, Vite, F
 
 ## 参考
 
-- 设计输入与引导说明：`docs/frontend/design-input.md`
+- 设计输入与引导说明：`docs/frontend-admin/design-input.md`
 - 后端 API 契约：`docs/bounded-contexts/catalog/api.yaml`
-- 现有页面示例：`frontend/src/pages/CatalogPage.vue`（目标）；API 示例：`frontend/src/shared/api/catalog.js`。
+- 现有页面示例：`frontend-admin/src/pages/CatalogPage.vue`（目标）；API 示例：`frontend-admin/src/shared/api/catalog.js`。

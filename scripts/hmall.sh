@@ -10,7 +10,7 @@ COMPOSE_FILE="${ROOT}/infra/docker-compose.yml"
 CONTAINER_NAME="hmall-postgres"
 PID_DIR="${ROOT}/.hmall/pids"
 LOG_DIR="${ROOT}/.hmall/logs"
-ALL_COMPONENTS="db backend frontend mcp"
+ALL_COMPONENTS="db backend frontend-admin frontend-web mcp"
 
 # 确保目录存在
 mkdir -p "$PID_DIR" "$LOG_DIR"
@@ -41,11 +41,19 @@ status_backend() {
   fi
 }
 
-status_frontend() {
+status_frontend_admin() {
   if is_port_listen 5173; then
-    echo "  frontend up      http://127.0.0.1:5173"
+    echo "  frontend-admin   up      http://127.0.0.1:5173"
   else
-    echo "  frontend down    -"
+    echo "  frontend-admin   down    -"
+  fi
+}
+
+status_frontend_web() {
+  if is_port_listen 5174; then
+    echo "  frontend-web     up      http://127.0.0.1:5174"
+  else
+    echo "  frontend-web     down    -"
   fi
 }
 
@@ -61,7 +69,8 @@ cmd_status() {
   echo "HMall components:"
   status_db
   status_backend
-  status_frontend
+  status_frontend_admin
+  status_frontend_web
   status_mcp
 }
 
@@ -140,27 +149,27 @@ stop_backend() {
   echo "Backend stopped."
 }
 
-# ---------- Frontend ----------
-start_frontend() {
+# ---------- Frontend Admin ----------
+start_frontend_admin() {
   if is_port_listen 5173; then
-    echo "Frontend already running on 5173."
+    echo "Frontend-admin already running on 5173."
     return 0
   fi
-  echo "Starting frontend..."
-  (cd "${ROOT}/frontend" && npm run dev >> "${LOG_DIR}/frontend.log" 2>&1 &)
-  echo $! > "${PID_DIR}/frontend.pid"
-  echo "Waiting for frontend (5173)..."
-  wait_for_port 5173 "frontend" || true
-  echo "Frontend started."
+  echo "Starting frontend-admin..."
+  (cd "${ROOT}/frontend-admin" && npm run dev >> "${LOG_DIR}/frontend-admin.log" 2>&1 &)
+  echo $! > "${PID_DIR}/frontend-admin.pid"
+  echo "Waiting for frontend-admin (5173)..."
+  wait_for_port 5173 "frontend-admin" || true
+  echo "Frontend-admin started."
 }
 
-stop_frontend() {
-  local pid_file="${PID_DIR}/frontend.pid"
+stop_frontend_admin() {
+  local pid_file="${PID_DIR}/frontend-admin.pid"
   if [ -f "$pid_file" ]; then
     local pid
     pid=$(cat "$pid_file")
     if kill -0 "$pid" 2>/dev/null; then
-      echo "Stopping frontend (PID $pid)..."
+      echo "Stopping frontend-admin (PID $pid)..."
       kill "$pid" 2>/dev/null || true
       sleep 2
       kill -9 "$pid" 2>/dev/null || true
@@ -174,7 +183,44 @@ stop_frontend() {
       kill "$p" 2>/dev/null || kill -9 "$p" 2>/dev/null || true
     fi
   fi
-  echo "Frontend stopped."
+  echo "Frontend-admin stopped."
+}
+
+# ---------- Frontend Web ----------
+start_frontend_web() {
+  if is_port_listen 5174; then
+    echo "Frontend-web already running on 5174."
+    return 0
+  fi
+  echo "Starting frontend-web..."
+  (cd "${ROOT}/frontend-web" && npm run dev >> "${LOG_DIR}/frontend-web.log" 2>&1 &)
+  echo $! > "${PID_DIR}/frontend-web.pid"
+  echo "Waiting for frontend-web (5174)..."
+  wait_for_port 5174 "frontend-web" || true
+  echo "Frontend-web started."
+}
+
+stop_frontend_web() {
+  local pid_file="${PID_DIR}/frontend-web.pid"
+  if [ -f "$pid_file" ]; then
+    local pid
+    pid=$(cat "$pid_file")
+    if kill -0 "$pid" 2>/dev/null; then
+      echo "Stopping frontend-web (PID $pid)..."
+      kill "$pid" 2>/dev/null || true
+      sleep 2
+      kill -9 "$pid" 2>/dev/null || true
+    fi
+    rm -f "$pid_file"
+  fi
+  if is_port_listen 5174; then
+    local p
+    p=$(lsof -i :5174 -sTCP:LISTEN -t 2>/dev/null | head -1)
+    if [ -n "$p" ]; then
+      kill "$p" 2>/dev/null || kill -9 "$p" 2>/dev/null || true
+    fi
+  fi
+  echo "Frontend-web stopped."
 }
 
 # ---------- MCP ----------
@@ -223,7 +269,8 @@ run_start() {
     case "$c" in
       db) start_db ;;
       backend) start_backend ;;
-      frontend) start_frontend ;;
+      frontend-admin) start_frontend_admin ;;
+      frontend-web) start_frontend_web ;;
       mcp) start_mcp ;;
       *) echo "Unknown component: $c" >&2 ;;
     esac
@@ -232,12 +279,13 @@ run_start() {
 
 run_stop() {
   local components="$*"
-  [ -z "$components" ] && components="mcp frontend backend db"
+  [ -z "$components" ] && components="mcp frontend-web frontend-admin backend db"
   for c in $components; do
     case "$c" in
       db) stop_db ;;
       backend) stop_backend ;;
-      frontend) stop_frontend ;;
+      frontend-admin) stop_frontend_admin ;;
+      frontend-web) stop_frontend_web ;;
       mcp) stop_mcp ;;
       *) echo "Unknown component: $c" >&2 ;;
     esac
@@ -291,7 +339,7 @@ cmd_test() {
 usage() {
   echo "Usage: $0 <command> [options] [components]"
   echo "  command:  start | stop | status | restart | test"
-  echo "  components: db | backend | frontend | mcp (default: all for start/stop/restart)"
+  echo "  components: db | backend | frontend-admin | frontend-web | mcp (default: all for start/stop/restart)"
   echo "  test options: [--cucumber-only] [--clean] [--bc catalog|user|all]"
   echo "See scripts/README.md for details."
 }

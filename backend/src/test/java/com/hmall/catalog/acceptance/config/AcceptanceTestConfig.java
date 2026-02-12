@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Primary;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hmall.catalog.acceptance.CatalogTestContext;
+import com.hmall.catalog.acceptance.LastResponseContext;
 import com.hmall.catalog.acceptance.CategoryStepDefinitions;
 import com.hmall.catalog.acceptance.CommonAssertionStepDefinitions;
 import com.hmall.catalog.acceptance.DatabaseResetHook;
@@ -15,6 +16,7 @@ import com.hmall.catalog.acceptance.SpecDimensionStepDefinitions;
 import com.hmall.catalog.acceptance.SkuStepDefinitions;
 import com.hmall.catalog.infrastructure.persistence.CategoryJpaRepository;
 import com.hmall.catalog.infrastructure.persistence.SpuJpaRepository;
+import com.hmall.user.infrastructure.persistence.UserJpaRepository;
 
 /**
  * 验收测试用 Bean 配置，与 Cucumber 解耦（避免被当作 glue 且带 @Component 报错）。
@@ -23,8 +25,13 @@ import com.hmall.catalog.infrastructure.persistence.SpuJpaRepository;
 public class AcceptanceTestConfig {
 
     @Bean
-    public CatalogTestContext catalogTestContext() {
-        return new CatalogTestContext();
+    public LastResponseContext lastResponseContext() {
+        return new LastResponseContext();
+    }
+
+    @Bean
+    public CatalogTestContext catalogTestContext(LastResponseContext lastResponseContext) {
+        return new CatalogTestContext(lastResponseContext);
     }
 
     @Bean
@@ -64,15 +71,16 @@ public class AcceptanceTestConfig {
 
     @Bean
     @Primary
-    public CommonAssertionStepDefinitions commonAssertionStepDefinitions(CatalogTestContext catalogTestContext) {
-        return new CommonAssertionStepDefinitions(catalogTestContext);
+    public CommonAssertionStepDefinitions commonAssertionStepDefinitions(LastResponseContext lastResponseContext) {
+        return new CommonAssertionStepDefinitions(lastResponseContext);
     }
 
     @Bean
     @Primary
     public DatabaseResetHook databaseResetHook(
             SpuJpaRepository spuJpaRepository,
-            CategoryJpaRepository categoryJpaRepository) {
-        return new DatabaseResetHook(spuJpaRepository, categoryJpaRepository);
+            CategoryJpaRepository categoryJpaRepository,
+            UserJpaRepository userJpaRepository) {
+        return new DatabaseResetHook(spuJpaRepository, categoryJpaRepository, userJpaRepository);
     }
 }

@@ -16,34 +16,35 @@
 
 - **db** — PostgreSQL（Docker，端口 5432）
 - **backend** — Spring Boot 后端（端口 8080）
-- **frontend** — Vite 前端（端口 5173）
+- **frontend-admin** — 管理后台（Vite，端口 5173）
+- **frontend-web** — 消费者端（Vite，端口 5174）
 - **mcp** — MCP Server HTTP（端口 3000）
 
 `start` / `stop` / `restart` 可带一个或多个组件；不写时 **start/stop/restart 默认针对全部**。
 
 ## 命令与参数详解
 
-### start [db] [backend] [frontend] [mcp]
+### start [db] [backend] [frontend-admin] [frontend-web] [mcp]
 
-- 启动顺序：先 **db**，等数据库可连后再起 **backend**，然后可并行起 **frontend** 与 **mcp**。
+- 启动顺序：先 **db**，等数据库可连后再起 **backend**，然后可并行起 **frontend-admin**、**frontend-web** 与 **mcp**。
 - 示例：
   - `./scripts/hmall.sh start` — 启动全部
   - `./scripts/hmall.sh start db backend` — 只起数据库与后端
   - `./scripts/hmall.sh start mcp` — 只起 MCP Server
 
-### stop [db] [backend] [frontend] [mcp]
+### stop [db] [backend] [frontend-admin] [frontend-web] [mcp]
 
-- 停止指定组件；不写组件时停止全部（顺序：mcp → frontend → backend → db）。
+- 停止指定组件；不写组件时停止全部（顺序：mcp → frontend-web → frontend-admin → backend → db）。
 - 示例：
   - `./scripts/hmall.sh stop` — 停止全部
-  - `./scripts/hmall.sh stop backend frontend` — 只停后端与前端
+  - `./scripts/hmall.sh stop backend frontend-admin` — 只停后端与管理后台
 
 ### status
 
 - 输出各组件是否在运行及监听端口（或 URL）。
-- 不接组件参数，一次显示 db / backend / frontend / mcp 四项。
+- 不接组件参数，一次显示 db / backend / frontend-admin / frontend-web / mcp 五项。
 
-### restart [db] [backend] [frontend] [mcp]
+### restart [db] [backend] [frontend-admin] [frontend-web] [mcp]
 
 - 先对指定组件执行 stop，再 start；不写组件时对全部重启。
 - 示例：

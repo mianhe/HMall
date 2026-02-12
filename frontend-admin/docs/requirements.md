@@ -27,7 +27,7 @@
 | `/products/new` | ProductFormPage | 新建商品表单（名称、描述，类目由 `categoryId` 定）；提交后回列表 | POST /api/products |
 | `/products/:id` | ProductDetailPage | 商品详情（名称、描述等）；**规格配置**（维度列表、新建维度、为维度添加选项）；**SKU 列表**（列表、新建 SKU）；可返回列表 | GET /api/products/:id、GET/POST dimensions、GET/POST skus |
 
-路由定义：`frontend/src/router/index.js`。
+路由定义：`frontend-admin/src/router/index.js`。
 
 ---
 
@@ -59,4 +59,4 @@
 | 文档 | 用途 |
 |------|------|
 | `docs/bounded-contexts/catalog/requirements.md` | 后端需求与 .feature |
-| `frontend/docs/design-input.md` | 前端设计输入（FSD + Atomic、组件结构） |
+| `frontend-admin/docs/design-input.md` | 前端设计输入（FSD + Atomic、组件结构） |

@@ -23,7 +23,9 @@
 
 - **后端**：Java 21、Spring Boot 3、Maven
 - **数据库**：PostgreSQL 16（Docker）
-- **前端**：Vue 3、Vite、Vue Router、Tailwind CSS、axios（在 `frontend/`）
+- **前端**：Vue 3、Vite、Vue Router、Tailwind CSS、axios  
+  - `frontend-admin`（管理后台，端口 5173）  
+  - `frontend-web`（消费者端，端口 5174）
 - **MCP**：Node.js MCP Server（在 `hmall-mcp/`），stdio 或 HTTP 两种方式，供任意 MCP Client 调用 Catalog 接口
 
 ## 功能与需求文档（哪里看有哪些功能）
@@ -31,7 +33,8 @@
 | 端 | 文档 | 说明 |
 |----|------|------|
 | **后端** | `docs/bounded-contexts/catalog/requirements.md` | 后端功能列表，与 .feature 一一对应 |
-| **前端** | `docs/frontend/requirements.md` | 前端功能：单页分层展示 Catalog（类目→商品→SKU） |
+| **前端（管理后台）** | `docs/frontend-admin/requirements.md` | 管理后台：单页分层展示 Catalog |
+| **前端（消费者端）** | `docs/frontend-web/requirements.md` | 消费者端：登录、商城浏览 |
 | **MCP** | `hmall-mcp/README.md` | MCP Server 的 Tools 列表、stdio/HTTP 启动方式、Client 配置说明 |
 
 ## 环境要求
@@ -62,7 +65,8 @@
 |------|------|
 | 启动数据库 | `docker compose -f infra/docker-compose.yml up -d` |
 | 启动后端 | `cd backend && mvn spring-boot:run` |
-| 启动前端 | `cd frontend && npm install && npm run dev` |
+| 启动管理后台 | `cd frontend-admin && npm install && npm run dev` |
+| 启动消费者端 | `cd frontend-web && npm install && npm run dev` |
 | 停止后端 | 在跑 Spring Boot 的终端里按 `Ctrl+C` |
 | 停止前端 | 在跑 Vite 的终端里按 `Ctrl+C` |
 | 停止数据库 | `docker compose -f infra/docker-compose.yml down` |
@@ -113,7 +117,8 @@ open backend/target/reports/cucumber.html
 │   ├── bounded-contexts/   # 限界上下文
 │   │   ├── context-map.md  # 上下文地图
 │   │   └── catalog/        # Catalog 需求、领域模型、API 契约、process/
-│   └── frontend/           # 前端设计输入、需求
+│   ├── frontend-admin/     # 管理后台前端设计输入、需求
+│   └── frontend-web/       # 消费者端前端需求
 ├── scripts/                # 系统操作脚本（一键启动/停止/状态/重启/测试）
 │   ├── hmall.sh            # 入口脚本
 │   └── README.md           # 命令与参数说明
@@ -127,7 +132,8 @@ open backend/target/reports/cucumber.html
 │   └── src/test/
 │       ├── java/.../acceptance  # Cucumber 验收测试（Step Definitions）
 │       └── resources/features/catalog/  # .feature（category, product, spec-dimension, sku）
-├── frontend/               # Vue 3 + Vite 管理后台
+├── frontend-admin/         # Vue 3 + Vite 管理后台（端口 5173）
+├── frontend-web/           # Vue 3 + Vite 消费者端（端口 5174）
 │   ├── package.json
 │   ├── src/
 │   │   ├── shared/         # api（catalog 接口）、ui（AppHeader 等）

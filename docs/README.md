@@ -21,8 +21,10 @@ docs/
 │   │       └── ...
 │   └── user/                  # User 上下文（规划中）
 │       └── ...
-└── frontend/                  # 前端
-    ├── design-input.md
+├── frontend-admin/            # 管理后台前端设计输入与需求
+│   ├── design-input.md
+│   └── requirements.md
+└── frontend-web/              # 消费者端前端需求
     └── requirements.md
 ```
 
@@ -33,7 +35,8 @@ docs/
 | Catalog | `docs/bounded-contexts/catalog/`（根下文件） | `docs/bounded-contexts/catalog/process/` |
 | User | `docs/bounded-contexts/user/` | `docs/bounded-contexts/user/process/` |
 | Fulfillment | `docs/bounded-contexts/fulfillment/`（规划中） | — |
-| Frontend | `docs/frontend/` | — |
+| Frontend（管理后台） | `docs/frontend-admin/` | — |
+| Frontend（消费者端） | `docs/frontend-web/` | — |
 
 ## 与设计原则的对应
 

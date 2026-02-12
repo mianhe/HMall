@@ -37,7 +37,7 @@ public class CategoryStepDefinitions {
 
     public CategoryStepDefinitions(TestRestTemplate restTemplate, CatalogTestContext context) {
         this.restTemplate = restTemplate;
-        this.context = context != null ? context : new CatalogTestContext();
+        this.context = context;
     }
 
     private String baseUrl() {

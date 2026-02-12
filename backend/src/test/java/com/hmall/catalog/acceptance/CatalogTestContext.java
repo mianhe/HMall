@@ -4,9 +4,11 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 验收测试共享上下文：跨 Step Definition 类共享「商品名→id」「维度/选项→id」等，供 spec-dimension、sku 步骤解析「该 SPU」「维度 容量」等。
+ * 状态码读写委托给 {@link LastResponseContext}，供 Catalog 与 User 共享断言步骤。
  */
 public class CatalogTestContext {
 
+    private final LastResponseContext lastResponseContext;
     private final ConcurrentHashMap<String, Long> productNameToId = new ConcurrentHashMap<>();
     /** key: productName:dimensionName -> dimensionId */
     private final ConcurrentHashMap<String, Long> dimensionIdByProductAndName = new ConcurrentHashMap<>();
@@ -16,15 +18,17 @@ public class CatalogTestContext {
     private final ConcurrentHashMap<String, Long> lastSkuIdByProductName = new ConcurrentHashMap<>();
     /** 当前场景中的 SPU 商品名（由 Given「已存在商品 xxx」设置，供「该 SPU」解析） */
     private volatile String lastProductName;
-    /** 最后一次 HTTP 状态码（供共享步骤「应返回 404」「应创建失败」断言） */
-    private volatile int lastStatusCode = -1;
+
+    public CatalogTestContext(LastResponseContext lastResponseContext) {
+        this.lastResponseContext = lastResponseContext;
+    }
 
     public int getLastStatusCode() {
-        return lastStatusCode;
+        return lastResponseContext.getLastStatusCode();
     }
 
     public void setLastStatusCode(int statusCode) {
-        this.lastStatusCode = statusCode;
+        lastResponseContext.setLastStatusCode(statusCode);
     }
 
     public String getLastProductName() {

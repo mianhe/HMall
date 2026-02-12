@@ -1,6 +1,6 @@
-# 前端功能需求
+# 前端功能需求 — 管理后台（frontend-admin）
 
-前端以**展示为主**，增删改由 MCP 完成。后端需求见 `docs/bounded-contexts/catalog/requirements.md`。
+管理后台以**展示为主**，增删改由 MCP 完成。后端需求见 `docs/bounded-contexts/catalog/requirements.md`。
 
 ---
 
@@ -8,7 +8,7 @@
 
 | 端 | 职责 |
 |----|------|
-| **前端** | 查看、刷新；不做增删改 |
+| **管理后台（frontend-admin）** | 查看、刷新；不做增删改 |
 | **MCP** | 类目/商品/规格/SKU 的增删改 |
 
 ---
@@ -68,4 +68,5 @@
 | 文档 | 用途 |
 |------|------|
 | `docs/bounded-contexts/catalog/requirements.md` | 后端需求与 .feature |
-| `docs/frontend/design-input.md` | 前端设计输入（FSD + Atomic、组件结构） |
+| `docs/frontend-admin/design-input.md` | 管理后台设计输入（FSD + Atomic、组件结构） |
+| `docs/frontend-web/requirements.md` | 消费者端需求 |

@@ -6,14 +6,14 @@ import io.cucumber.java.en.Then;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * 共享的 Then 步骤：成功/失败与 404 断言。
- * 各 Step Definition 在发起请求后需将响应状态码写入 {@link CatalogTestContext#setLastStatusCode(int)}。
+ * 共享的 Then 步骤：成功/失败与状态码断言。
+ * 各 Step Definition 在发起请求后需将响应状态码写入 {@link LastResponseContext#setLastStatusCode(int)}。
  */
 public class CommonAssertionStepDefinitions {
 
-    private final CatalogTestContext context;
+    private final LastResponseContext context;
 
-    public CommonAssertionStepDefinitions(CatalogTestContext context) {
+    public CommonAssertionStepDefinitions(LastResponseContext context) {
         this.context = context;
     }
 
@@ -50,6 +50,21 @@ public class CommonAssertionStepDefinitions {
     @And("应返回 404")
     public void 应返回404() {
         assertThat(context.getLastStatusCode()).isEqualTo(404);
+    }
+
+    @And("应返回 400")
+    public void 应返回400() {
+        assertThat(context.getLastStatusCode()).isEqualTo(400);
+    }
+
+    @And("应返回 401")
+    public void 应返回401() {
+        assertThat(context.getLastStatusCode()).isEqualTo(401);
+    }
+
+    @And("应返回 200")
+    public void 应返回200() {
+        assertThat(context.getLastStatusCode()).isEqualTo(200);
     }
 
     private void assertNot2xx() {

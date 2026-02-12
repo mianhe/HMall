@@ -49,7 +49,7 @@ public class ProductStepDefinitions {
     public ProductStepDefinitions(TestRestTemplate restTemplate, ObjectMapper objectMapper, CatalogTestContext context) {
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper != null ? objectMapper : new ObjectMapper();
-        this.context = context != null ? context : new CatalogTestContext();
+        this.context = context;
     }
 
     private String baseUrl() {

@@ -37,7 +37,7 @@ public class SkuStepDefinitions {
 
     public SkuStepDefinitions(TestRestTemplate restTemplate, CatalogTestContext context, ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
-        this.context = context != null ? context : new CatalogTestContext();
+        this.context = context;
         this.objectMapper = objectMapper != null ? objectMapper : new ObjectMapper();
     }
 

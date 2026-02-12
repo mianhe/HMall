@@ -1,6 +1,6 @@
-# HMall 管理后台（前端）
+# HMall 管理后台
 
-Vue 3 + Vite + Vue Router + Tailwind CSS。对接后端 Catalog API（类目、商品等）。
+Vue 3 + Vite + Vue Router + Tailwind CSS。用于配置类目、商品、规格与 SKU，对接后端 Catalog API。消费者端见 `frontend-web`。
 
 ## 前端有哪些功能？
 
