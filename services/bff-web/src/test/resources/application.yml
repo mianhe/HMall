@@ -1,0 +1,8 @@
+# 测试环境：下游可使用 WireMock 或 mock，此处沿用默认（测试健康检查不依赖下游）
+bff:
+  catalog:
+    base-url: http://localhost:8080
+  user:
+    base-url: http://localhost:8082
+  order:
+    base-url: http://localhost:8081

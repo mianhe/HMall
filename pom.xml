@@ -12,6 +12,8 @@
     <description>HMall parent</description>
 
     <modules>
-        <module>backend</module>
+        <module>services/catalog-service</module>
+        <module>services/bff-web</module>
+        <module>services/inventory-service</module>
     </modules>
 </project>

@@ -1,12 +1,27 @@
 # HMall 系统设计原则
 
-本文档定义架构与实现约定，与**领域模型**、**需求与验收测试**、**Skills** 共同构成可复现输入。代码可依据这四类输入重新生成。
+本文档定义**架构与实现约定**，适用于后端与前端。与**领域模型**、**需求与验收测试**、**Design Input**、**Skills** 共同构成可复现输入。
 
 ---
 
-## 一、架构
+## 一、文档与输入的关系
 
-### 1.1 DDD 分层
+| 输入类型 | 作用 | 位置 |
+|----------|------|------|
+| **领域模型** | 后端：实体、不变式、聚合边界 | `docs/bounded-contexts/<context>/domain-model.md` |
+| **需求列表** | 后端：功能与 .feature 对应；前端：页面、路由、API 对应 | `docs/bounded-contexts/<context>/requirements.md`、`docs/frontend-*/requirements.md` |
+| **API 契约** | 后端 REST 与前端请求/响应对齐 | `docs/bounded-contexts/<context>/api.yaml` |
+| **Design Input** | **前端**：页面结构、组件分层（FSD/Atomic）、交互与风格；**不写业务规则**，与 requirements 互补 | `docs/frontend-admin/design-input.md`、`docs/frontend-web/design-input.md` |
+| **设计原则** | 全项目架构与实现约定（本文档） | `docs/design-principles.md` |
+| **Skills** | 操作指南：何时用、按何顺序、引用哪些输入 | `.cursor/skills/` |
+
+**Design Input 的定位**：回答「这个前端由哪些页面/块组成、组件如何分层、风格是什么」。需求（requirements）回答「做什么功能、调什么 API」；Design Input 回答「长什么样、怎么拆组件」。新页面或大改结构时更新 Design Input；小改动或仅调 API 时可只维护 requirements。
+
+---
+
+## 二、后端：架构与约定
+
+### 2.1 DDD 分层
 
 后端按限界上下文组织，每上下文四层：
 
@@ -20,21 +35,17 @@ com.hmall.<context>/
 
 依赖方向：api → application → domain；infrastructure → domain。
 
-### 1.2 限界上下文与契约
+### 2.2 限界上下文与契约
 
 - 上下文独立目录（`com.hmall.catalog` 等），通过接口或事件通信；
 - REST API 由 OpenAPI YAML 定义；实现与契约一致；
 - 文档与测试按上下文组织：`docs/bounded-contexts/<context>/`、`features/<context>/`。
 
----
-
-## 二、数据隔离
+### 2.3 数据隔离
 
 验收测试与生产/开发数据库完全隔离。生产用 PostgreSQL；验收测试用 H2 内存库（`@ActiveProfiles("test")`、`create-drop`），运行结束即销毁。每场景独立 Given 数据，不共享状态。
 
----
-
-## 三、实现约定
+### 2.4 实现约定
 
 | 类别 | 约定 |
 |------|------|
@@ -45,27 +56,44 @@ com.hmall.<context>/
 | 异常 | 业务校验失败 → 领域异常 → 400；资源不存在 → 404；统一 `{ "message": "..." }` |
 | 持久化 | domain 与 JPA 分离；仓储内完成 domain ↔ entity 转换 |
 
----
-
-## 四、验收测试
+### 2.5 验收测试
 
 需求与 .feature 一一对应；先红后绿；Step Definitions 按 OpenAPI 调用；场景覆盖成功与失败（404、400）情形。
 
 ---
 
-## 五、文档与输入
+## 三、前端：开发约定
 
-| 输入类型 | 位置 |
-|----------|------|
-| 领域模型 | `docs/bounded-contexts/<context>/domain-model.md` |
-| 需求列表 | `docs/bounded-contexts/<context>/requirements.md` |
-| API 契约 | `docs/bounded-contexts/<context>/api.yaml` |
-| 验收测试 | `backend/src/test/resources/features/<context>/` |
-| 设计原则 | `docs/design-principles.md` |
-| Skills | `.cursor/skills/` |
+### 3.1 流程原则
+
+- **需求优先**：新能力先落该前端的 `requirements.md`（页面、路由、API），再实现；不在未更新需求时直接加页或大改行为。
+- **契约对齐**：请求路径、请求体/响应体与 `docs/bounded-contexts/<context>/api.yaml` 一致；前端不发明字段。
+- **不重复业务规则**：校验、错误文案以后端返回为准；前端只展示 `e.response?.data?.message` 或通用「加载失败」，不写死「用户名已存在」等业务文案。
+
+### 3.2 Design Input 使用
+
+- **何时维护**：新页面、大改结构或交互、引入新组件层级（如 Atomic 新一层）时，更新或创建该前端的 `design-input.md`。
+- **写什么**：FSD 范围（实体/页面/路由）、Atomic 分层（atoms/molecules/organisms）、页面结构、设计风格（如 VMALL 主色与留白）。不写业务逻辑与 API 细节，后者在 requirements 与 api.yaml。
+- **位置**：`docs/frontend-admin/design-input.md`、`docs/frontend-web/design-input.md`。若某前端暂无 design-input，实现时保持与现有页面结构一致即可。
+
+### 3.3 技术栈与结构
+
+- **栈**：Vue 3（Composition API）、Vite、Vue Router、Tailwind CSS、axios。
+- **目录**：`src/shared/`（api、ui）、`pages/`、`router/`；API 按 BC 或模块封装在 `shared/api/`。
+- **代理**：开发时 Vite 将 `/api` 代理到 BFF 或后端（见各前端 `vite.config.js`）。
+- **样式**：Tailwind；与项目设计风格一致（如 VMALL：主色 `#C7000B`、背景 `#F5F5F5`、顶栏红底白字）。Tailwind 已配置 `vmall-red`、`vmall-gray-bg` 等，优先使用。
+
+### 3.4 实现约定
+
+| 类别 | 约定 |
+|------|------|
+| 页面 | `pages/` 下以 `*Page.vue` 命名；懒加载注册到 `router` |
+| 复用 UI | 放 `shared/ui/`；复杂页面可按 atoms / molecules / organisms 分子目录组织 |
+| API 封装 | `shared/api/<模块>.js`，路径与 OpenAPI 一致，返回 `data` |
+| 错误展示 | `try/catch`，展示 `e.response?.data?.message` 或 `e.message` 或「加载失败」 |
 
 ---
 
-## 六、变更
+## 四、变更与例外
 
-新增功能按 ATDD 流程；原则冲突以本文档为准，例外需注明原因。
+新增功能：后端按 ATDD 流程；前端按「需求 → 按需 Design Input → 实现」。原则冲突以本文档为准，例外需注明原因。

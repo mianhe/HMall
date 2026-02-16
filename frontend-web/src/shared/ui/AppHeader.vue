@@ -6,6 +6,12 @@
       </router-link>
       <div class="flex items-center gap-3">
         <template v-if="isLoggedIn">
+          <router-link
+            to="/my"
+            class="text-sm hover:underline"
+          >
+            我的
+          </router-link>
           <span class="text-sm">{{ username }}</span>
           <button
             @click="handleLogout"

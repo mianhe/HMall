@@ -1,12 +1,16 @@
 /**
- * 商品限定上下文 API（展示用，仅 GET），与 docs/bounded-contexts/catalog/api.yaml 一致
+ * 商品限定上下文 API，与 docs/bounded-contexts/catalog/api.yaml 一致
+ * 开发环境经 Vite 代理到 BFF（见 vite.config.js），生产环境使用 /api。
  */
 import axios from 'axios'
 
 const client = axios.create({
   baseURL: '/api',
   headers: { 'Content-Type': 'application/json' },
+  timeout: 15000,
 })
+
+// ---------- 类目、商品、维度、SKU（读） ----------
 
 export async function getCategories(parentId = null) {
   const params = parentId != null ? { parentId } : {}
@@ -32,4 +36,47 @@ export async function getDimensions(spuId) {
 export async function getSkus(spuId) {
   const { data } = await client.get(`/products/${spuId}/skus`)
   return data
+}
+
+// ---------- 文件上传（返回 { url }） ----------
+
+export async function uploadFile(file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  const { data } = await client.post('/files/upload', formData, {
+    headers: { 'Content-Type': undefined }, // 不设 Content-Type，由 axios 为 FormData 自动加 multipart boundary
+  })
+  return data
+}
+
+// ---------- 产品级展示图 ----------
+
+export async function getProductImages(spuId) {
+  const { data } = await client.get(`/products/${spuId}/images`)
+  return data
+}
+
+export async function addProductImage(spuId, body) {
+  const { data } = await client.post(`/products/${spuId}/images`, body)
+  return data
+}
+
+export async function deleteProductImage(spuId, imageId) {
+  await client.delete(`/products/${spuId}/images/${imageId}`)
+}
+
+// ---------- 选项级展示图 ----------
+
+export async function addOptionImage(spuId, dimensionId, optionId, body) {
+  const { data } = await client.post(
+    `/products/${spuId}/dimensions/${dimensionId}/options/${optionId}/images`,
+    body
+  )
+  return data
+}
+
+export async function deleteOptionImage(spuId, dimensionId, optionId, imageId) {
+  await client.delete(
+    `/products/${spuId}/dimensions/${dimensionId}/options/${optionId}/images/${imageId}`
+  )
 }

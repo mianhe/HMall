@@ -2,6 +2,12 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
   { path: '/', name: 'Home', component: () => import('../pages/HomePage.vue'), meta: { title: '首页' } },
+  { path: '/my', name: 'My', component: () => import('../pages/MyPage.vue'), meta: { title: '我的' } },
+  { path: '/products/:id', name: 'ProductDetail', component: () => import('../pages/ProductDetailPage.vue'), meta: { title: '商品详情' } },
+  { path: '/checkout', name: 'Checkout', component: () => import('../pages/CheckoutPage.vue'), meta: { title: '确认订单' } },
+  { path: '/addresses', name: 'AddressList', component: () => import('../pages/AddressPage.vue'), meta: { title: '收货地址' } },
+  { path: '/orders', name: 'OrderList', component: () => import('../pages/OrderListPage.vue'), meta: { title: '我的订单' } },
+  { path: '/orders/:id', name: 'OrderDetail', component: () => import('../pages/OrderDetailPage.vue'), meta: { title: '订单详情' } },
   { path: '/login', name: 'Login', component: () => import('../pages/LoginPage.vue'), meta: { title: '登录' } },
   { path: '/register', name: 'Register', component: () => import('../pages/RegisterPage.vue'), meta: { title: '注册' } },
 ]

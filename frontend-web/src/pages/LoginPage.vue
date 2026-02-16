@@ -38,11 +38,12 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { login } from '../shared/api/user.js'
 import { useAuth } from '../shared/auth.js'
 
 const router = useRouter()
+const route = useRoute()
 const { setToken } = useAuth()
 const username = ref('')
 const password = ref('')
@@ -53,7 +54,8 @@ async function handleLogin() {
   try {
     const { token } = await login(username.value, password.value)
     setToken(token)
-    router.push('/')
+    const redirect = route.query.redirect
+    router.push(redirect && typeof redirect === 'string' && redirect.startsWith('/') ? redirect : '/')
   } catch (e) {
     errorMsg.value = e.response?.data?.message || '登录失败'
   }

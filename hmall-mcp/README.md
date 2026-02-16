@@ -5,7 +5,7 @@
 ## 前置条件
 
 - Node.js 18+
-- HMall 后端已启动（默认 `http://localhost:8080`）
+- HMall catalog-service 已启动（默认 `http://localhost:8080`）
 
 ## 安装
 
@@ -101,8 +101,8 @@ tool 的 description 和参数 schema 定义在 `tools/catalog.js` 的 `server.t
 | Tool | 说明 | 参数 |
 |------|------|------|
 | `catalog_list_dimensions` | 查某 SPU 的维度及选项 | `spuId`: number |
-| `catalog_add_dimension` | 为 SPU 添加维度 | `spuId`: number, `name`: string, `required`: boolean, `affectsAppearance?`: boolean |
-| `catalog_add_option` | 为维度添加选项 | `spuId`: number, `dimensionId`: number, `optionValue`: string, `sortOrder?`: number, `image?`: string |
+| `catalog_add_dimension` | 为 SPU 添加维度 | `spuId`: number, `name`: string, `required`: boolean |
+| `catalog_add_option` | 为维度添加选项 | `spuId`: number, `dimensionId`: number, `optionValue`: string, `sortOrder?`: number |
 
 ### SKU
 
@@ -112,6 +112,19 @@ tool 的 description 和参数 schema 定义在 `tools/catalog.js` 的 `server.t
 | `catalog_create_sku` | 创建 SKU | `spuId`: number, `specOptionIds`: number[], `priceCents`: number (>=0), `displayName?`: string |
 | `catalog_update_sku` | 修改 SKU（价格、展示名） | `spuId`: number, `skuId`: number, `priceCents?`: number (>=0), `displayName?`: string |
 | `catalog_delete_sku` | 删除 SKU | `spuId`: number, `skuId`: number |
+
+### 展示图（产品级 + 选项级）
+
+| Tool | 说明 | 参数 |
+|------|------|------|
+| `catalog_add_product_image` | 为产品添加产品级展示图 | `spuId`: number, `imageUrl`: string, `sortOrder?`: number |
+| `catalog_list_product_images` | 查某产品的产品级展示图列表 | `spuId`: number |
+| `catalog_delete_product_image` | 删除产品级展示图 | `spuId`: number, `imageId`: number |
+| `catalog_upload_and_add_product_image` | 上传本地图片并添加为产品级展示图 | `spuId`: number, `localPath`: string, `sortOrder?`: number |
+| `catalog_add_option_image` | 为选项添加展示图 | `spuId`: number, `dimensionId`: number, `optionId`: number, `imageUrl`: string, `sortOrder?`: number |
+| `catalog_upload_and_add_option_image` | 上传本地图片并关联到选项展示图 | `spuId`: number, `dimensionId`: number, `optionId`: number, `localPath`: string, `sortOrder?`: number |
+| `catalog_list_option_images` | 查某选项的展示图列表 | `spuId`: number, `dimensionId`: number, `optionId`: number |
+| `catalog_delete_option_image` | 删除选项的展示图 | `spuId`: number, `dimensionId`: number, `optionId`: number, `imageId`: number |
 
 > 参数后带 `?` 表示可选，不带则必填。
 

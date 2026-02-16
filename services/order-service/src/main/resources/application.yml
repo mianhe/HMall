@@ -1,0 +1,36 @@
+server:
+  port: 8081
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/hmall
+    username: hmall
+    password: hmall_dev
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+
+# 领域事件 Kafka topic，供进程外/其他应用订阅
+order:
+  kafka:
+    topic:
+      order-created: order.created
+      order-cancelled: order.cancelled
+      order-completed: order.completed
+
+# Catalog 服务地址（Order 调用 Catalog API 获取 SKU 信息）
+catalog:
+  base-url: http://localhost:8080
+
+# User 服务地址（Order 调用 User API 校验 userId）
+user:
+  base-url: http://localhost:8082

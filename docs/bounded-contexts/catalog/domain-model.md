@@ -40,9 +40,8 @@ class SpecDimension <<实体>> {
   - name: String * {同SPU内唯一}
   - required: boolean
   - sortOrder: Integer
-  - affectsAppearance: boolean
   --
-  不变式: 名称必填；同 SPU 内至多一个 affectsAppearance=true
+  不变式: 名称必填，同 SPU 内唯一
 }
 
 class SpecOption <<实体>> {
@@ -50,9 +49,18 @@ class SpecOption <<实体>> {
   - specDimensionId: Long
   - optionValue: String * {同维度内唯一}
   - sortOrder: Integer
-  - image: String
   --
-  不变式: 选项值必填；仅当所属维度 affectsAppearance 时可有 image
+  不变式: 选项值必填
+}
+
+class ProductImage <<值对象>> {
+  - productImageId: Long
+  - spuId: Long
+  - specOptionId: Long {null=产品级展示图}
+  - imageUrl: String *
+  - sortOrder: Integer {越小越靠前}
+  --
+  不变式: imageUrl 必填；specOptionId 为空表示产品级，不为空表示该选项的展示图
 }
 
 class Sku <<实体>> {
@@ -75,13 +83,14 @@ Spu "0..*" --> "0..1" Category : categoryId
 Spu "1" *-- "0..*" SpecDimension : 组合
 Spu "1" *-- "0..*" Sku : 组合
 SpecDimension "1" *-- "0..*" SpecOption : 组合
+Spu "1" *-- "0..*" ProductImage : 组合（展示图）
+ProductImage --> SpecOption : specOptionId {0..1 可选}
 Sku "1" *-- "0..*" SkuSpecValue : 组合
 SkuSpecValue --> SpecOption : specOptionId
 
-note right of SpecDimension
-  影响外观(affectsAppearance):
-  仅此维度下的 Option 可填图片；
-  同一 SPU 下至多一个维度为 true
+note bottom of ProductImage
+  specOptionId 为空：产品级展示图；
+  不为空：该选项的展示图
 end note
 @enduml
 ```
@@ -121,9 +130,8 @@ end note
 | 维度名称        | String  | 必填，同 SPU 内唯一 |
 | 是否必填        | boolean | 创建 SKU 时是否必选 |
 | 排序            | Integer | 可选 |
-| 影响外观        | boolean | 该维度的 Option 才允许填图片；同 SPU 下至多一个为 true |
 
-组合 SpecOption（0..*）。**不变式**：维度名称必填、同 SPU 内唯一；下至少一个 SpecOption；同一 SPU 下至多一个「影响外观」为 true。
+组合 SpecOption（0..*）。**不变式**：维度名称必填、同 SPU 内唯一。
 
 #### SpecOption — 实体
 
@@ -133,9 +141,20 @@ end note
 | SpecDimensionID | Long   | 所属维度 |
 | 选项值          | String | 必填，同维度内唯一 |
 | 排序            | Integer| 可选 |
-| 图片            | String | 可选（仅当所属维度「影响外观」为 true 时） |
 
-**不变式**：选项值必填、同维度内唯一；仅当所属维度「影响外观」为 true 时方可填图片。
+**不变式**：选项值必填、同维度内唯一。
+
+#### ProductImage — 值对象
+
+| 属性            | 类型    | 说明 |
+|-----------------|---------|------|
+| ProductImageID  | Long    | 唯一标识 |
+| SpuID           | Long    | 所属产品（SPU），必填 |
+| SpecOptionID    | Long    | 可选；为空表示产品级展示图，不为空表示该选项的展示图 |
+| 图片 URL        | String  | 必填，展示图地址 |
+| 排序            | Integer | 可选，越小越靠前 |
+
+产品展示图。**不变式**：图片 URL 必填；SpuID 必填；SpecOptionID 为空则为产品级展示图，不为空则须属该 SPU 下某选项。
 
 #### SKU — 实体
 
@@ -166,6 +185,7 @@ end note
 | Spu | spu |
 | SpecDimension | spec_dimension |
 | SpecOption | spec_option |
+| ProductImage | product_image |
 | Sku | sku |
 | SKUSpecValue | sku_id + spec_option_id |
 

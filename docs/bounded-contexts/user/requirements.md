@@ -1,6 +1,6 @@
 # 用户限定上下文 - 需求列表
 
-每个功能对应一个 .feature 文件，场景对应 Gherkin Scenario。契约：`docs/bounded-contexts/user/api.yaml`。Feature 目录：`backend/src/test/resources/features/user/`。
+每个功能对应一个 .feature 文件，场景对应 Gherkin Scenario。契约：`docs/bounded-contexts/user/api.yaml`。Feature 目录：`services/user-service/src/test/resources/features/user/`。
 
 ### 状态图例
 
@@ -48,9 +48,23 @@ flowchart LR
 
 ---
 
+## 3. 收货地址管理  
+`address.feature`
+
+- ✅ 3.1 用户新增收货地址时应成功并返回 addressId
+- ✅ 3.2 收货地址必填项缺省或格式不合法时应失败并返回错误
+- ✅ 3.3 按 userId 查询时应返回该用户的地址列表
+- ✅ 3.4 按 addressId 查询时应返回地址详情（若属该用户）
+- ✅ 3.5 用户修改自己的地址时应成功
+- ✅ 3.6 用户删除自己的地址时应成功
+- ✅ 3.7 地址不存在或不属于该用户时应返回 404
+
+---
+
 ## 功能与 feature 对应
 
 | 功能 | .feature 文件 | 场景数 | 状态 |
 |------|----------------|--------|------|
 | 1. 管理用户 | user.feature | 1.1～1.7 | ✅ 已实现 |
 | 2. 登录 | login.feature | 2.1～2.5 | ✅ 已实现 |
+| 3. 收货地址管理 | address.feature | 3.1～3.7 | ✅ 已实现 |

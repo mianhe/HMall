@@ -1,0 +1,22 @@
+openapi: 3.0.3
+info:
+  title: BFF API
+  description: BFF 为透传代理，不定义自有 schema。请求按路径前缀转发到 Catalog、User、Order，响应原样返回。契约以各 BC 的 api.yaml 为准。
+  version: 0.1.0
+
+paths:
+  /api/categories:
+    x-bff-proxy: catalog
+    description: 代理到 Catalog 服务
+  /api/products:
+    x-bff-proxy: catalog
+    description: 代理到 Catalog 服务
+  /api/users:
+    x-bff-proxy: user
+    description: 代理到 User 服务
+  /api/login:
+    x-bff-proxy: user
+    description: 代理到 User 服务
+  /api/orders:
+    x-bff-proxy: order
+    description: 代理到 Order 服务

@@ -1,0 +1,212 @@
+openapi: 3.0.3
+info:
+  title: Order 限界上下文 API
+  description: 订单的 REST 契约。Step Definitions 与实现均按此规范。
+  version: 0.1.0
+
+paths:
+  /api/orders/{orderId}:
+    get:
+      summary: 按 ID 查询订单详情
+      description: 返回订单详情，含明细、收货地址、status。
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 订单详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          description: 订单不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/orders:
+    get:
+      summary: 按 userId 查询订单列表
+      description: 分页返回该用户的订单列表。
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: 订单列表（分页）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderListPage'
+    post:
+      summary: 创建订单
+      description: 提交订单（PlaceOrder），含明细、收货地址。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCreate'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          description: 业务校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: skuId 或 userId 不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/orders/{orderId}/cancel:
+    post:
+      summary: 取消订单
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 取消成功
+        '400':
+          description: 订单状态不允许取消
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 订单不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    OrderCreate:
+      type: object
+      required: [userId, items, shippingAddress]
+      properties:
+        userId:
+          type: integer
+          format: int64
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/OrderLineItemCreate'
+        shippingAddress:
+          $ref: '#/components/schemas/ShippingAddress'
+    OrderLineItemCreate:
+      type: object
+      required: [skuId, quantity]
+      properties:
+        skuId:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+          minimum: 1
+    ShippingAddress:
+      type: object
+      required: [recipientName, phone, province, city, district, detail]
+      properties:
+        recipientName:
+          type: string
+        phone:
+          type: string
+        province:
+          type: string
+        city:
+          type: string
+        district:
+          type: string
+        detail:
+          type: string
+    Order:
+      type: object
+      required: [orderId, status]
+      properties:
+        orderId:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [PENDING_PAYMENT, PAID, FULFILLING, SHIPPED, DELIVERED, COMPLETED, CANCELLED]
+        totalAmountCents:
+          type: integer
+          format: int64
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderLineItem'
+        shippingAddress:
+          $ref: '#/components/schemas/ShippingAddress'
+    OrderLineItem:
+      type: object
+      properties:
+        lineItemId:
+          type: integer
+          format: int64
+        skuId:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+        unitPriceCents:
+          type: integer
+          format: int64
+        totalPriceCents:
+          type: integer
+          format: int64
+        displayName:
+          type: string
+    OrderListPage:
+      type: object
+      required: [content, totalElements]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/Order'
+        totalElements:
+          type: integer
+          format: int64
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string

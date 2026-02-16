@@ -29,17 +29,55 @@ const tree = ref([])
 const loading = ref(false)
 const error = ref('')
 
-async function load() {
+function isServerError(e) {
+  const status = e.response?.status
+  return status >= 500 || status === 502 || status === 503
+}
+
+function errorMessage(e) {
+  const status = e.response?.status
+  const msg = e.response?.data?.message || e.message || ''
+  if (status === 502 || (msg && msg.includes('proxy'))) {
+    return 'BFF 代理失败，请确认 Catalog 服务已启动（可执行 ./scripts/hmall.sh start）'
+  }
+  if (!e.response && (e.code === 'ERR_NETWORK' || e.message?.includes('Network'))) {
+    return '无法连接后端，请确认 BFF 已启动（端口 8085）'
+  }
+  if (e.code === 'ECONNABORTED' || e.message?.includes('timeout')) {
+    return '请求超时，请检查 BFF 与 Catalog 服务是否正常运行'
+  }
+  if (status === 500 && (!msg || msg.includes('status code'))) {
+    return '后端可能仍在启动，请稍后点击刷新'
+  }
+  return msg || '加载失败'
+}
+
+async function load(opts = {}) {
+  const { retries = 0 } = opts
   loading.value = true
   error.value = ''
-  try {
-    const roots = await getCategories(null)
-    tree.value = await Promise.all(roots.map((c) => loadCategoryNode(c)))
-  } catch (e) {
-    error.value = e.response?.data?.message || e.message || '加载失败'
-  } finally {
-    loading.value = false
+  let lastErr = null
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const roots = await getCategories(null)
+      tree.value = await Promise.all(roots.map((c) => loadCategoryNode(c)))
+      return
+    } catch (e) {
+      lastErr = e
+      if (attempt < retries && isServerError(e)) {
+        await new Promise((r) => setTimeout(r, 2000))
+        continue
+      }
+      error.value = errorMessage(e)
+      return
+    } finally {
+      if (attempt === retries || !lastErr || !isServerError(lastErr)) {
+        loading.value = false
+      }
+    }
   }
+  loading.value = false
+  if (lastErr) error.value = errorMessage(lastErr)
 }
 
 async function loadCategoryNode(category) {
@@ -65,5 +103,5 @@ async function loadCategoryNode(category) {
   }
 }
 
-onMounted(load)
+onMounted(() => load({ retries: 2 }))
 </script>

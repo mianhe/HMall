@@ -24,8 +24,7 @@ description: 在 HMall 中新增一个限界上下文（BC）：创建文档骨�
 | 文档 | `docs/bounded-contexts/<context>/domain-model.md` | 领域模型骨架（占位） |
 | 文档 | `docs/bounded-contexts/<context>/requirements.md` | 需求列表骨架（占位） |
 | 文档 | `docs/bounded-contexts/<context>/api.yaml` | OpenAPI 空契约 |
-| 文档 | `docs/bounded-contexts/<context>/process/` | 过程性文档目录（.gitkeep） |
-| 文档 | `docs/bounded-contexts/context-map.md` | 更新：新增 BC 及集成关系 |
+| 文档 | `docs/context-map.md` | 更新：新增 BC 及集成关系 |
 | 文档 | `docs/README.md` | 更新：对应关系表 |
 | 后端 | `com.hmall.<context>/` 四层 | api、application、domain、infrastructure |
 | 后端 | 占位 Controller、ExceptionHandler、ErrorDto | 保证应用可启动 |
@@ -38,8 +37,8 @@ description: 在 HMall 中新增一个限界上下文（BC）：创建文档骨�
 
 ### 阶段一：文档与上下文地图
 
-1. 创建 `docs/bounded-contexts/<context>/` 及 `domain-model.md`、`requirements.md`、`api.yaml`、`process/.gitkeep`（可参考 Catalog 结构写占位内容）。
-2. 更新 `docs/bounded-contexts/context-map.md`：在概览、说明表、集成关系表中加入新 BC。
+1. 创建 `docs/bounded-contexts/<context>/` 及 `domain-model.md`、`requirements.md`、`api.yaml`（可参考 Catalog 结构写占位内容）。
+2. 更新 `docs/context-map.md`：在概览、说明表、集成关系表中加入新 BC。
 3. 更新 `docs/README.md` 对应关系表。
 
 ### 阶段二：后端骨架

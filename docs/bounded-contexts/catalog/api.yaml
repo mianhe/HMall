@@ -347,7 +347,244 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  # ---------- 产品级展示图 ----------
+  /api/products/{spuId}/images:
+    post:
+      summary: 为产品添加展示图（不指定选项）
+      description: 添加产品级展示图，不关联任何规格选项。
+      parameters:
+        - name: spuId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductImageCreate'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductImage'
+        '404':
+          description: SPU 不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: 业务校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      summary: 查询某 SPU 的产品级展示图列表
+      description: 返回不关联任何选项的展示图，按 sortOrder 排序。
+      parameters:
+        - name: spuId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 展示图列表（按 sortOrder 排序）
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductImage'
+        '404':
+          description: SPU 不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/products/{spuId}/images/{imageId}:
+    delete:
+      summary: 删除产品级展示图
+      parameters:
+        - name: spuId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: imageId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 删除成功
+        '404':
+          description: 展示图不存在或不属于该 SPU
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ---------- 选项展示图 ----------
+  /api/products/{spuId}/dimensions/{dimensionId}/options/{optionId}/images:
+    post:
+      summary: 为选项添加展示图
+      description: 任意维度的选项均可添加展示图，不再要求「影响外观」。
+      parameters:
+        - name: spuId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: dimensionId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: optionId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OptionImageCreate'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OptionImage'
+        '404':
+          description: SPU、维度或选项不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '400':
+          description: 业务校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      summary: 查询某选项下所有展示图
+      parameters:
+        - name: spuId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: dimensionId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: optionId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 展示图列表（按 sortOrder 排序）
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OptionImage'
+        '404':
+          description: SPU、维度或选项不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/products/{spuId}/dimensions/{dimensionId}/options/{optionId}/images/{imageId}:
+    delete:
+      summary: 删除展示图
+      parameters:
+        - name: spuId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: dimensionId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: optionId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: imageId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 删除成功
+        '404':
+          description: 展示图不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   # ---------- SKU ----------
+  /api/skus/{id}:
+    get:
+      summary: 按 ID 查 SKU 详情（供 Order 等下游微服务调用）
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: SKU 详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sku'
+        '404':
+          description: SKU 不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/products/{spuId}/skus:
     post:
       summary: 在 SPU 下创建 SKU（选齐必填维度 Option + 价格）
@@ -606,9 +843,6 @@ components:
         sortOrder:
           type: integer
           nullable: true
-        affectsAppearance:
-          type: boolean
-          description: 该维度的 Option 才允许填图片；同 SPU 下至多一个为 true
     SpecDimensionCreate:
       type: object
       required: [name, required]
@@ -620,9 +854,6 @@ components:
         sortOrder:
           type: integer
           nullable: true
-        affectsAppearance:
-          type: boolean
-          default: false
     SpecOption:
       type: object
       required: [id, specDimensionId, optionValue]
@@ -638,10 +869,11 @@ components:
         sortOrder:
           type: integer
           nullable: true
-        image:
-          type: string
-          nullable: true
-          description: 仅当所属维度 affectsAppearance 时可有值
+        images:
+          type: array
+          description: 该选项的展示图列表，按 sortOrder 排序
+          items:
+            $ref: '#/components/schemas/OptionImage'
     SpecOptionCreate:
       type: object
       required: [optionValue]
@@ -650,9 +882,6 @@ components:
           type: string
         sortOrder:
           type: integer
-          nullable: true
-        image:
-          type: string
           nullable: true
     SpecDimensionWithOptions:
       type: object
@@ -665,6 +894,59 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/SpecOption'
+    OptionImage:
+      type: object
+      required: [id, specOptionId, imageUrl]
+      properties:
+        id:
+          type: integer
+          format: int64
+        specOptionId:
+          type: integer
+          format: int64
+        imageUrl:
+          type: string
+        sortOrder:
+          type: integer
+          nullable: true
+    OptionImageCreate:
+      type: object
+      required: [imageUrl]
+      properties:
+        imageUrl:
+          type: string
+        sortOrder:
+          type: integer
+          nullable: true
+    ProductImage:
+      type: object
+      required: [id, spuId, imageUrl]
+      properties:
+        id:
+          type: integer
+          format: int64
+        spuId:
+          type: integer
+          format: int64
+        specOptionId:
+          type: integer
+          format: int64
+          nullable: true
+          description: 为空表示产品级展示图，不为空表示该选项的展示图
+        imageUrl:
+          type: string
+        sortOrder:
+          type: integer
+          nullable: true
+    ProductImageCreate:
+      type: object
+      required: [imageUrl]
+      properties:
+        imageUrl:
+          type: string
+        sortOrder:
+          type: integer
+          nullable: true
 
     # ---------- SKU ----------
     Sku:

@@ -13,4 +13,4 @@ npm install
 npm run dev
 ```
 
-开发时代理将 `/api` 指向后端 `http://localhost:8080`（见 vite.config.js）。
+开发时代理将 `/api` 指向 BFF `http://127.0.0.1:8085`（见 vite.config.js）。需先启动 BFF 及 Catalog、User、Order 服务。

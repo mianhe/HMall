@@ -1,0 +1,184 @@
+openapi: 3.0.3
+info:
+  title: Inventory 限界上下文 API
+  description: 库存占用、释放的 REST 契约。Step Definitions 与实现均按此规范。
+  version: 0.1.0
+
+paths:
+  /api/inventory/stock/{skuId}:
+    get:
+      summary: 查询库存
+      description: 按 skuId 查询 available、reserved。不存在时 404。
+      parameters:
+        - name: skuId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockResponse'
+        '404':
+          description: 该 skuId 无库存记录
+    put:
+      summary: 初始化或更新库存
+      description: 按 skuId 设置可用库存。不存在则创建（reserved=0），存在则仅更新 available。
+      parameters:
+        - name: skuId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockUpdateRequest'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockResponse'
+        '400':
+          description: 参数非法（如 available 为负）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/inventory/release:
+    post:
+      summary: 释放库存
+      description: Order 取消订单时调用。入参 orderId；成功时 200（无占用记录时幂等空操作），参数错误时 400。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReleaseRequest'
+      responses:
+        '200':
+          description: 释放成功（含幂等）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReleaseResponse'
+        '400':
+          description: 参数缺失
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/inventory/occupy:
+    post:
+      summary: 占用库存
+      description: Order 创建订单时调用。入参 orderId、items；成功时 200，库存不足或参数错误时 400，同一 orderId 重复调用幂等返回 200。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OccupyRequest'
+      responses:
+        '200':
+          description: 占用成功（含幂等）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OccupyResponse'
+        '400':
+          description: 参数缺失或库存不足
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    OccupyRequest:
+      type: object
+      required:
+        - orderId
+        - items
+      properties:
+        orderId:
+          type: integer
+          format: int64
+          description: 订单 ID
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/OccupyItem'
+    OccupyItem:
+      type: object
+      required:
+        - skuId
+        - quantity
+      properties:
+        skuId:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+          minimum: 1
+    OccupyResponse:
+      type: object
+      description: 占用成功时返回，可空体或简单确认
+      properties:
+        success:
+          type: boolean
+          example: true
+    ReleaseRequest:
+      type: object
+      required:
+        - orderId
+      properties:
+        orderId:
+          type: integer
+          format: int64
+          description: 订单 ID
+    ReleaseResponse:
+      type: object
+      description: 释放成功时返回
+      properties:
+        success:
+          type: boolean
+          example: true
+    StockUpdateRequest:
+      type: object
+      required:
+        - available
+      properties:
+        available:
+          type: integer
+          minimum: 0
+          description: 可用数量
+    StockResponse:
+      type: object
+      description: 库存查询/更新返回
+      properties:
+        skuId:
+          type: integer
+          format: int64
+        available:
+          type: integer
+          minimum: 0
+        reserved:
+          type: integer
+          minimum: 0
+    Error:
+      type: object
+      properties:
+        message:
+          type: string

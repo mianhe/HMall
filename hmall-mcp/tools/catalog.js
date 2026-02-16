@@ -2,6 +2,8 @@
  * Catalog 模块的 MCP tools —— 调后端 REST API。
  */
 import { z } from 'zod'
+import { readFile } from 'node:fs/promises'
+import { basename } from 'node:path'
 
 const API_BASE = process.env.HMALL_API_BASE || 'http://localhost:8080/api'
 
@@ -22,6 +24,29 @@ async function api(method, path, body) {
     throw new Error(msg)
   }
   return text ? JSON.parse(text) : null
+}
+
+/**
+ * 上传本地文件到后端 /api/files/upload，返回 { url }。
+ */
+async function uploadFile(localPath) {
+  const fileBuffer = await readFile(localPath)
+  const fileName = basename(localPath)
+  const blob = new Blob([fileBuffer])
+  const formData = new FormData()
+  formData.append('file', blob, fileName)
+
+  const res = await fetch(`${API_BASE}/files/upload`, {
+    method: 'POST',
+    body: formData,
+  })
+  const text = await res.text()
+  if (!res.ok) {
+    let msg = `${res.status}`
+    try { msg = JSON.parse(text).message || msg } catch {}
+    throw new Error(msg)
+  }
+  return JSON.parse(text)
 }
 
 function ok(text) {
@@ -193,7 +218,7 @@ export function registerCatalogTools(server) {
         if (!dims.length) return ok('该商品暂无规格维度。')
         const lines = dims.map(d => {
           const opts = (d.options || []).map(o => o.optionValue).join('、') || '无'
-          const tags = [d.required ? '必填' : '可选', d.affectsAppearance ? '影响外观' : ''].filter(Boolean).join(' ')
+          const tags = d.required ? '必填' : '可选'
           return `- **${d.name}**（${tags}）：${opts}`
         })
         return ok(`SPU ${spuId} 的规格维度：\n${lines.join('\n')}`)
@@ -208,11 +233,10 @@ export function registerCatalogTools(server) {
       spuId: z.number().describe('商品(SPU) ID'),
       name: z.string().describe('维度名称，如"容量""颜色"'),
       required: z.boolean().describe('创建 SKU 时是否必选'),
-      affectsAppearance: z.boolean().optional().describe('是否影响外观（选项可带图片）'),
     },
-    async ({ spuId, name, required, affectsAppearance }) => {
+    async ({ spuId, name, required }) => {
       try {
-        const d = await api('POST', `/products/${spuId}/dimensions`, { name, required, affectsAppearance: affectsAppearance || false })
+        const d = await api('POST', `/products/${spuId}/dimensions`, { name, required })
         return ok(`添加维度成功：ID=${d.id}，名称="${d.name}"`)
       } catch (e) { return err(e) }
     }
@@ -226,14 +250,12 @@ export function registerCatalogTools(server) {
       dimensionId: z.number().describe('维度 ID'),
       optionValue: z.string().describe('选项值，如"128G""黑色"'),
       sortOrder: z.number().optional().describe('排序（越小越靠前）'),
-      image: z.string().optional().describe('图片链接（仅影响外观的维度可填）'),
     },
-    async ({ spuId, dimensionId, optionValue, sortOrder, image }) => {
+    async ({ spuId, dimensionId, optionValue, sortOrder }) => {
       try {
         const o = await api('POST', `/products/${spuId}/dimensions/${dimensionId}/options`, {
           optionValue,
           sortOrder: sortOrder ?? null,
-          image: image || null,
         })
         return ok(`添加选项成功：ID=${o.id}，值="${o.optionValue}"`)
       } catch (e) { return err(e) }
@@ -331,6 +353,168 @@ export function registerCatalogTools(server) {
       try {
         await api('DELETE', `/products/${spuId}/skus/${skuId}`)
         return ok(`已删除 SKU ID=${skuId}`)
+      } catch (e) { return err(e) }
+    }
+  )
+
+  // ── 文件上传 ──
+
+  server.tool(
+    'catalog_upload_image',
+    '上传本地图片文件到服务器，返回可访问的 URL',
+    {
+      localPath: z.string().describe('本地图片文件的绝对路径'),
+    },
+    async ({ localPath }) => {
+      try {
+        const result = await uploadFile(localPath)
+        return ok(`上传成功：${result.url}`)
+      } catch (e) { return err(e) }
+    }
+  )
+
+  // ── 展示图（产品级 + 选项级） ──
+
+  server.tool(
+    'catalog_add_product_image',
+    '为产品添加展示图（不绑定到具体选项，产品级）。可先用 catalog_upload_image 上传图片获取 URL，再调用此工具。',
+    {
+      spuId: z.number().describe('商品(SPU) ID'),
+      imageUrl: z.string().describe('图片 URL（可通过 catalog_upload_image 获取）'),
+      sortOrder: z.number().optional().describe('排序（越小越靠前）'),
+    },
+    async ({ spuId, imageUrl, sortOrder }) => {
+      try {
+        const img = await api('POST', `/products/${spuId}/images`, { imageUrl, sortOrder: sortOrder ?? null })
+        return ok(`添加产品级展示图成功：ID=${img.id}，URL=${img.imageUrl}，排序=${img.sortOrder ?? '—'}`)
+      } catch (e) { return err(e) }
+    }
+  )
+
+  server.tool(
+    'catalog_list_product_images',
+    '查看某产品的产品级展示图列表（不包含各选项的展示图）',
+    { spuId: z.number().describe('商品(SPU) ID') },
+    async ({ spuId }) => {
+      try {
+        const images = await api('GET', `/products/${spuId}/images`)
+        if (!images.length) return ok('该产品暂无产品级展示图。')
+        const header = '| ID | URL | 排序 |\n|---|---|---|'
+        const rows = images.map(i => `| ${i.id} | ${i.imageUrl} | ${i.sortOrder ?? '—'} |`)
+        return ok(`${header}\n${rows.join('\n')}`)
+      } catch (e) { return err(e) }
+    }
+  )
+
+  server.tool(
+    'catalog_delete_product_image',
+    '删除产品级展示图',
+    {
+      spuId: z.number().describe('商品(SPU) ID'),
+      imageId: z.number().describe('展示图 ID'),
+    },
+    async ({ spuId, imageId }) => {
+      try {
+        await api('DELETE', `/products/${spuId}/images/${imageId}`)
+        return ok(`已删除产品级展示图 ID=${imageId}`)
+      } catch (e) { return err(e) }
+    }
+  )
+
+  server.tool(
+    'catalog_upload_and_add_product_image',
+    '一步完成：上传本地图片并添加为产品级展示图',
+    {
+      spuId: z.number().describe('商品(SPU) ID'),
+      localPath: z.string().describe('本地图片文件的绝对路径'),
+      sortOrder: z.number().optional().describe('排序（越小越靠前）'),
+    },
+    async ({ spuId, localPath, sortOrder }) => {
+      try {
+        const { url } = await uploadFile(localPath)
+        const img = await api('POST', `/products/${spuId}/images`, { imageUrl: url, sortOrder: sortOrder ?? null })
+        return ok(`上传并添加产品级展示图成功：ID=${img.id}，URL=${img.imageUrl}`)
+      } catch (e) { return err(e) }
+    }
+  )
+
+  server.tool(
+    'catalog_add_option_image',
+    '为某维度的选项添加展示图。任意维度的选项均可挂图。可先用 catalog_upload_image 上传图片获取 URL，再调用此工具关联。',
+    {
+      spuId: z.number().describe('商品(SPU) ID'),
+      dimensionId: z.number().describe('维度 ID'),
+      optionId: z.number().describe('选项 ID'),
+      imageUrl: z.string().describe('图片 URL（可通过 catalog_upload_image 获取）'),
+      sortOrder: z.number().optional().describe('排序（越小越靠前）'),
+    },
+    async ({ spuId, dimensionId, optionId, imageUrl, sortOrder }) => {
+      try {
+        const img = await api('POST',
+          `/products/${spuId}/dimensions/${dimensionId}/options/${optionId}/images`,
+          { imageUrl, sortOrder: sortOrder ?? null })
+        return ok(`添加展示图成功：ID=${img.id}，URL=${img.imageUrl}，排序=${img.sortOrder ?? '—'}`)
+      } catch (e) { return err(e) }
+    }
+  )
+
+  server.tool(
+    'catalog_upload_and_add_option_image',
+    '一步完成：上传本地图片并关联到选项展示图',
+    {
+      spuId: z.number().describe('商品(SPU) ID'),
+      dimensionId: z.number().describe('维度 ID'),
+      optionId: z.number().describe('选项 ID'),
+      localPath: z.string().describe('本地图片文件的绝对路径'),
+      sortOrder: z.number().optional().describe('排序（越小越靠前）'),
+    },
+    async ({ spuId, dimensionId, optionId, localPath, sortOrder }) => {
+      try {
+        // 1. 上传文件
+        const { url } = await uploadFile(localPath)
+        // 2. 关联到选项
+        const img = await api('POST',
+          `/products/${spuId}/dimensions/${dimensionId}/options/${optionId}/images`,
+          { imageUrl: url, sortOrder: sortOrder ?? null })
+        return ok(`上传并关联成功：图片ID=${img.id}，URL=${img.imageUrl}`)
+      } catch (e) { return err(e) }
+    }
+  )
+
+  server.tool(
+    'catalog_list_option_images',
+    '查看某选项的展示图列表',
+    {
+      spuId: z.number().describe('商品(SPU) ID'),
+      dimensionId: z.number().describe('维度 ID'),
+      optionId: z.number().describe('选项 ID'),
+    },
+    async ({ spuId, dimensionId, optionId }) => {
+      try {
+        const images = await api('GET',
+          `/products/${spuId}/dimensions/${dimensionId}/options/${optionId}/images`)
+        if (!images.length) return ok('该选项暂无展示图。')
+        const header = '| ID | URL | 排序 |\n|---|---|---|'
+        const rows = images.map(i => `| ${i.id} | ${i.imageUrl} | ${i.sortOrder ?? '—'} |`)
+        return ok(`${header}\n${rows.join('\n')}`)
+      } catch (e) { return err(e) }
+    }
+  )
+
+  server.tool(
+    'catalog_delete_option_image',
+    '删除选项的展示图',
+    {
+      spuId: z.number().describe('商品(SPU) ID'),
+      dimensionId: z.number().describe('维度 ID'),
+      optionId: z.number().describe('选项 ID'),
+      imageId: z.number().describe('展示图 ID'),
+    },
+    async ({ spuId, dimensionId, optionId, imageId }) => {
+      try {
+        await api('DELETE',
+          `/products/${spuId}/dimensions/${dimensionId}/options/${optionId}/images/${imageId}`)
+        return ok(`已删除展示图 ID=${imageId}`)
       } catch (e) { return err(e) }
     }
   )

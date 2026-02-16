@@ -16,6 +16,7 @@ dist/
 .env
 .env.local
 *.local
+.cursor/mcp.json
 
 # IDE
 .idea/
@@ -33,3 +34,7 @@ temp/
 
 # 脚本运行时（PID、日志）
 .hmall/
+
+# 图片下载脚本产出（演示数据）
+urls.txt
+scripts/downloaded-images/

@@ -34,6 +34,7 @@ if (state.token) {
 export function useAuth() {
   const isLoggedIn = computed(() => !!state.token)
   const username = computed(() => state.username)
+  const userId = computed(() => state.userId)
 
   function setToken(token) {
     const info = parseToken(token)
@@ -51,5 +52,5 @@ export function useAuth() {
     localStorage.removeItem('token')
   }
 
-  return { isLoggedIn, username, setToken, logout }
+  return { isLoggedIn, username, userId, setToken, logout }
 }

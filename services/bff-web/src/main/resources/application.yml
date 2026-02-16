@@ -1,0 +1,10 @@
+server:
+  port: 8085
+
+bff:
+  catalog:
+    base-url: http://localhost:8080
+  user:
+    base-url: http://localhost:8082
+  order:
+    base-url: http://localhost:8081
