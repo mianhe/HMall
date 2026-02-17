@@ -20,9 +20,27 @@
 
 | 路由 | 页面 | 功能 |
 |------|------|------|
-| `/` | HomePage | 入口；文案说明；跳转「查看 Catalog」 |
+| `/` | HomePage | 入口；文案说明；跳转「查看 Catalog」「库存管理」 |
 | `/catalog` | CatalogPage | 类目 + 商品 + 规格 + SKU 树形全览；**点击商品**进入该商品详情页；刷新、空态与错误提示 |
 | `/products/:id` | ProductDetailPage | 商品详情：基础信息、维度与选项、产品级展示图、各选项展示图；**上传**产品级或选项级图片；删除展示图；返回 Catalog |
+| `/inventory` | InventoryPage | 库存管理：平铺表格展示（一级类别、二级子类别、产品、SKU 名称、可用、已占用、操作）；过滤（一级类别、二级子类别、产品名称）；库存直接修改（PUT）；无商品/SKU 描述 |
+
+---
+
+## 二点五、库存管理页（InventoryPage）
+
+### 交互设计
+
+1. **简化描述**：不展示商品或 SKU 的描述性文案，仅展示 SKU 名称（displayName 或规格组合），界面更简洁。
+2. **平铺展示**：以表格形式平铺。列：一级类别、二级子类别、产品、SKU 名称、可用、已占用、操作。同一类别下所有内容直接展示，无需折叠。
+3. **过滤**（假设类别仅两层）：(a) 按一级类别筛选；(b) 按二级子类别筛选（依赖所选一级）；(c) 按产品名称关键词筛选。
+4. **功能**：库存数量在表格内直接修改（可用输入框 + 保存），调用 PUT /api/inventory/stock/{skuId}；成功则更新当前行，失败展示后端 message。
+
+### 数据与 API
+
+- 树数据来自 Catalog：GET /api/categories、/api/products、/api/products/{id}/skus（与 Catalog 页一致）。前端将树扁平化为表格行（一级类别、二级子类别、产品、SKU），仅用 SKU 名称，不用描述。
+- 库存：页面加载后对所有出现的 SKU 调用 GET /api/inventory/stock/{skuId}；无记录时显示 0，可直接设置可用数量后保存（PUT 会创建）。
+- 封装：Catalog 用 `shared/api/catalog.js`，库存用 `shared/api/inventory.js`；与 `docs/bounded-contexts/inventory/api.yaml` 一致。
 
 ---
 
@@ -79,6 +97,7 @@
 
 | 文档 | 用途 |
 |------|------|
-| `docs/bounded-contexts/catalog/requirements.md` | 后端需求与 .feature |
-| `docs/bounded-contexts/catalog/api.yaml` | 后端 REST 契约 |
+| `docs/bounded-contexts/catalog/requirements.md` | Catalog 后端需求与 .feature |
+| `docs/bounded-contexts/catalog/api.yaml` | Catalog REST 契约 |
+| `docs/bounded-contexts/inventory/api.yaml` | Inventory REST 契约（库存查询/更新） |
 | `frontend-admin/docs/design-input.md` | 前端设计输入（FSD + Atomic）；含类目/商品 CRUD 等**未实现**的扩展设想，后续若做表单页可参考 |

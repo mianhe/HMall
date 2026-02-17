@@ -4,6 +4,7 @@ const routes = [
   { path: '/', name: 'Home', component: () => import('../pages/HomePage.vue'), meta: { title: 'HMall' } },
   { path: '/catalog', name: 'Catalog', component: () => import('../pages/CatalogPage.vue'), meta: { title: 'Catalog' } },
   { path: '/products/:id', name: 'ProductDetail', component: () => import('../pages/ProductDetailPage.vue'), meta: { title: '商品详情' } },
+  { path: '/inventory', name: 'Inventory', component: () => import('../pages/InventoryPage.vue'), meta: { title: '库存管理' } },
 ]
 
 const router = createRouter({

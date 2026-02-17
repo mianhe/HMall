@@ -1,0 +1,4 @@
+# 启用 Kafka 事件发布：--spring.profiles.active=kafka（需 Kafka 已启动）
+spring:
+  autoconfigure:
+    exclude: []

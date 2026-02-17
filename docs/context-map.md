@@ -53,9 +53,9 @@ flowchart TB
 | **Catalog** | 类目、商品(SPU)、规格维度、SKU、展示图 | ✅ 已实现 | 4 feature，45 scenario |
 | **User** | 用户注册、登录(JWT)、收货地址管理 | ✅ 已实现 | 3 feature，19 scenario |
 | **Order** | 订单创建、取消、查询、事件驱动、状态流转 | ✅ 已实现 | 4 feature，23 scenario |
-| **BFF** | frontend-web 统一 API 入口，代理 Catalog/User/Order | ✅ POC 完成 | 透传代理、CORS |
+| **BFF** | frontend 统一 API 入口，代理 Catalog/User/Order/Inventory | ✅ POC 完成 | 透传代理、CORS、4xx/5xx 转发 |
 | **Cart** | 购物车管理 | 🔲 规划中 | 依赖 Catalog + User，按需实现 |
-| **Inventory** | 同步占用/释放库存 | 🔲 下一步 | Order 同步调用 |
+| **Inventory** | 同步占用/释放库存 | ✅ 已实现并已与 Order 集成 | Order 同步调用 occupy/release |
 | **Payment** | 扣款/退款/超时检测 | 🔲 规划中 | Order 同步调用；支付完成由网关回调 |
 | **Pricing** | 算价、优惠 | 🔲 规划中 | 同步调用 |
 | **Fulfillment** | 拆单、发货、配送 | 🔲 规划中 | Order 以 Port 桩对接 |

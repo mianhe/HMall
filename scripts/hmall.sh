@@ -10,7 +10,7 @@ COMPOSE_FILE="${ROOT}/infra/docker-compose.yml"
 CONTAINER_NAME="hmall-postgres"
 PID_DIR="${ROOT}/.hmall/pids"
 LOG_DIR="${ROOT}/.hmall/logs"
-ALL_COMPONENTS="db catalog-service user-service order-service bff-web frontend-admin frontend-web mcp"
+ALL_COMPONENTS="db catalog-service user-service order-service inventory-service bff-web frontend-admin frontend-web mcp"
 
 # 确保目录存在
 mkdir -p "$PID_DIR" "$LOG_DIR"
@@ -57,6 +57,14 @@ status_order_service() {
   fi
 }
 
+status_inventory_service() {
+  if is_port_listen 8083; then
+    echo "  inventory-service   up      http://127.0.0.1:8083"
+  else
+    echo "  inventory-service   down    -"
+  fi
+}
+
 status_bff_web() {
   if is_port_listen 8085; then
     echo "  bff-web       up      http://127.0.0.1:8085"
@@ -95,6 +103,7 @@ cmd_status() {
   status_catalog_service
   status_user_service
   status_order_service
+  status_inventory_service
   status_bff_web
   status_frontend_admin
   status_frontend_web
@@ -129,6 +138,9 @@ start_db() {
   echo "Waiting for PostgreSQL (5432)..."
   wait_for_port 5432 "PostgreSQL" || true
   # 端口监听后 PostgreSQL 可能仍在初始化，稍等再让后端连接，避免交替 500
+  sleep 2
+  echo "Waiting for Kafka (9092)..."
+  wait_for_port 9092 "Kafka" || true
   sleep 2
   echo "DB started."
 }
@@ -177,9 +189,26 @@ start_order_service() {
   (cd "${ROOT}/services/order-service" && mvn spring-boot:run >> "${LOG_DIR}/order-service.log" 2>&1 &)
   echo $! > "${PID_DIR}/order-service.pid"
   echo "Waiting for order-service (8081)..."
-  wait_for_port 8081 "order-service" || true
+  if ! wait_for_port 8081 "order-service"; then
+    echo "Order-service may have failed to start. Last 20 lines of ${LOG_DIR}/order-service.log:" >&2
+    tail -20 "${LOG_DIR}/order-service.log" 2>/dev/null || true
+  fi
   sleep 2
   echo "Order-service started."
+}
+
+start_inventory_service() {
+  if is_port_listen 8083; then
+    echo "Inventory-service already running on 8083."
+    return 0
+  fi
+  echo "Starting inventory-service..."
+  (cd "${ROOT}/services/inventory-service" && mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=8083 >> "${LOG_DIR}/inventory-service.log" 2>&1 &)
+  echo $! > "${PID_DIR}/inventory-service.pid"
+  echo "Waiting for inventory-service (8083)..."
+  wait_for_port 8083 "inventory-service" || true
+  sleep 2
+  echo "Inventory-service started."
 }
 
 start_bff_web() {
@@ -242,6 +271,30 @@ stop_order_service() {
     fi
   fi
   echo "Order-service stopped."
+}
+
+stop_inventory_service() {
+  local pid_file="${PID_DIR}/inventory-service.pid"
+  if [ -f "$pid_file" ]; then
+    local pid
+    pid=$(cat "$pid_file")
+    if kill -0 "$pid" 2>/dev/null; then
+      echo "Stopping inventory-service (PID $pid)..."
+      kill "$pid" 2>/dev/null || true
+      sleep 2
+      kill -9 "$pid" 2>/dev/null || true
+    fi
+    rm -f "$pid_file"
+  fi
+  if is_port_listen 8083; then
+    local p
+    p=$(lsof -i :8083 -sTCP:LISTEN -t 2>/dev/null | head -1)
+    if [ -n "$p" ]; then
+      echo "Killing process on 8083 (PID $p)..."
+      kill "$p" 2>/dev/null || kill -9 "$p" 2>/dev/null || true
+    fi
+  fi
+  echo "Inventory-service stopped."
 }
 
 stop_catalog_service() {
@@ -414,6 +467,7 @@ run_start() {
       catalog-service) start_catalog_service ;;
       user-service) start_user_service ;;
       order-service) start_order_service ;;
+      inventory-service) start_inventory_service ;;
       bff-web) start_bff_web ;;
       frontend-admin) start_frontend_admin ;;
       frontend-web) start_frontend_web ;;
@@ -425,13 +479,14 @@ run_start() {
 
 run_stop() {
   local components="$*"
-  [ -z "$components" ] && components="mcp frontend-web frontend-admin bff-web order-service user-service catalog-service db"
+  [ -z "$components" ] && components="mcp frontend-web frontend-admin bff-web inventory-service order-service user-service catalog-service db"
   for c in $components; do
     case "$c" in
       db) stop_db ;;
       catalog-service) stop_catalog_service ;;
       user-service) stop_user_service ;;
       order-service) stop_order_service ;;
+      inventory-service) stop_inventory_service ;;
       bff-web) stop_bff_web ;;
       frontend-admin) stop_frontend_admin ;;
       frontend-web) stop_frontend_web ;;
@@ -562,7 +617,7 @@ cmd_test() {
 usage() {
   echo "Usage: $0 <command> [options] [components]"
   echo "  command:  start | stop | status | restart | test"
-  echo "  components: db | catalog-service | user-service | order-service | bff-web | frontend-admin | frontend-web | mcp (default: all for start/stop/restart)"
+  echo "  components: db | catalog-service | user-service | order-service | inventory-service | bff-web | frontend-admin | frontend-web | mcp (default: all for start/stop/restart)"
   echo "  test options: [--cucumber-only] [--clean] [--bc catalog|user|order|inventory|all]"
   echo "See scripts/README.md for details."
 }

@@ -7,13 +7,13 @@ import com.hmall.order.application.port.OrderOutboundEventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
-/**
- * Order 出站事件只发往 Kafka，供进程外/其他应用订阅。测试排除 Kafka 时由 Recorder 替身注入。
- */
+/** Kafka 启用时发布 Order 出站事件。@Primary 覆盖 PortStubConfig 的 NoOp。 */
 @Component
+@Primary
 @ConditionalOnBean(KafkaTemplate.class)
 public class KafkaOrderOutboundEventPublisher implements OrderOutboundEventPublisher {
 
@@ -30,34 +30,19 @@ public class KafkaOrderOutboundEventPublisher implements OrderOutboundEventPubli
 
     @Override
     public void publish(OrderCreatedEvent event) {
-        try {
-            OrderCreatedMessage message = OrderCreatedMessage.from(event.orderId(), event.items());
-            kafkaTemplate.send(kafkaProperties.getOrderCreated(), String.valueOf(event.orderId()), message);
-        } catch (Exception e) {
-            log.error("发送 OrderCreated 到 Kafka 失败: orderId={}", event.orderId(), e);
-            throw e;
-        }
+        kafkaTemplate.send(kafkaProperties.getOrderCreated(), String.valueOf(event.orderId()),
+                OrderCreatedMessage.from(event.orderId(), event.items()));
     }
 
     @Override
     public void publish(OrderCancelledEvent event) {
-        try {
-            OrderCancelledMessage message = OrderCancelledMessage.from(event.orderId());
-            kafkaTemplate.send(kafkaProperties.getOrderCancelled(), String.valueOf(event.orderId()), message);
-        } catch (Exception e) {
-            log.error("发送 OrderCancelled 到 Kafka 失败: orderId={}", event.orderId(), e);
-            throw e;
-        }
+        kafkaTemplate.send(kafkaProperties.getOrderCancelled(), String.valueOf(event.orderId()),
+                OrderCancelledMessage.from(event.orderId()));
     }
 
     @Override
     public void publish(OrderCompletedEvent event) {
-        try {
-            OrderCompletedMessage message = OrderCompletedMessage.from(event.orderId());
-            kafkaTemplate.send(kafkaProperties.getOrderCompleted(), String.valueOf(event.orderId()), message);
-        } catch (Exception e) {
-            log.error("发送 OrderCompleted 到 Kafka 失败: orderId={}", event.orderId(), e);
-            throw e;
-        }
+        kafkaTemplate.send(kafkaProperties.getOrderCompleted(), String.valueOf(event.orderId()),
+                OrderCompletedMessage.from(event.orderId()));
     }
 }

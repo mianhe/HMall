@@ -10,11 +10,11 @@ const client = axios.create({
 })
 
 /**
- * 创建订单
+ * 创建订单（含占用库存等，可能较慢，单独延长超时）
  * @param {Object} body - { userId, items: [{ skuId, quantity }], shippingAddress: { recipientName, phone, province, city, district, detail } }
  */
 export async function createOrder(body) {
-  const { data } = await client.post('/orders', body)
+  const { data } = await client.post('/orders', body, { timeout: 30000 })
   return data
 }
 

@@ -1,3 +1,4 @@
+
 # 前端设计输入 — 消费者端（frontend-web）
 
 **本文档作用**：描述该前端的**页面结构、组件分层与设计风格**，与 requirements（功能与 API）互补。用于新页面或大改结构时保持实现一致；详细约定见 `docs/design-principles.md` 第三节与「Design Input 使用」。

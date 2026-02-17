@@ -94,6 +94,7 @@
       </div>
 
       <!-- 提交 -->
+      <p v-if="error" class="mb-4 px-4 py-2 rounded-lg bg-red-50 text-vmall-red text-sm border border-red-200">{{ error }}</p>
       <div class="flex justify-between items-center">
         <p class="text-gray-800">
           合计：<span class="text-xl font-bold text-vmall-red">¥ {{ totalCents / 100 }}</span>
@@ -106,8 +107,6 @@
           {{ submitting ? '提交中…' : '提交订单' }}
         </button>
       </div>
-
-      <p v-if="error" class="mt-4 text-vmall-red text-sm">{{ error }}</p>
     </template>
   </div>
 </template>
@@ -219,10 +218,18 @@ async function submitOrder() {
         detail: addr.detail,
       },
     })
+    if (!order?.orderId) {
+      error.value = '订单创建异常，请重试'
+      return
+    }
     sessionStorage.removeItem('checkoutItem')
     router.replace({ path: `/orders/${order.orderId}` })
   } catch (e) {
-    error.value = e.response?.data?.message || e.message || '提交失败'
+    if (e.code === 'ECONNABORTED') {
+      error.value = '请求超时，请稍后重试'
+    } else {
+      error.value = e.response?.data?.message || e.message || '提交失败'
+    }
   } finally {
     submitting.value = false
   }

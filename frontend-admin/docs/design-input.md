@@ -30,7 +30,7 @@
 | Category | 类别，有 id、parentId、name、description；根类别 parentId 为 null |
 | Product | 商品，有 id、categoryId、name、description |
 
-### 2.2 页面/路由（pages，扩展设想，当前仅实现 `/` 与 `/catalog`）
+### 2.2 页面/路由（pages，扩展设想，当前已实现 `/`、`/catalog`、`/products/:id`、`/inventory`）
 
 | 路由 | 页面说明 |
 |------|----------|
@@ -41,6 +41,7 @@
 | `/products` | 商品列表：需带 `categoryId`（某类别下的商品），可创建商品 |
 | `/products/new?categoryId=:id` | 新建商品：表单（名称、描述，类别固定为当前类别），提交后回到该类别商品列表 |
 | `/products/:id` | 商品详情：只读展示一个商品 |
+| `/inventory` | 库存管理：平铺表格（一级/二级类别、产品、SKU 名称、可用、已占用、操作），过滤（一级类别、二级子类别、产品名称），库存直接修改；无描述（已实现） |
 
 ### 2.3 功能（features）
 

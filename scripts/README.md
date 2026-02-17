@@ -14,10 +14,11 @@
 
 ## 组件名称
 
-- **db** — PostgreSQL（Docker，端口 5432）
+- **db** — 基础设施（Docker：PostgreSQL 5432、Kafka 9092、MinIO 9000）。脚本会在启动 db 后等待 Kafka 就绪再继续。order-service 和 inventory-service 默认不依赖 Kafka（已排除 KafkaAutoConfiguration），Kafka 未就绪不影响启动。
 - **catalog-service** — Catalog 微服务（端口 8080）
 - **user-service** — User 微服务（端口 8082）
 - **order-service** — Order 微服务（端口 8081）
+- **inventory-service** — Inventory 微服务（端口 8083，脚本启动时固定 8083 以与 user-service 错开）
 - **bff-web** — BFF 微服务（端口 8085），frontend-admin、frontend-web 经此代理调用后端
 - **frontend-admin** — 管理后台（Vite，端口 5173）
 - **frontend-web** — 消费者端（Vite，端口 5174）
@@ -27,17 +28,17 @@
 
 ## 命令与参数详解
 
-### start [db] [catalog-service] [user-service] [order-service] [bff-web] [frontend-admin] [frontend-web] [mcp]
+### start [db] [catalog-service] [user-service] [order-service] [inventory-service] [bff-web] [frontend-admin] [frontend-web] [mcp]
 
-- 启动顺序：先 **db**，等数据库可连后再起 **catalog-service**、**user-service**、**order-service**，然后起 **bff-web**，最后可并行起 **frontend-admin**、**frontend-web** 与 **mcp**。
+- 启动顺序：先 **db**（并等待 PostgreSQL、Kafka 就绪），再起 **catalog-service**、**user-service**、**order-service**、**inventory-service**，然后 **bff-web**，最后 **frontend-admin**、**frontend-web**、**mcp**。若 order-service 启动超时，脚本会打印 `.hmall/logs/order-service.log` 末尾若干行，便于排查（常见原因：Kafka 未就绪或端口被占用）。
 - 示例：
   - `./scripts/hmall.sh start` — 启动全部
   - `./scripts/hmall.sh start db catalog-service` — 只起数据库与后端
   - `./scripts/hmall.sh start mcp` — 只起 MCP Server
 
-### stop [db] [catalog-service] [user-service] [order-service] [bff-web] [frontend-admin] [frontend-web] [mcp]
+### stop [db] [catalog-service] [user-service] [order-service] [inventory-service] [bff-web] [frontend-admin] [frontend-web] [mcp]
 
-- 停止指定组件；不写组件时停止全部（顺序：mcp → frontend-web → frontend-admin → bff-web → order-service → user-service → catalog-service → db）。
+- 停止指定组件；不写组件时停止全部（顺序：mcp → frontend-web → frontend-admin → bff-web → inventory-service → order-service → user-service → catalog-service → db）。
 - 示例：
   - `./scripts/hmall.sh stop` — 停止全部
   - `./scripts/hmall.sh stop catalog-service frontend-admin` — 只停后端与管理后台
@@ -45,9 +46,9 @@
 ### status
 
 - 输出各组件是否在运行及监听端口（或 URL）。
-- 不接组件参数，一次显示 db / catalog-service / user-service / order-service / bff-web / frontend-admin / frontend-web / mcp。
+- 不接组件参数，一次显示 db / catalog-service / user-service / order-service / inventory-service / bff-web / frontend-admin / frontend-web / mcp。
 
-### restart [db] [catalog-service] [user-service] [order-service] [bff-web] [frontend-admin] [frontend-web] [mcp]
+### restart [db] [catalog-service] [user-service] [order-service] [inventory-service] [bff-web] [frontend-admin] [frontend-web] [mcp]
 
 - 先对指定组件执行 stop，再 start；不写组件时对全部重启。
 - 示例：

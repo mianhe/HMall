@@ -2,6 +2,7 @@ package com.hmall.order.api;
 
 import com.hmall.order.api.dto.ErrorDto;
 import com.hmall.order.application.OrderBadRequestException;
+import com.hmall.order.infrastructure.inventory.InventoryUnavailableException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -13,16 +14,17 @@ public class OrderExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorDto> handleNotFound(IllegalArgumentException e) {
-        return ResponseEntity
-            .status(HttpStatus.NOT_FOUND)
-            .body(new ErrorDto(e.getMessage()));
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorDto(e.getMessage()));
     }
 
     @ExceptionHandler(OrderBadRequestException.class)
     public ResponseEntity<ErrorDto> handleBadRequest(OrderBadRequestException e) {
-        return ResponseEntity
-            .status(HttpStatus.BAD_REQUEST)
-            .body(new ErrorDto(e.getMessage()));
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ErrorDto(e.getMessage()));
+    }
+
+    @ExceptionHandler(InventoryUnavailableException.class)
+    public ResponseEntity<ErrorDto> handleInventoryUnavailable(InventoryUnavailableException e) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(new ErrorDto(e.getMessage()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

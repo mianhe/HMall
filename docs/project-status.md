@@ -25,16 +25,21 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment 🔲 → Fu
 | **Catalog** | 类目、商品(SPU)、规格维度、SKU、展示图 | ✅ 已完成 | 4 个 feature，45 个 scenario，全部通过 |
 | **User** | 用户注册、登录(JWT)、收货地址管理 | ✅ 已完成 | 3 个 feature（user、login、address），19 个 scenario，全部通过 |
 | **Order** | 订单创建、取消、查询、事件驱动、状态流转 | ✅ 已完成 | 4 个 feature，23 个 scenario，全部通过 |
-| **BFF** | frontend-admin、frontend-web 统一 API 入口，代理 Catalog/User/Order | ✅ POC 完成 | 透传代理、CORS，端口 8085 |
-| **Inventory** | 同步占用/释放库存、库存管理 | ✅ 已完成 | 3 feature、11 scenario 全绿 |
+| **BFF** | frontend 统一 API 入口，代理 Catalog/User/Order/Inventory | ✅ POC 完成 | 透传代理、CORS、4xx/5xx 转发，端口 8085 |
+| **Inventory** | 同步占用/释放库存、库存管理 | ✅ 已完成 | 3 feature、11 scenario 全绿；已与 Order 集成 |
 | **Payment** | 扣款/退款/超时检测 | 🔲 规划中 | 依赖 Order，目前 Order 以 Port 桩对接 |
 | **Fulfillment** | 拆单、发货、配送 | 🔲 规划中 | 依赖 Order，目前 Order 以 Port 桩对接 |
 | **Pricing** | 算价、优惠 | 🔲 规划中 | 创建订单时同步调用 |
 | **Cart** | 购物车管理 | 🔲 规划中 | 依赖 Catalog + User，按需实现 |
 
-### 当前：Inventory BC（库存）
+### 已完成：Order 与 Inventory 集成
 
-**Inventory BC 已完成**：`inventory-service`、占用/释放/库存管理（PUT·GET `/api/inventory/stock/{skuId}`），11 个 scenario 全绿。下一步：Order 对接释放、Payment/Fulfillment。
+Order 通过 `RestOccupyInventoryAdapter`、`RestReleaseInventoryAdapter` 调用 Inventory 的 `POST /api/inventory/occupy`、`POST /api/inventory/release`。验收测试用 Stub，集成测试用 WireMock 验证 HTTP 调用。详见 `services/order-service/README.md`。
+
+### 下一步
+
+1. **Payment 集成**：Order → Payment 同步创建支付单/退款，当前用 NoOp 桩。
+2. **Kafka 事件**：Order 和 Inventory 的领域事件（OrderCreated、StockReserved 等）默认不发 Kafka（排除了 KafkaAutoConfiguration），加 `--spring.profiles.active=kafka` 可启用。后续计划增加事件监控。
 
 ---
 
@@ -42,8 +47,8 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment 🔲 → Fu
 
 | 前端 | 职责 | 状态 | 已实现页面 |
 |------|------|------|-----------|
-| **frontend-admin** | 管理后台，展示为主 | ✅ 基本完成 | HomePage、CatalogPage（类目→商品→SKU 分层展示）、ProductDetailPage；API 经 BFF 代理 |
-| **frontend-web** | 消费者端 | ✅ 阶段完成 | HomePage、LoginPage、RegisterPage、ProductDetailPage、CheckoutPage、OrderListPage、OrderDetailPage、AddressPage、**MyPage（我的）**；API 经 BFF 代理 |
+| **frontend-admin** | 管理后台，展示+库存管理 | ✅ 基本完成 | HomePage、CatalogPage、ProductDetailPage、InventoryPage |
+| **frontend-web** | 消费者端 | ✅ 阶段完成 | HomePage、LoginPage、RegisterPage、ProductDetailPage、CheckoutPage、OrderListPage、OrderDetailPage、AddressPage、MyPage |
 
 ### frontend-web 已实现
 
@@ -79,15 +84,10 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment 🔲 → Fu
 
 | 日期 | 变更内容 |
 |------|---------|
-| 2026-02-16 | Inventory 库存管理完成：inventory-stock.feature 2 scenario、GET/PUT /stock/{skuId}；BC 共 3 feature、11 scenario 全绿 |
-| 2026-02-16 | Inventory 释放库存功能完成：inventory-release.feature 4 scenario、POST /release、StockReleased 事件；共 2 feature、9 scenario |
-| 2026-02-16 | Inventory 占用库存功能完成：inventory-service、inventory-occupy.feature 5 scenario、api.yaml、领域模型与事件发布 |
-| 2026-02-16 | Project Status 与 Context Map 对齐；Order 23 scenario；Inventory 文档就绪，可进入开发 |
-| 2026-02-15 | Order 实现同步占用/支付，删除 InventoryReserved/Failed 事件，合并冗余 scenario，23 scenario |
-| 2026-02-15 | Payment 改为同步调用+回调：Order 同步创建支付；支付完成由网关回调；决策#5 |
-| 2026-02-15 | Inventory 改为同步占用：更新 Inventory/Order/context-map 等文档；决策#4 |
-| 2026-02-15 | frontend-web 阶段完成：我的页、User 地址管理、Order 交易流程；设计文档与 Skill 整理；下一步 Inventory BC |
-| 2025-02-13 | BFF 创建，frontend 经 BFF 代理；开发路径改为先 Order 前端、后 Inventory/Payment/Fulfillment |
-| 2026-02-14 | Order BC 全部 feature 完成（创建/取消/查询/事件驱动），23 scenario |
-| 2026-02-12 | Catalog BC 新增展示图(OptionImage)，scenario 45 |
+| 2026-02-17 | Order–Inventory 集成完成（适配器 + 集成测试 + BFF 4xx 转发 + Kafka 默认排除保证无 Kafka 时可用） |
+| 2026-02-16 | Inventory BC 完成（占用/释放/库存管理，11 scenario）；frontend-admin 库存管理页（平铺表格+过滤） |
+| 2026-02-15 | Order 同步占用与支付、Payment/Inventory 方案落定（决策#4/#5）；frontend-web 阶段完成 |
+| 2026-02-14 | Order BC 全部 feature 完成，23 scenario |
+| 2026-02-12 | Catalog BC 新增展示图(OptionImage) |
+| 2025-02-13 | BFF 创建，frontend 经 BFF 代理 |
 | 2025-02-12 | 项目初始化；Catalog、User BC 已完成 |

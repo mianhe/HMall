@@ -5,6 +5,7 @@
       <nav class="flex gap-6">
         <router-link to="/" class="hover:underline opacity-95">首页</router-link>
         <router-link to="/catalog" class="hover:underline opacity-95">Catalog</router-link>
+        <router-link to="/inventory" class="hover:underline opacity-95">库存</router-link>
       </nav>
     </div>
   </header>
