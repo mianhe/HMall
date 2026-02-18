@@ -7,10 +7,12 @@ public record BffProperties(
     Catalog catalog,
     User user,
     Order order,
-    Inventory inventory
+    Inventory inventory,
+    Payment payment
 ) {
     public record Catalog(String baseUrl) {}
     public record User(String baseUrl) {}
     public record Order(String baseUrl) {}
     public record Inventory(String baseUrl) {}
+    public record Payment(String baseUrl) {}
 }

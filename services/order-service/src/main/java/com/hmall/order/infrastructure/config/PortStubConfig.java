@@ -31,11 +31,13 @@ public class PortStubConfig {
     }
 
     @Bean
+    @ConditionalOnMissingBean(CreatePaymentPort.class)
     public CreatePaymentPort createPaymentPort() {
         return new NoOpCreatePaymentAdapter();
     }
 
     @Bean
+    @ConditionalOnMissingBean(RefundPaymentPort.class)
     public RefundPaymentPort refundPaymentPort() {
         return new NoOpRefundPaymentAdapter();
     }

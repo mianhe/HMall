@@ -1,0 +1,232 @@
+openapi: 3.0.3
+info:
+  title: Payment 限界上下文 API
+  description: 支付单的 REST 契约。Step Definitions 与实现均按此规范。
+  version: 0.1.0
+
+paths:
+  /api/payments:
+    get:
+      summary: 占位 - 列表（骨架用）
+      description: 占位接口，返回空列表，保证服务可启动与验收脚手架可运行。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {}
+    post:
+      summary: 创建支付单
+      description: Order 调用，传入 orderId 与 amountCents，幂等（同一 orderId 返回已有支付单）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentRequest'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentCreated'
+        '400':
+          description: 参数缺失或非法（如 amountCents ≤ 0）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/payments/callback:
+    post:
+      summary: 支付网关回调（支付结果）
+      description: 网关通知支付成功或失败；成功时置 COMPLETED 并发布 PaymentCompleted，失败时置 FAILED 并发布 PaymentFailed。重复成功回调幂等。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CallbackRequest'
+      responses:
+        '200':
+          description: 处理成功
+        '400':
+          description: 参数非法
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 支付单不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/payments/run-expire-check:
+    post:
+      summary: 执行超时检测
+      description: 将已过期的 PENDING 置为 EXPIRED 并发布 PaymentExpired。供定时任务或测试调用。
+      responses:
+        '200':
+          description: 执行完成
+
+  /api/payments/refund:
+    post:
+      summary: 退款
+      description: 按 orderId 退款，仅 COMPLETED 可退，幂等。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundRequest'
+      responses:
+        '200':
+          description: 成功
+        '400':
+          description: 未支付不可退款或参数非法
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 支付单不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/payments/{paymentId}:
+    get:
+      summary: 按 paymentId 查询支付单
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 支付单详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+        '404':
+          description: 支付单不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/payments/by-order/{orderId}:
+    get:
+      summary: 按 orderId 查询支付单
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 支付单详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+        '404':
+          description: 支付单不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    CreatePaymentRequest:
+      type: object
+      required:
+        - orderId
+        - amountCents
+      properties:
+        orderId:
+          type: integer
+          format: int64
+        amountCents:
+          type: integer
+          format: int64
+          minimum: 1
+    PaymentCreated:
+      type: object
+      properties:
+        paymentId:
+          type: integer
+          format: int64
+        orderId:
+          type: integer
+          format: int64
+        amountCents:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [PENDING]
+        payUrl:
+          type: string
+    CallbackRequest:
+      type: object
+      required:
+        - paymentId
+        - success
+      properties:
+        paymentId:
+          type: integer
+          format: int64
+        success:
+          type: boolean
+    RefundRequest:
+      type: object
+      required:
+        - orderId
+      properties:
+        orderId:
+          type: integer
+          format: int64
+    Payment:
+      type: object
+      properties:
+        paymentId:
+          type: integer
+          format: int64
+        orderId:
+          type: integer
+          format: int64
+        amountCents:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [PENDING, COMPLETED, FAILED, EXPIRED, REFUNDED]
+        payUrl:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        expiredAt:
+          type: string
+          format: date-time
+    Error:
+      type: object
+      properties:
+        message:
+          type: string

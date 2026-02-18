@@ -55,10 +55,11 @@
       <div class="flex gap-3">
         <template v-if="order.status === 'PENDING_PAYMENT'">
           <button
-            @click="handleSimulatePay"
-            class="px-6 py-2 rounded-lg bg-vmall-red text-white hover:bg-vmall-red-hover transition-colors"
+            :disabled="payLoading"
+            @click="handlePay"
+            class="px-6 py-2 rounded-lg bg-vmall-red text-white hover:bg-vmall-red-hover disabled:opacity-60 transition-colors"
           >
-            模拟支付
+            {{ payLoading ? '跳转中…' : '去支付' }}
           </button>
           <button
             :disabled="cancelling"
@@ -83,6 +84,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getOrder, cancelOrder } from '../shared/api/order.js'
+import { getPaymentByOrderId } from '../shared/api/payment.js'
 import { useAuth } from '../shared/auth.js'
 
 const route = useRoute()
@@ -94,6 +96,7 @@ const order = ref(null)
 const loading = ref(true)
 const error = ref('')
 const cancelling = ref(false)
+const payLoading = ref(false)
 const actionError = ref('')
 const toast = ref('')
 
@@ -151,12 +154,27 @@ async function handleCancel() {
   }
 }
 
-function handleSimulatePay() {
-  toast.value = '支付成功（模拟）'
-  setTimeout(() => {
-    toast.value = ''
-    router.push('/orders')
-  }, 1500)
+async function handlePay() {
+  actionError.value = ''
+  toast.value = ''
+  payLoading.value = true
+  try {
+    const payment = await getPaymentByOrderId(orderId.value)
+    const url = payment?.payUrl
+    if (url) {
+      window.location.href = url
+      return
+    }
+    actionError.value = '支付链接暂不可用，请稍后重试'
+  } catch (e) {
+    if (e.response?.status === 404) {
+      actionError.value = '未找到支付单，请刷新页面或联系客服'
+    } else {
+      actionError.value = e.response?.data?.message || e.message || '获取支付链接失败'
+    }
+  } finally {
+    payLoading.value = false
+  }
 }
 
 onMounted(() => {

@@ -33,6 +33,11 @@ docs/
 │   │   ├── domain-model.md
 │   │   ├── requirements.md
 │   │   └── event-flow.md
+│   ├── payment/
+│   │   ├── domain-model.md
+│   │   ├── requirements.md
+│   │   ├── api.yaml
+│   │   └── event-flow.md
 │   ├── bff/
 │   │   ├── domain-model.md
 │   │   ├── requirements.md
@@ -63,6 +68,7 @@ docs/
 | User | [requirements.md](./bounded-contexts/user/requirements.md) | [domain-model.md](./bounded-contexts/user/domain-model.md) | [api.yaml](./bounded-contexts/user/api.yaml) | — |
 | Order | [requirements.md](./bounded-contexts/order/requirements.md) | [domain-model.md](./bounded-contexts/order/domain-model.md) | [api.yaml](./bounded-contexts/order/api.yaml) | event-flow, saga-design |
 | Inventory | [requirements.md](./bounded-contexts/inventory/requirements.md) | [domain-model.md](./bounded-contexts/inventory/domain-model.md) | — | event-flow |
+| Payment | [requirements.md](./bounded-contexts/payment/requirements.md) | [domain-model.md](./bounded-contexts/payment/domain-model.md) | [api.yaml](./bounded-contexts/payment/api.yaml) | event-flow |
 | BFF | [requirements.md](./bounded-contexts/bff/requirements.md) | [domain-model.md](./bounded-contexts/bff/domain-model.md) | [api.yaml](./bounded-contexts/bff/api.yaml) | — |
 | Frontend-admin | [requirements.md](./frontend-admin/requirements.md) | — | — | design-input |
 | Frontend-web | [requirements.md](./frontend-web/requirements.md) | — | — | — |

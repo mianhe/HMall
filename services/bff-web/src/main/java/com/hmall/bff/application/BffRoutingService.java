@@ -38,6 +38,9 @@ public class BffRoutingService {
         if (path.startsWith("/api/inventory")) {
             return new Downstream("inventory", props.inventory().baseUrl());
         }
+        if (path.startsWith("/api/payments")) {
+            return new Downstream("payment", props.payment().baseUrl());
+        }
         return null;
     }
 

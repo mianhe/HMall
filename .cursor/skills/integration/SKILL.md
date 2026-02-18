@@ -74,3 +74,4 @@ description: 跨 BC 或跨系统集成：在调用方实现出站端口的真实
 - `docs/context-map.md`、`docs/architecture/integration.md`
 - `docs/bounded-contexts/<被调用方>/api.yaml`
 - 示例：Order→Inventory 见 `inventory/api.yaml`（occupy、release）。
+

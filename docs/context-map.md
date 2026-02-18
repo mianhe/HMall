@@ -56,7 +56,7 @@ flowchart TB
 | **BFF** | frontend 统一 API 入口，代理 Catalog/User/Order/Inventory | ✅ POC 完成 | 透传代理、CORS、4xx/5xx 转发 |
 | **Cart** | 购物车管理 | 🔲 规划中 | 依赖 Catalog + User，按需实现 |
 | **Inventory** | 同步占用/释放库存 | ✅ 已实现并已与 Order 集成 | Order 同步调用 occupy/release |
-| **Payment** | 扣款/退款/超时检测 | 🔲 规划中 | Order 同步调用；支付完成由网关回调 |
+| **Payment** | 扣款/退款/超时检测 | 🔄 开发中 | 创建支付单已实现；Order 同步调用；支付完成由网关回调 |
 | **Pricing** | 算价、优惠 | 🔲 规划中 | 同步调用 |
 | **Fulfillment** | 拆单、发货、配送 | 🔲 规划中 | Order 以 Port 桩对接 |
 

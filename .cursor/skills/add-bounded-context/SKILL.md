@@ -32,6 +32,7 @@ description: 在 HMall 中新增一个限界上下文（BC）：创建文档骨�
 | 测试 | `com.hmall.<context>.acceptance/` | XxxSmokeStepDefinitions、config/XxxAcceptanceTestConfig |
 | 测试 | `RunCucumberTest` | 在 glue 中增加 `com.hmall.<context>.acceptance` |
 | 测试 | `CucumberSpringConfiguration` | 在 classes 中增加 `XxxAcceptanceTestConfig.class` |
+| 脚本 | `scripts/hmall.sh`、`scripts/README.md` | 新 BC 纳入一键启动/停止/状态/测试，`./scripts/hmall.sh status` 能显示该服务 |
 
 ## 执行步骤
 
@@ -55,7 +56,13 @@ description: 在 HMall 中新增一个限界上下文（BC）：创建文档骨�
 10. 创建 `XxxSmokeStepDefinitions`：实现占位步骤（无实际逻辑），**不可**用 `@Component`；在 `com.hmall.<context>.acceptance.config.XxxAcceptanceTestConfig` 中注册为 `@Bean`。
 11. 更新 `RunCucumberTest`：将 `GLUE_PROPERTY_NAME` 改为包含 `com.hmall.<context>.acceptance`。
 12. 更新 `CucumberSpringConfiguration`：在 `classes` 中增加 `XxxAcceptanceTestConfig.class`。
-13. 执行 `mvn test`，确认通过（含 Catalog 场景 + 新 BC 的 1 个占位场景）。
+13. 执行 `mvn test`，确认通过（含新 BC 的 1 个占位场景）。
+
+### 阶段四：启动脚本
+
+14. 更新 `scripts/hmall.sh`：将新微服务纳入 `ALL_COMPONENTS`；增加 `status_<context>_service()`、`start_<context>_service()`、`stop_<context>_service()`（端口与 `services/<context>-service` 中配置一致）；在 `cmd_status` 中调用 status；在 `run_start` / `run_stop` 的 case 中增加 `<context>-service`；在 `cmd_test` 的 `--bc` 中增加 `<context>` 分支及全量测试列表；在 `print_test_summary` 的 case 中增加 `<context>-service` 显示名。停止顺序：新服务放在 inventory-service 与 bff-web 之间（即先停 bff 再停后端）。
+15. 更新 `scripts/README.md`：在组件列表、start/stop/status/restart/test 说明中补充新服务及端口；`--bc` 示例补充新 BC。
+16. **检查**：执行 `./scripts/hmall.sh status` 应显示新服务（down 或 up）；执行 `./scripts/hmall.sh start payment-service`（或对应名称）能启动；`./scripts/hmall.sh test --bc <context>` 能仅跑该 BC 验收。
 
 ## 约定
 
@@ -69,6 +76,7 @@ description: 在 HMall 中新增一个限界上下文（BC）：创建文档骨�
 - [ ] 后端四层骨架、占位 Controller、ExceptionHandler、ErrorDto 已创建
 - [ ] smoke.feature、SmokeStepDefinitions、AcceptanceTestConfig 已创建，RunCucumberTest glue 与 CucumberSpringConfiguration 已更新
 - [ ] `mvn test` 通过
+- [ ] `scripts/hmall.sh` 与 `scripts/README.md` 已更新，`./scripts/hmall.sh status` 包含新服务，`./scripts/hmall.sh test --bc <context>` 可用
 
 ## 参考
 

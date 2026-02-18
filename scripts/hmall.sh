@@ -10,7 +10,7 @@ COMPOSE_FILE="${ROOT}/infra/docker-compose.yml"
 CONTAINER_NAME="hmall-postgres"
 PID_DIR="${ROOT}/.hmall/pids"
 LOG_DIR="${ROOT}/.hmall/logs"
-ALL_COMPONENTS="db catalog-service user-service order-service inventory-service bff-web frontend-admin frontend-web mcp"
+ALL_COMPONENTS="db catalog-service user-service order-service inventory-service payment-service bff-web frontend-admin frontend-web mcp"
 
 # 确保目录存在
 mkdir -p "$PID_DIR" "$LOG_DIR"
@@ -65,6 +65,14 @@ status_inventory_service() {
   fi
 }
 
+status_payment_service() {
+  if is_port_listen 8084; then
+    echo "  payment-service   up      http://127.0.0.1:8084"
+  else
+    echo "  payment-service   down    -"
+  fi
+}
+
 status_bff_web() {
   if is_port_listen 8085; then
     echo "  bff-web       up      http://127.0.0.1:8085"
@@ -104,6 +112,7 @@ cmd_status() {
   status_user_service
   status_order_service
   status_inventory_service
+  status_payment_service
   status_bff_web
   status_frontend_admin
   status_frontend_web
@@ -211,6 +220,20 @@ start_inventory_service() {
   echo "Inventory-service started."
 }
 
+start_payment_service() {
+  if is_port_listen 8084; then
+    echo "Payment-service already running on 8084."
+    return 0
+  fi
+  echo "Starting payment-service..."
+  (cd "${ROOT}/services/payment-service" && mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=8084 >> "${LOG_DIR}/payment-service.log" 2>&1 &)
+  echo $! > "${PID_DIR}/payment-service.pid"
+  echo "Waiting for payment-service (8084)..."
+  wait_for_port 8084 "payment-service" || true
+  sleep 2
+  echo "Payment-service started."
+}
+
 start_bff_web() {
   if is_port_listen 8085; then
     echo "Bff-web already running on 8085."
@@ -295,6 +318,30 @@ stop_inventory_service() {
     fi
   fi
   echo "Inventory-service stopped."
+}
+
+stop_payment_service() {
+  local pid_file="${PID_DIR}/payment-service.pid"
+  if [ -f "$pid_file" ]; then
+    local pid
+    pid=$(cat "$pid_file")
+    if kill -0 "$pid" 2>/dev/null; then
+      echo "Stopping payment-service (PID $pid)..."
+      kill "$pid" 2>/dev/null || true
+      sleep 2
+      kill -9 "$pid" 2>/dev/null || true
+    fi
+    rm -f "$pid_file"
+  fi
+  if is_port_listen 8084; then
+    local p
+    p=$(lsof -i :8084 -sTCP:LISTEN -t 2>/dev/null | head -1)
+    if [ -n "$p" ]; then
+      echo "Killing process on 8084 (PID $p)..."
+      kill "$p" 2>/dev/null || kill -9 "$p" 2>/dev/null || true
+    fi
+  fi
+  echo "Payment-service stopped."
 }
 
 stop_catalog_service() {
@@ -468,6 +515,7 @@ run_start() {
       user-service) start_user_service ;;
       order-service) start_order_service ;;
       inventory-service) start_inventory_service ;;
+      payment-service) start_payment_service ;;
       bff-web) start_bff_web ;;
       frontend-admin) start_frontend_admin ;;
       frontend-web) start_frontend_web ;;
@@ -479,7 +527,7 @@ run_start() {
 
 run_stop() {
   local components="$*"
-  [ -z "$components" ] && components="mcp frontend-web frontend-admin bff-web inventory-service order-service user-service catalog-service db"
+  [ -z "$components" ] && components="mcp frontend-web frontend-admin bff-web payment-service inventory-service order-service user-service catalog-service db"
   for c in $components; do
     case "$c" in
       db) stop_db ;;
@@ -487,6 +535,7 @@ run_stop() {
       user-service) stop_user_service ;;
       order-service) stop_order_service ;;
       inventory-service) stop_inventory_service ;;
+      payment-service) stop_payment_service ;;
       bff-web) stop_bff_web ;;
       frontend-admin) stop_frontend_admin ;;
       frontend-web) stop_frontend_web ;;
@@ -517,6 +566,7 @@ print_test_summary() {
       user-service) name="User" ;;
       order-service) name="Order" ;;
       inventory-service) name="Inventory" ;;
+      payment-service) name="Payment" ;;
       *) name="$key" ;;
     esac
     local run fail err
@@ -549,7 +599,7 @@ cmd_test() {
       --bc)
         shift
         if [ -z "${1:-}" ]; then
-          echo "Error: --bc requires a value (catalog|user|order|inventory|all)" >&2
+          echo "Error: --bc requires a value (catalog|user|order|inventory|payment|all)" >&2
           exit 1
         fi
         case "$1" in
@@ -557,9 +607,10 @@ cmd_test() {
           user) bc_filter="@user" ;;
           order) bc_filter="@order" ;;
           inventory) bc_filter="@inventory" ;;
+          payment) bc_filter="@payment" ;;
           all) bc_filter="" ;;
           *)
-            echo "Error: --bc must be catalog, user, order, inventory, or all" >&2
+            echo "Error: --bc must be catalog, user, order, inventory, payment, or all" >&2
             exit 1
             ;;
         esac
@@ -601,12 +652,15 @@ cmd_test() {
     run_service_test "user-service" "user-service (User)"
   elif [ "$bc_filter" = "@inventory" ]; then
     run_service_test "inventory-service" "inventory-service (Inventory)"
+  elif [ "$bc_filter" = "@payment" ]; then
+    run_service_test "payment-service" "payment-service (Payment)"
   else
-    # 全部微服务：catalog-service、user-service、order-service、inventory-service
+    # 全部微服务：catalog-service、user-service、order-service、inventory-service、payment-service
     run_service_test "catalog-service" "Catalog"
     run_service_test "user-service" "user-service (User)"
     run_service_test "order-service" "order-service (Order)"
     run_service_test "inventory-service" "inventory-service (Inventory)"
+    run_service_test "payment-service" "payment-service (Payment)"
     print_test_summary || overall_rc=1
   fi
 
@@ -617,8 +671,8 @@ cmd_test() {
 usage() {
   echo "Usage: $0 <command> [options] [components]"
   echo "  command:  start | stop | status | restart | test"
-  echo "  components: db | catalog-service | user-service | order-service | inventory-service | bff-web | frontend-admin | frontend-web | mcp (default: all for start/stop/restart)"
-  echo "  test options: [--cucumber-only] [--clean] [--bc catalog|user|order|inventory|all]"
+  echo "  components: db | catalog-service | user-service | order-service | inventory-service | payment-service | bff-web | frontend-admin | frontend-web | mcp (default: all for start/stop/restart)"
+  echo "  test options: [--cucumber-only] [--clean] [--bc catalog|user|order|inventory|payment|all]"
   echo "See scripts/README.md for details."
 }
 

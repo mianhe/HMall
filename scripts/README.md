@@ -19,6 +19,7 @@
 - **user-service** — User 微服务（端口 8082）
 - **order-service** — Order 微服务（端口 8081）
 - **inventory-service** — Inventory 微服务（端口 8083，脚本启动时固定 8083 以与 user-service 错开）
+- **payment-service** — Payment 微服务（端口 8084）
 - **bff-web** — BFF 微服务（端口 8085），frontend-admin、frontend-web 经此代理调用后端
 - **frontend-admin** — 管理后台（Vite，端口 5173）
 - **frontend-web** — 消费者端（Vite，端口 5174）
@@ -28,17 +29,17 @@
 
 ## 命令与参数详解
 
-### start [db] [catalog-service] [user-service] [order-service] [inventory-service] [bff-web] [frontend-admin] [frontend-web] [mcp]
+### start [db] [catalog-service] [user-service] [order-service] [inventory-service] [payment-service] [bff-web] [frontend-admin] [frontend-web] [mcp]
 
-- 启动顺序：先 **db**（并等待 PostgreSQL、Kafka 就绪），再起 **catalog-service**、**user-service**、**order-service**、**inventory-service**，然后 **bff-web**，最后 **frontend-admin**、**frontend-web**、**mcp**。若 order-service 启动超时，脚本会打印 `.hmall/logs/order-service.log` 末尾若干行，便于排查（常见原因：Kafka 未就绪或端口被占用）。
+- 启动顺序：先 **db**（并等待 PostgreSQL、Kafka 就绪），再起 **catalog-service**、**user-service**、**order-service**、**inventory-service**、**payment-service**，然后 **bff-web**，最后 **frontend-admin**、**frontend-web**、**mcp**。若 order-service 启动超时，脚本会打印 `.hmall/logs/order-service.log` 末尾若干行，便于排查（常见原因：Kafka 未就绪或端口被占用）。
 - 示例：
   - `./scripts/hmall.sh start` — 启动全部
   - `./scripts/hmall.sh start db catalog-service` — 只起数据库与后端
   - `./scripts/hmall.sh start mcp` — 只起 MCP Server
 
-### stop [db] [catalog-service] [user-service] [order-service] [inventory-service] [bff-web] [frontend-admin] [frontend-web] [mcp]
+### stop [db] [catalog-service] [user-service] [order-service] [inventory-service] [payment-service] [bff-web] [frontend-admin] [frontend-web] [mcp]
 
-- 停止指定组件；不写组件时停止全部（顺序：mcp → frontend-web → frontend-admin → bff-web → inventory-service → order-service → user-service → catalog-service → db）。
+- 停止指定组件；不写组件时停止全部（顺序：mcp → frontend-web → frontend-admin → bff-web → payment-service → inventory-service → order-service → user-service → catalog-service → db）。
 - 示例：
   - `./scripts/hmall.sh stop` — 停止全部
   - `./scripts/hmall.sh stop catalog-service frontend-admin` — 只停后端与管理后台
@@ -46,31 +47,32 @@
 ### status
 
 - 输出各组件是否在运行及监听端口（或 URL）。
-- 不接组件参数，一次显示 db / catalog-service / user-service / order-service / inventory-service / bff-web / frontend-admin / frontend-web / mcp。
+- 不接组件参数，一次显示 db / catalog-service / user-service / order-service / inventory-service / payment-service / bff-web / frontend-admin / frontend-web / mcp。
 
-### restart [db] [catalog-service] [user-service] [order-service] [inventory-service] [bff-web] [frontend-admin] [frontend-web] [mcp]
+### restart [db] [catalog-service] [user-service] [order-service] [inventory-service] [payment-service] [bff-web] [frontend-admin] [frontend-web] [mcp]
 
 - 先对指定组件执行 stop，再 start；不写组件时对全部重启。
 - 示例：
   - `./scripts/hmall.sh restart` — 重启全部
   - `./scripts/hmall.sh restart catalog-service` — 仅重启后端
 
-### test [--cucumber-only] [--clean] [--bc catalog|user|order|all]
+### test [--cucumber-only] [--clean] [--bc catalog|user|order|inventory|payment|all]
 
-- 执行全部微服务测试（catalog-service + user-service + order-service + inventory-service）；执行前会检查数据库是否已启动。
+- 执行全部微服务测试（catalog-service + user-service + order-service + inventory-service + payment-service）；执行前会检查数据库是否已启动。
 - **测试与生产数据隔离**：验收测试使用 H2 内存库（`application-test.yml`），与 PostgreSQL 完全隔离，测试结束后不会清空生产/开发库。
 - 参数：
   - 无参数：`mvn test`（单元 + Cucumber 验收）
   - `--cucumber-only`：仅验收测试 `mvn test -Dtest=RunCucumberTest`
   - `--clean`：先清理再测 `mvn clean test`
-  - `--bc <catalog|user|order|inventory|all>`：仅执行指定微服务/BC 的测试
+  - `--bc <catalog|user|order|inventory|payment|all>`：仅执行指定微服务/BC 的测试
   - 示例：
-  - `./scripts/hmall.sh test` — 执行全部微服务测试（catalog-service + user-service + order-service + inventory-service）
+  - `./scripts/hmall.sh test` — 执行全部微服务测试（含 payment-service）
   - `./scripts/hmall.sh test --cucumber-only`
   - `./scripts/hmall.sh test --cucumber-only --bc user` — 仅 user-service（User）
   - `./scripts/hmall.sh test --cucumber-only --bc catalog` — 仅 catalog-service
   - `./scripts/hmall.sh test --cucumber-only --bc order` — 仅 order-service（Order）
   - `./scripts/hmall.sh test --cucumber-only --bc inventory` — 仅 inventory-service（Inventory）
+  - `./scripts/hmall.sh test --cucumber-only --bc payment` — 仅 payment-service（Payment）
   - `./scripts/hmall.sh test --clean`
 
 ## 环境与约定

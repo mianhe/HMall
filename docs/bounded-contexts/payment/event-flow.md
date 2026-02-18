@@ -21,7 +21,38 @@
 
 ---
 
-## 三、调用契约（Order → Payment）
+## 三、协作与交互概览
+
+BC 为节点；实线 = 同步调用，虚线 = 事件。
+
+```plantuml
+@startuml payment-event-flow
+skinparam componentStyle rectangle
+left to right direction
+component "Order" as Order
+component "Payment" as Payment
+component "支付网关" as Gateway
+
+Order -[hidden]right-> Payment
+Payment -[hidden]right-> Gateway
+
+Order --> Payment : 1. createPayment(orderId, amount)
+Payment --> Order : paymentId, payUrl
+Payment --> Gateway : 2. 跳转支付(payUrl)
+Gateway ..> Payment : 3. 回调(成功/失败)
+Payment ..> Order : 4. PaymentCompleted / PaymentFailed
+note right of Payment : 超时：内部检测后\n发布 PaymentExpired
+Payment ..> Order : PaymentExpired
+Order --> Payment : 5. refund(已支付时)
+Payment --> Order : success
+@enduml
+```
+
+流程简述：Order 同步创建支付单 → 用户跳转网关完成支付 → 网关回调 Payment → Payment 发布事件通知 Order；超时由 Payment 内部检测并发布 PaymentExpired；Order 取消且已支付时同步调用退款。
+
+---
+
+## 四、调用契约（Order → Payment）
 
 ### 创建支付单
 
@@ -41,20 +72,49 @@
 
 ---
 
-## 四、支付网关回调（Gateway → Payment）
+## 五、支付网关回调（Gateway → Payment）
 
 | 回调结果 | Payment 行为 | 发布事件 |
 |----------|--------------|----------|
 | 成功 | 支付单置 COMPLETED | PaymentCompleted（orderId, paymentId） |
 | 失败 | 支付单置 FAILED | PaymentFailed（orderId） |
 
-**超时**：由 Payment 内部定时/延迟任务检测，不依赖网关回调；状态置 EXPIRED，发布 PaymentExpired（orderId）。
+**超时**：由 Payment 内部自动检测，不依赖网关回调；状态置 EXPIRED，发布 PaymentExpired（orderId）。
 
 回调 API 形式建议：`POST /api/payments/callback` 或网关约定的 notify URL，请求体含 paymentId、结果状态、签名等（具体与网关契约一致；模拟时可简化为 paymentId + status）。
 
 ---
 
-## 五、事件契约（Payment 发布）
+## 六、无真实网关时的模拟方案（开发/测试）
+
+无真实支付网关时，Payment 通过 **PaymentGatewayPort** 对接网关；使用 **Mock Adapter** 替代，payUrl 由 Mock 返回。回调需可操控以支持测试。
+
+| 驱动方式 | 用途 | 说明 |
+|----------|------|------|
+| **模拟网关页面** | 手工验证、E2E | payUrl 指向如 `/mock-pay?paymentId=xxx`，页面提供「成功」「失败」按钮，点击后调用 Payment callback 接口 |
+| **测试 API** | 集成测试、ATDD | 仅在 test profile 暴露，如 `POST /api/test/payments/{paymentId}/simulate-callback?result=success|failure`，程序直接触发 callback |
+
+流程关系：
+
+```
+Order                          Payment                        模拟网关/测试
+  |                               |                                    |
+  | createPayment(orderId, amount)|                                    |
+  |------------------------------>|                                    |
+  |                               | PaymentGatewayPort (MockAdapter)   |
+  |                               | 返回 payUrl = /mock-pay?paymentId=x |
+  |   paymentId, payUrl           |                                    |
+  |<------------------------------|                                    |
+  |                               |                                    |
+  | (前端跳转 payUrl 或测试调用 simulate-callback)                       |
+  |                               |<----------- 回调(成功/失败) --------|
+  |                               | 发布 PaymentCompleted/Failed        |
+  |<-------- 事件 ----------------|                                    |
+```
+
+---
+
+## 七、事件契约（Payment 发布）
 
 事件归属与聚合定义见 [domain-model.md](./domain-model.md)。
 
@@ -76,7 +136,7 @@
 
 ---
 
-## 六、流程概览
+## 八、流程概览
 
 ```
 Order                          Payment                        网关
@@ -99,11 +159,11 @@ Order                          Payment                        网关
   |<------------------------------|                              |
 ```
 
-超时：Payment 内部在约定时间后未收到成功/失败回调时，将支付单置为 EXPIRED 并发布 PaymentExpired，Order 订阅后执行取消与补偿。
+超时：Payment 内部在配置的超时时长内未收到成功/失败回调时，将支付单置为 EXPIRED 并发布 PaymentExpired，Order 订阅后执行取消与补偿。
 
 ---
 
-## 七、与 Order Saga 的对应
+## 九、与 Order Saga 的对应
 
 | Saga 步骤 | Order 动作 | Payment 角色 |
 |-----------|------------|--------------|
