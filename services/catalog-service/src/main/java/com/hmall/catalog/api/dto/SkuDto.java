@@ -10,5 +10,6 @@ public record SkuDto(
     Long spuId,
     Long priceCents,
     String displayName,
+    String spuName,
     List<SkuSpecValueDto> specValues
 ) {}

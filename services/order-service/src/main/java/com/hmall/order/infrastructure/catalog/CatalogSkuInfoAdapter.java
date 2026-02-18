@@ -31,11 +31,8 @@ public class CatalogSkuInfoAdapter implements SkuInfoPort {
                 throw new IllegalArgumentException("SKU 不存在");
             }
             long price = response.priceCents() != null ? response.priceCents() : 0L;
-            return new SkuInfo(
-                response.id(),
-                price,
-                response.displayName() != null ? response.displayName() : ""
-            );
+            String displayName = buildDisplayName(response.spuName(), response.displayName());
+            return new SkuInfo(response.id(), price, displayName);
         } catch (RestClientResponseException e) {
             if (e.getStatusCode().value() == 404) {
                 throw new IllegalArgumentException("SKU 不存在");
@@ -44,6 +41,16 @@ public class CatalogSkuInfoAdapter implements SkuInfoPort {
         }
     }
 
+    /** 拼接「商品名 + SKU 规格」，便于订单列表展示 */
+    private static String buildDisplayName(String spuName, String skuDisplayName) {
+        String p = spuName != null ? spuName.trim() : "";
+        String s = skuDisplayName != null ? skuDisplayName.trim() : "";
+        if (p.isEmpty() && s.isEmpty()) return "商品";
+        if (p.isEmpty()) return s;
+        if (s.isEmpty() || s.equals(p)) return p;
+        return p + " " + s;
+    }
+
     /** Catalog GET /api/skus/{id} 响应结构 */
-    private record CatalogSkuResponse(Long id, Long spuId, Long priceCents, String displayName) {}
+    private record CatalogSkuResponse(Long id, Long spuId, Long priceCents, String displayName, String spuName) {}
 }

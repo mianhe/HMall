@@ -966,6 +966,10 @@ components:
         displayName:
           type: string
           nullable: true
+        spuName:
+          type: string
+          nullable: true
+          description: 商品名（SPU 名称），便于订单等下游展示「商品名 + SKU」
         specValues:
           type: array
           description: 所选 Option 信息，便于展示（如 [{ dimensionName, optionValue }]）

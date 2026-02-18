@@ -29,6 +29,7 @@ public class SkuLookupController {
     @GetMapping("/{id}")
     public ResponseEntity<SkuDto> getById(@PathVariable Long id) {
         Sku sku = applicationService.getById(id);
+        String spuName = applicationService.getSpuName(sku.getSpuId());
         List<SkuSpecValueDto> specValues = applicationService.resolveSpecValues(sku.getSpecOptionIds()).stream()
             .map(v -> new SkuSpecValueDto(v.dimensionName(), v.optionValue()))
             .toList();
@@ -37,6 +38,7 @@ public class SkuLookupController {
             sku.getSpuId(),
             sku.getPriceCents(),
             sku.getDisplayName(),
+            spuName,
             specValues
         ));
     }

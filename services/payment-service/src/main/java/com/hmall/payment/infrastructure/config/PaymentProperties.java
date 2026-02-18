@@ -26,4 +26,15 @@ public class PaymentProperties {
     public void setMockPayBaseUrl(String mockPayBaseUrl) {
         this.mockPayBaseUrl = mockPayBaseUrl;
     }
+
+    /** Order 服务 base URL；配置后回调成功会 POST 通知 Order 更新订单状态。 */
+    private String orderBaseUrl = "http://localhost:8081";
+
+    public String getOrderBaseUrl() {
+        return orderBaseUrl;
+    }
+
+    public void setOrderBaseUrl(String orderBaseUrl) {
+        this.orderBaseUrl = orderBaseUrl;
+    }
 }

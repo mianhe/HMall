@@ -10,25 +10,34 @@ import com.hmall.payment.domain.Payment;
 import com.hmall.payment.domain.PaymentRepository;
 import com.hmall.payment.domain.PaymentStatus;
 import com.hmall.payment.infrastructure.config.PaymentProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class PaymentApplicationService {
 
+    private static final Logger log = LoggerFactory.getLogger(PaymentApplicationService.class);
+
     private final PaymentRepository paymentRepository;
     private final PaymentDomainEventPublisher eventPublisher;
     private final PaymentProperties paymentProperties;
+    private final RestTemplate restTemplate;
 
     public PaymentApplicationService(PaymentRepository paymentRepository,
                                     PaymentDomainEventPublisher eventPublisher,
-                                    PaymentProperties paymentProperties) {
+                                    PaymentProperties paymentProperties,
+                                    RestTemplate restTemplate) {
         this.paymentRepository = paymentRepository;
         this.eventPublisher = eventPublisher;
         this.paymentProperties = paymentProperties;
+        this.restTemplate = restTemplate;
     }
 
     /** @return 创建结果：dto 与是否为新创建（true=201，false=200 幂等） */
@@ -89,6 +98,7 @@ public class PaymentApplicationService {
             payment.complete(now);
             paymentRepository.save(payment);
             eventPublisher.publish(new PaymentCompletedEvent(payment.getOrderId(), payment.getPaymentId(), now));
+            notifyOrderPaymentCompleted(payment.getOrderId(), payment.getPaymentId());
         } else {
             payment.fail(now);
             paymentRepository.save(payment);
@@ -156,6 +166,20 @@ public class PaymentApplicationService {
             p.getUpdatedAt(),
             p.getExpiredAt()
         );
+    }
+
+    /** 通知 Order 服务支付完成（将订单置为 PAID）。 */
+    private void notifyOrderPaymentCompleted(Long orderId, Long paymentId) {
+        String base = paymentProperties.getOrderBaseUrl();
+        if (base == null || base.isEmpty()) {
+            return;
+        }
+        String url = (base.endsWith("/") ? base : base + "/") + "api/orders/internal/payment-completed";
+        try {
+            restTemplate.postForObject(url, Map.of("orderId", orderId, "paymentId", paymentId), Void.class);
+        } catch (Exception e) {
+            log.warn("通知 Order 支付完成失败: orderId={}, paymentId={}", orderId, paymentId, e);
+        }
     }
 
     public record CreatePaymentResult(PaymentCreatedDto dto, boolean created) {}

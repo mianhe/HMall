@@ -168,6 +168,10 @@ components:
         totalAmountCents:
           type: integer
           format: int64
+        createdAt:
+          type: string
+          format: date-time
+          description: 下单时间（ISO-8601）
         items:
           type: array
           items:

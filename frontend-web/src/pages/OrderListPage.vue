@@ -23,7 +23,10 @@
         class="block bg-white rounded-lg border border-vmall-gray-border p-4 hover:border-vmall-red/50 transition-colors"
       >
         <div class="flex justify-between items-start mb-2">
-          <span class="font-mono text-sm text-vmall-gray-text">订单 {{ o.orderId }}</span>
+          <div>
+            <span class="font-mono text-sm text-vmall-gray-text">订单 {{ o.orderId }}</span>
+            <p v-if="o.createdAt" class="text-xs text-vmall-gray-text mt-0.5">{{ formatTime(o.createdAt) }}</p>
+          </div>
           <span class="px-2 py-0.5 rounded text-xs font-medium" :class="statusClass(o.status)">
             {{ statusMap[o.status] ?? o.status }}
           </span>
@@ -88,6 +91,18 @@ function statusClass(s) {
   if (s === 'CANCELLED') return 'bg-gray-100 text-gray-600'
   if (['PAID', 'FULFILLING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(s)) return 'bg-green-100 text-green-800'
   return 'bg-vmall-gray-bg text-vmall-gray-text'
+}
+
+function formatTime(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 async function load() {

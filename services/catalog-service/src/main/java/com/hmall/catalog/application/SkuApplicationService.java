@@ -75,6 +75,13 @@ public class SkuApplicationService {
     }
 
     @Transactional(readOnly = true)
+    public String getSpuName(Long spuId) {
+        return spuRepository.findById(spuId)
+            .map(spu -> spu.getName() != null ? spu.getName() : "")
+            .orElse("");
+    }
+
+    @Transactional(readOnly = true)
     public List<Sku> findBySpuId(Long spuId) {
         spuRepository.findById(spuId)
             .orElseThrow(() -> new IllegalArgumentException("SPU 不存在"));
