@@ -75,6 +75,7 @@ public class SkuController {
     }
 
     private SkuDto toSkuDto(Sku sku) {
+        String spuName = applicationService.getSpuName(sku.getSpuId());
         List<SkuSpecValueDto> specValues = applicationService.resolveSpecValues(sku.getSpecOptionIds()).stream()
             .map(v -> new SkuSpecValueDto(v.dimensionName(), v.optionValue()))
             .toList();
@@ -83,6 +84,7 @@ public class SkuController {
             sku.getSpuId(),
             sku.getPriceCents(),
             sku.getDisplayName(),
+            spuName,
             specValues
         );
     }

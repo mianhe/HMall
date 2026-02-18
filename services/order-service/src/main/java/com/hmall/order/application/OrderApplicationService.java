@@ -161,7 +161,8 @@ public class OrderApplicationService {
             order.getStatus().name(),
             order.getTotalAmountCents(),
             itemDtos,
-            addr
+            addr,
+            order.getCreatedAt()
         );
     }
 }

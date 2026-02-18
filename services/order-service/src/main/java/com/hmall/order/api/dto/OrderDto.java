@@ -1,5 +1,6 @@
 package com.hmall.order.api.dto;
 
+import java.time.Instant;
 import java.util.List;
 
 public record OrderDto(
@@ -7,7 +8,8 @@ public record OrderDto(
     String status,
     Long totalAmountCents,
     List<OrderLineItemDto> items,
-    OrderCreateDto.ShippingAddressDto shippingAddress
+    OrderCreateDto.ShippingAddressDto shippingAddress,
+    Instant createdAt
 ) {
     public record OrderLineItemDto(
         Long lineItemId,
