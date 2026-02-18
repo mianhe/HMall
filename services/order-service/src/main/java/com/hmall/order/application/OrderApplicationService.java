@@ -143,10 +143,13 @@ public class OrderApplicationService {
 
     private OrderDto toDto(Order order) {
         List<OrderDto.OrderLineItemDto> itemDtos = order.getItems().stream()
-            .map(li -> new OrderDto.OrderLineItemDto(
-                li.getLineItemId(), li.getSkuId(), li.getQuantity(),
-                li.getUnitPriceCents(), li.getTotalPriceCents(), li.getDisplayName()
-            ))
+            .map(li -> {
+                String displayName = resolveDisplayName(li.getSkuId(), li.getDisplayName());
+                return new OrderDto.OrderLineItemDto(
+                    li.getLineItemId(), li.getSkuId(), li.getQuantity(),
+                    li.getUnitPriceCents(), li.getTotalPriceCents(), displayName
+                );
+            })
             .toList();
         OrderCreateDto.ShippingAddressDto addr = new OrderCreateDto.ShippingAddressDto(
             order.getShippingAddress().recipientName(),
@@ -164,5 +167,18 @@ public class OrderApplicationService {
             addr,
             order.getCreatedAt()
         );
+    }
+
+    /** 查询时用 Catalog 补全展示名（商品名 + SKU），历史订单也会显示完整名称 */
+    private String resolveDisplayName(Long skuId, String storedDisplayName) {
+        try {
+            SkuInfoPort.SkuInfo sku = skuInfoPort.getById(skuId);
+            if (sku != null && sku.displayName() != null && !sku.displayName().isBlank()) {
+                return sku.displayName();
+            }
+        } catch (Exception ignored) {
+            // Catalog 不可用或 SKU 已删除时沿用存储的展示名
+        }
+        return storedDisplayName != null ? storedDisplayName : "商品";
     }
 }
