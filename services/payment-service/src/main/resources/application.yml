@@ -3,6 +3,7 @@ server:
 
 payment:
   expire-minutes: 30
+  order-base-url: http://localhost:8081
 
 spring:
   datasource:

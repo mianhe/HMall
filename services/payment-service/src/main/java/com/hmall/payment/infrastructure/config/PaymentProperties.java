@@ -8,11 +8,22 @@ public class PaymentProperties {
     /** 支付单超时分钟数，未配置时默认 30。 */
     private int expireMinutes = 30;
 
+    /** 模拟支付页 base URL（生成 payUrl 用），默认 http://localhost:8084。 */
+    private String mockPayBaseUrl = "http://localhost:8084";
+
     public int getExpireMinutes() {
         return expireMinutes;
     }
 
     public void setExpireMinutes(int expireMinutes) {
         this.expireMinutes = expireMinutes;
+    }
+
+    public String getMockPayBaseUrl() {
+        return mockPayBaseUrl;
+    }
+
+    public void setMockPayBaseUrl(String mockPayBaseUrl) {
+        this.mockPayBaseUrl = mockPayBaseUrl;
     }
 }

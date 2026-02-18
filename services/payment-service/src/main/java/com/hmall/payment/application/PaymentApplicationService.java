@@ -52,7 +52,14 @@ public class PaymentApplicationService {
             );
         }
         int expireMinutes = paymentProperties.getExpireMinutes();
-        Payment payment = Payment.create(orderId, amountCents, "", Instant.now(), expireMinutes);
+        String base = paymentProperties.getMockPayBaseUrl();
+        if (base != null && !base.isEmpty()) {
+            base = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
+        }
+        String payUrl = (base != null && !base.isEmpty())
+            ? base + "/mock-pay?orderId=" + orderId
+            : "";
+        Payment payment = Payment.create(orderId, amountCents, payUrl, Instant.now(), expireMinutes);
         Payment saved = paymentRepository.save(payment);
         return new CreatePaymentResult(
             new PaymentCreatedDto(

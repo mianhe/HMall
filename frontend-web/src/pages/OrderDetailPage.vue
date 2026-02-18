@@ -84,7 +84,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getOrder, cancelOrder } from '../shared/api/order.js'
-import { getPaymentByOrderId } from '../shared/api/payment.js'
+import { getPaymentByOrderId, createPayment } from '../shared/api/payment.js'
 import { useAuth } from '../shared/auth.js'
 
 const route = useRoute()
@@ -159,10 +159,22 @@ async function handlePay() {
   toast.value = ''
   payLoading.value = true
   try {
-    const payment = await getPaymentByOrderId(orderId.value)
+    let payment
+    try {
+      payment = await getPaymentByOrderId(orderId.value)
+    } catch (e) {
+      if (e.response?.status === 404 && order.value?.totalAmountCents != null) {
+        // 下单时未创建支付单（如当时未配置 payment 服务），补救：按订单金额创建支付单（幂等）
+        payment = await createPayment(orderId.value, order.value.totalAmountCents)
+      } else {
+        throw e
+      }
+    }
     const url = payment?.payUrl
     if (url) {
-      window.location.href = url
+      const returnUrl = window.location.origin + '/orders/' + orderId.value
+      const sep = url.includes('?') ? '&' : '?'
+      window.location.href = url + sep + 'returnUrl=' + encodeURIComponent(returnUrl)
       return
     }
     actionError.value = '支付链接暂不可用，请稍后重试'
