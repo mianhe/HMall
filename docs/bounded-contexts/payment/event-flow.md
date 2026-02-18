@@ -56,6 +56,8 @@
 
 ## 五、事件契约（Payment 发布）
 
+事件归属与聚合定义见 [domain-model.md](./domain-model.md)。
+
 ### 事件列表
 
 | 事件 | 时机 | 载荷 | 订阅方（典型） |

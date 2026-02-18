@@ -105,4 +105,4 @@ Payment BC 负责**支付单的创建、支付结果处理、退款与超时检�
 - **网关边界**：真实支付网关（支付宝/微信等）由 Payment 通过「支付网关适配器」对接；当前可用模拟网关（返回固定 payUrl，回调由测试或脚本触发）。
 - **事件总线**：PaymentCompleted / PaymentFailed / PaymentExpired 需发布到进程内领域事件，并可选发送至 Kafka，与 Order、Fulfillment 等订阅方式一致（见 [architecture/integration.md](../../architecture/integration.md)）。
 
-以上为 Payment BC 的需求分析，可作为后续领域模型、API 契约与 ATDD 场景的输入。
+以上为 Payment BC 的需求分析，可作为后续领域模型、API 契约与 ATDD 场景的输入。领域模型见 [domain-model.md](./domain-model.md)。
