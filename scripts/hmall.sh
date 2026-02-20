@@ -10,7 +10,7 @@ COMPOSE_FILE="${ROOT}/infra/docker-compose.yml"
 CONTAINER_NAME="hmall-postgres"
 PID_DIR="${ROOT}/.hmall/pids"
 LOG_DIR="${ROOT}/.hmall/logs"
-ALL_COMPONENTS="db catalog-service user-service order-service inventory-service payment-service activity-service bff-web frontend-admin frontend-web mcp"
+ALL_COMPONENTS="db catalog-service user-service order-service inventory-service payment-service activity-service cart-service bff-web frontend-admin frontend-web mcp"
 
 # 确保目录存在
 mkdir -p "$PID_DIR" "$LOG_DIR"
@@ -81,6 +81,14 @@ status_activity_service() {
   fi
 }
 
+status_cart_service() {
+  if is_port_listen 8087; then
+    echo "  cart-service   up      http://127.0.0.1:8087"
+  else
+    echo "  cart-service   down    -"
+  fi
+}
+
 status_bff_web() {
   if is_port_listen 8085; then
     echo "  bff-web       up      http://127.0.0.1:8085"
@@ -122,6 +130,7 @@ cmd_status() {
   status_inventory_service
   status_payment_service
   status_activity_service
+  status_cart_service
   status_bff_web
   status_frontend_admin
   status_frontend_web
@@ -255,6 +264,20 @@ start_activity_service() {
   wait_for_port 8086 "activity-service" || true
   sleep 2
   echo "Activity-service started."
+}
+
+start_cart_service() {
+  if is_port_listen 8087; then
+    echo "Cart-service already running on 8087."
+    return 0
+  fi
+  echo "Starting cart-service..."
+  (cd "${ROOT}/services/cart-service" && mvn spring-boot:run >> "${LOG_DIR}/cart-service.log" 2>&1 &)
+  echo $! > "${PID_DIR}/cart-service.pid"
+  echo "Waiting for cart-service (8087)..."
+  wait_for_port 8087 "cart-service" || true
+  sleep 2
+  echo "Cart-service started."
 }
 
 start_bff_web() {
@@ -415,6 +438,30 @@ stop_activity_service() {
   echo "Activity-service stopped."
 }
 
+stop_cart_service() {
+  local pid_file="${PID_DIR}/cart-service.pid"
+  if [ -f "$pid_file" ]; then
+    local pid
+    pid=$(cat "$pid_file")
+    if kill -0 "$pid" 2>/dev/null; then
+      echo "Stopping cart-service (PID $pid)..."
+      kill "$pid" 2>/dev/null || true
+      sleep 2
+      kill -9 "$pid" 2>/dev/null || true
+    fi
+    rm -f "$pid_file"
+  fi
+  if is_port_listen 8087; then
+    local p
+    p=$(lsof -i :8087 -sTCP:LISTEN -t 2>/dev/null | head -1)
+    if [ -n "$p" ]; then
+      echo "Killing process on 8087 (PID $p)..."
+      kill "$p" 2>/dev/null || kill -9 "$p" 2>/dev/null || true
+    fi
+  fi
+  echo "Cart-service stopped."
+}
+
 stop_bff_web() {
   local pid_file="${PID_DIR}/bff-web.pid"
   if [ -f "$pid_file" ]; then
@@ -564,6 +611,7 @@ run_start() {
       inventory-service) start_inventory_service ;;
       payment-service) start_payment_service ;;
       activity-service) start_activity_service ;;
+      cart-service) start_cart_service ;;
       bff-web) start_bff_web ;;
       frontend-admin) start_frontend_admin ;;
       frontend-web) start_frontend_web ;;
@@ -575,7 +623,7 @@ run_start() {
 
 run_stop() {
   local components="$*"
-  [ -z "$components" ] && components="mcp frontend-web frontend-admin bff-web activity-service payment-service inventory-service order-service user-service catalog-service db"
+  [ -z "$components" ] && components="mcp frontend-web frontend-admin bff-web cart-service activity-service payment-service inventory-service order-service user-service catalog-service db"
   for c in $components; do
     case "$c" in
       db) stop_db ;;
@@ -585,6 +633,7 @@ run_stop() {
       inventory-service) stop_inventory_service ;;
       payment-service) stop_payment_service ;;
       activity-service) stop_activity_service ;;
+      cart-service) stop_cart_service ;;
       bff-web) stop_bff_web ;;
       frontend-admin) stop_frontend_admin ;;
       frontend-web) stop_frontend_web ;;
@@ -617,6 +666,7 @@ print_test_summary() {
       inventory-service) name="Inventory" ;;
       payment-service) name="Payment" ;;
       activity-service) name="Activity" ;;
+      cart-service) name="Cart" ;;
       *) name="$key" ;;
     esac
     local run fail err
@@ -649,7 +699,7 @@ cmd_test() {
       --bc)
         shift
         if [ -z "${1:-}" ]; then
-          echo "Error: --bc requires a value (catalog|user|order|inventory|payment|all)" >&2
+          echo "Error: --bc requires a value (catalog|user|order|inventory|payment|activity|cart|all)" >&2
           exit 1
         fi
         case "$1" in
@@ -659,9 +709,10 @@ cmd_test() {
           inventory) bc_filter="@inventory" ;;
           payment) bc_filter="@payment" ;;
           activity) bc_filter="@activity" ;;
+          cart) bc_filter="@cart" ;;
           all) bc_filter="" ;;
           *)
-            echo "Error: --bc must be catalog, user, order, inventory, payment, activity, or all" >&2
+            echo "Error: --bc must be catalog, user, order, inventory, payment, activity, cart, or all" >&2
             exit 1
             ;;
         esac
@@ -707,6 +758,8 @@ cmd_test() {
     run_service_test "payment-service" "payment-service (Payment)"
   elif [ "$bc_filter" = "@activity" ]; then
     run_service_test "activity-service" "activity-service (Activity)"
+  elif [ "$bc_filter" = "@cart" ]; then
+    run_service_test "cart-service" "cart-service (Cart)"
   else
     # 全部微服务：catalog-service、user-service、order-service、inventory-service、payment-service
     run_service_test "catalog-service" "Catalog"
@@ -715,6 +768,7 @@ cmd_test() {
     run_service_test "inventory-service" "inventory-service (Inventory)"
     run_service_test "payment-service" "payment-service (Payment)"
     run_service_test "activity-service" "activity-service (Activity)"
+    run_service_test "cart-service" "cart-service (Cart)"
     print_test_summary || overall_rc=1
   fi
 
@@ -746,9 +800,9 @@ seed_inventory() {
 usage() {
   echo "Usage: $0 <command> [options] [components]"
   echo "  command:  start | stop | status | restart | test | seed-inventory"
-  echo "  components: db | catalog-service | user-service | order-service | inventory-service | payment-service | activity-service | bff-web | frontend-admin | frontend-web | mcp (default: all for start/stop/restart)"
+  echo "  components: db | catalog-service | user-service | order-service | inventory-service | payment-service | activity-service | cart-service | bff-web | frontend-admin | frontend-web | mcp (default: all for start/stop/restart)"
   echo "  seed-inventory: 可选 skuId 列表，不传则对 1～50 设置 available=99"
-  echo "  test options: [--cucumber-only] [--clean] [--bc catalog|user|order|inventory|payment|activity|all]"
+  echo "  test options: [--cucumber-only] [--clean] [--bc catalog|user|order|inventory|payment|activity|cart|all]"
   echo "See scripts/README.md for details."
 }
 

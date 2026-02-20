@@ -46,6 +46,10 @@ docs/
 │   │   ├── domain-model.md
 │   │   ├── requirements.md
 │   │   └── api.yaml
+│   ├── cart/
+│   │   ├── domain-model.md
+│   │   ├── requirements.md
+│   │   └── api.yaml
 │   └── ...
 ├── frontend-admin/
 │   ├── design-input.md
@@ -75,6 +79,7 @@ docs/
 | Payment | [requirements.md](./bounded-contexts/payment/requirements.md) | [domain-model.md](./bounded-contexts/payment/domain-model.md) | [api.yaml](./bounded-contexts/payment/api.yaml) | event-flow |
 | BFF | [requirements.md](./bounded-contexts/bff/requirements.md) | [domain-model.md](./bounded-contexts/bff/domain-model.md) | [api.yaml](./bounded-contexts/bff/api.yaml) | — |
 | Activity | [requirements.md](./bounded-contexts/activity/requirements.md) | [domain-model.md](./bounded-contexts/activity/domain-model.md) | [api.yaml](./bounded-contexts/activity/api.yaml) | — |
+| Cart | [requirements.md](./bounded-contexts/cart/requirements.md) | [domain-model.md](./bounded-contexts/cart/domain-model.md) | [api.yaml](./bounded-contexts/cart/api.yaml) | — |
 | Frontend-admin | [requirements.md](./frontend-admin/requirements.md) | — | — | design-input |
 | Frontend-web | [requirements.md](./frontend-web/requirements.md) | — | — | — |
 

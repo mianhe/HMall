@@ -31,7 +31,7 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment 🔄 → Ac
 | **Activity** | 消费 Order/Payment/Inventory 事件，活动记录、查询与统计仪表盘 | ✅ 已完成 | 3 个 feature（consume/query/stats），16 个 scenario，全部通过 |
 | **Fulfillment** | 拆单、发货、配送 | 🔲 规划中 | 依赖 Order，目前 Order 以 Port 桩对接 |
 | **Pricing** | 算价、优惠 | 🔲 规划中 | 创建订单时同步调用 |
-| **Cart** | 购物车管理 | 🔲 规划中 | 依赖 Catalog + User，按需实现 |
+| **Cart** | 购物车增删改查、结算预览 | 🔲 需求已完成 | 5 feature、17 scenario（待实现）；依赖 Catalog + User，结算由前端编排 |
 
 ### 已完成：Order 与 Inventory 集成
 
@@ -39,9 +39,10 @@ Order 通过 `RestOccupyInventoryAdapter`、`RestReleaseInventoryAdapter` 调用
 
 ### 下一步
 
-1. **Payment 集成**：Order → Payment 同步创建支付单/退款，当前用 NoOp 桩。
-2. **Kafka 事件**：Order、Inventory、Payment 的领域事件默认不发 Kafka（排除了 KafkaAutoConfiguration），加 `--spring.profiles.active=kafka` 可启用。Payment 已实现 Kafka 发布（PaymentCompleted/Failed/Expired），Order 已实现 Kafka 消费。
-3. **Activity BC 前端**：frontend-admin 统计仪表盘页面（可选）。
+1. **Cart BC 实现**：需求与领域模型已完成（5 feature、17 scenario），待创建骨架并实现。
+2. **Payment 集成**：Order → Payment 同步创建支付单/退款，当前用 NoOp 桩。
+3. **Kafka 事件**：Order、Inventory、Payment 的领域事件默认不发 Kafka（排除了 KafkaAutoConfiguration），加 `--spring.profiles.active=kafka` 可启用。Payment 已实现 Kafka 发布（PaymentCompleted/Failed/Expired），Order 已实现 Kafka 消费。
+4. **Activity BC 前端**：frontend-admin 统计仪表盘页面（可选）。
 
 ---
 
@@ -79,6 +80,7 @@ Order 通过 `RestOccupyInventoryAdapter`、`RestReleaseInventoryAdapter` 调用
 | 3 | User 地址簿推迟到 Order 前实现 | 创建订单需要收货地址，但 Cart 阶段暂不需要 | 2025-02-12 |
 | 4 | Inventory 采用同步占用而非事件驱动 | 业务合理性：用户下单需即时获知库存结果；行业惯例为同步预占 | 2026-02-15 |
 | 5 | Payment 采用同步调用 + Kafka 事件 | Order 同步调用创建支付单/退款；Payment 通过 Kafka 发布 PaymentCompleted/Failed/Expired，Order 消费事件驱动状态流转 | 2026-02-19 |
+| 6 | Cart 不快照价格，结算由前端编排 | 购物车展示时实时拉取 Catalog 价格；结算时前端从 Cart 取选中项 → Order API 创建订单，复用 CheckoutPage | 2026-02-20 |
 
 ---
 
@@ -86,6 +88,7 @@ Order 通过 `RestOccupyInventoryAdapter`、`RestReleaseInventoryAdapter` 调用
 
 | 日期 | 变更内容 |
 |------|---------|
+| 2026-02-20 | Cart BC 需求分析与领域建模完成（requirements.md + domain-model.md）；5 feature、17 scenario 待实现 |
 | 2026-02-19 | Activity BC 全部完成（consume/query/stats 三个 feature，16 scenario）；eventId 幂等、orderId 可空查询维度、统计仪表盘 API |
 | 2026-02-19 | Activity BC 纳入路线图与状态表；需求与契约已对齐 Order/Payment/Inventory 事件，准备开发 |
 | 2026-02-19 | Payment→Order 全面切换到 Kafka 事件；移除 Spring 进程内事件、HTTP 回调、internal API；Payment 测试改用 stub 替身，Order 测试直接调用 OrderEventService |

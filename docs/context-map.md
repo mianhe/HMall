@@ -58,7 +58,7 @@ flowchart TB
 | **User** | 用户注册、登录(JWT)、收货地址管理 | ✅ 已实现 | 3 feature，19 scenario |
 | **Order** | 订单创建、取消、查询、事件驱动、状态流转 | ✅ 已实现 | 4 feature，23 scenario |
 | **BFF** | frontend 统一 API 入口，代理 Catalog/User/Order/Inventory | ✅ POC 完成 | 透传代理、CORS、4xx/5xx 转发 |
-| **Cart** | 购物车管理 | 🔲 规划中 | 依赖 Catalog + User，按需实现 |
+| **Cart** | 购物车增删改查、结算预览 | 🔲 需求已完成 | 5 feature、17 scenario（待实现）；依赖 Catalog + User，结算由前端编排到 Order |
 | **Inventory** | 同步占用/释放库存 | ✅ 已实现并已与 Order 集成 | Order 同步调用 occupy/release |
 | **Payment** | 扣款/退款/超时检测 | 🔄 开发中 | 5 feature、19 scenario 全绿；超时检测定时自动执行；事件通知 Order（Kafka） |
 | **Pricing** | 算价、优惠 | 🔲 规划中 | 同步调用 |
@@ -76,9 +76,9 @@ flowchart TB
 | BFF | Order | REST | 代理 /api/orders |
 | Catalog | Order | REST | Order 创建时按 skuId 拉取 SKU 与价格 |
 | User | Order | REST | userId、收货地址 |
-| Catalog | Cart | REST（规划） | SKU 信息 |
-| User | Cart | REST（规划） | userId |
-| Cart | Order | 未来 | 购物车结算 → 创建订单 |
+| Catalog | Cart | REST | 添加时校验 SKU 存在性；查询时拉取展示信息（名称、价格、图片） |
+| User | Cart | userId | 购物车按用户隔离 |
+| Cart | Order | 前端编排 | 前端从 Cart 取选中项 → 调用 Order API 创建订单 → 清理已下单项 |
 | Order | Inventory | REST/同步 | 创建订单时同步占用；取消时同步释放 |
 | Order | Payment | REST/同步 | 创建订单时同步创建支付单；取消时同步退款 |
 | Order | Pricing | 同步调用 | 创建订单时算价 |
@@ -209,6 +209,7 @@ docs/
 │   ├── user/
 │   ├── order/
 │   ├── inventory/
+│   ├── cart/
 │   ├── bff/
 │   └── ...
 ├── frontend-admin/

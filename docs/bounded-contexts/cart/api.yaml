@@ -1,0 +1,158 @@
+openapi: 3.0.3
+info:
+  title: Cart API
+  version: 0.1.0
+  description: 购物车管理 API
+
+paths:
+  /api/cart:
+    get:
+      summary: 查询当前用户购物车
+      operationId: getCart
+      responses:
+        '200':
+          description: 购物车项列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CartItemDto'
+
+  /api/cart/items:
+    post:
+      summary: 添加商品到购物车
+      operationId: addCartItem
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddCartItemRequest'
+      responses:
+        '200':
+          description: 添加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItemDto'
+        '404':
+          description: SKU 不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: 批量删除购物车项
+      operationId: deleteCartItems
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteCartItemsRequest'
+      responses:
+        '204':
+          description: 删除成功
+
+  /api/cart/items/{cartItemId}:
+    put:
+      summary: 修改购物车项数量
+      operationId: updateCartItem
+      parameters:
+        - name: cartItemId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCartItemRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartItemDto'
+        '404':
+          description: 购物车项不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: 删除单个购物车项
+      operationId: deleteCartItem
+      parameters:
+        - name: cartItemId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 删除成功
+        '404':
+          description: 购物车项不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    AddCartItemRequest:
+      type: object
+      required: [skuId, quantity]
+      properties:
+        skuId:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+          minimum: 1
+
+    UpdateCartItemRequest:
+      type: object
+      required: [quantity]
+      properties:
+        quantity:
+          type: integer
+          minimum: 0
+
+    DeleteCartItemsRequest:
+      type: object
+      required: [cartItemIds]
+      properties:
+        cartItemIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+
+    CartItemDto:
+      type: object
+      properties:
+        cartItemId:
+          type: integer
+          format: int64
+        skuId:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+        addedAt:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
