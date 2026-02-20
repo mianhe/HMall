@@ -127,7 +127,7 @@
 
 - **框架**：Vue 3 + Vite + Vue Router
 - **样式**：Tailwind CSS（VMALL 风格）
-- **请求**：axios，baseURL 开发时用 Vite 代理；`/api/cart` 代理到 Cart 服务 `http://localhost:8087`，其余 `/api` 到 BFF `http://localhost:8085`
+- **请求**：axios，baseURL 开发时用 Vite 代理；所有 `/api` 请求统一代理到 BFF `http://localhost:8085`
 - **端口**：开发环境 `5174`
 
 ---

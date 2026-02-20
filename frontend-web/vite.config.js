@@ -8,7 +8,6 @@ export default defineConfig({
     host: true,
     port: 5174,
     proxy: {
-      '/api/cart': { target: 'http://127.0.0.1:8087', changeOrigin: true },
       '/api': { target: 'http://127.0.0.1:8085', changeOrigin: true },
     },
   },
