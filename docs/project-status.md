@@ -15,7 +15,7 @@ HMall 是一个以 DDD + ATDD 驱动的电商系统练习项目，覆盖商品�
 ### 推进顺序
 
 ```
-Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment 🔄 → Activity ✅ → Fulfillment 🔲 → [Pricing / Cart 按需]
+Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment 🔄 → Activity ✅ → Cart ✅ → Fulfillment 🔲 → [Pricing 按需]
 ```
 
 ### 各 BC 状态
@@ -31,7 +31,7 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment 🔄 → Ac
 | **Activity** | 消费 Order/Payment/Inventory 事件，活动记录、查询与统计仪表盘 | ✅ 已完成 | 3 个 feature（consume/query/stats），16 个 scenario，全部通过 |
 | **Fulfillment** | 拆单、发货、配送 | 🔲 规划中 | 依赖 Order，目前 Order 以 Port 桩对接 |
 | **Pricing** | 算价、优惠 | 🔲 规划中 | 创建订单时同步调用 |
-| **Cart** | 购物车增删改查、结算预览 | 🔲 需求已完成 | 5 feature、17 scenario（待实现）；依赖 Catalog + User，结算由前端编排 |
+| **Cart** | 购物车增删改查、结算预览 | ✅ 已完成 | 5 feature（+ smoke），17 scenario，全部通过；依赖 Catalog（SkuQueryPort 桩）+ User，结算由前端编排 |
 
 ### 已完成：Order 与 Inventory 集成
 
@@ -39,10 +39,11 @@ Order 通过 `RestOccupyInventoryAdapter`、`RestReleaseInventoryAdapter` 调用
 
 ### 下一步
 
-1. **Cart BC 实现**：需求与领域模型已完成（5 feature、17 scenario），待创建骨架并实现。
+1. **Cart → Catalog 集成**：Cart 的 SkuQueryPort 当前用 Stub，待实现 REST 适配器对接 Catalog 的 SKU API。
 2. **Payment 集成**：Order → Payment 同步创建支付单/退款，当前用 NoOp 桩。
 3. **Kafka 事件**：Order、Inventory、Payment 的领域事件默认不发 Kafka（排除了 KafkaAutoConfiguration），加 `--spring.profiles.active=kafka` 可启用。Payment 已实现 Kafka 发布（PaymentCompleted/Failed/Expired），Order 已实现 Kafka 消费。
 4. **Activity BC 前端**：frontend-admin 统计仪表盘页面（可选）。
+5. **Cart 前端**：frontend-web 购物车页面（可选）。
 
 ---
 
@@ -88,6 +89,7 @@ Order 通过 `RestOccupyInventoryAdapter`、`RestReleaseInventoryAdapter` 调用
 
 | 日期 | 变更内容 |
 |------|---------|
+| 2026-02-20 | Cart BC 全部完成（5 feature + smoke，17 scenario 全绿）；DDD 四层架构、SkuQueryPort 出站端口（测试用 Stub）、结算预览 API |
 | 2026-02-20 | Cart BC 需求分析与领域建模完成（requirements.md + domain-model.md）；5 feature、17 scenario 待实现 |
 | 2026-02-19 | Activity BC 全部完成（consume/query/stats 三个 feature，16 scenario）；eventId 幂等、orderId 可空查询维度、统计仪表盘 API |
 | 2026-02-19 | Activity BC 纳入路线图与状态表；需求与契约已对齐 Order/Payment/Inventory 事件，准备开发 |

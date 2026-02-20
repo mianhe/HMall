@@ -58,7 +58,7 @@ flowchart TB
 | **User** | 用户注册、登录(JWT)、收货地址管理 | ✅ 已实现 | 3 feature，19 scenario |
 | **Order** | 订单创建、取消、查询、事件驱动、状态流转 | ✅ 已实现 | 4 feature，23 scenario |
 | **BFF** | frontend 统一 API 入口，代理 Catalog/User/Order/Inventory | ✅ POC 完成 | 透传代理、CORS、4xx/5xx 转发 |
-| **Cart** | 购物车增删改查、结算预览 | 🔲 需求已完成 | 5 feature、17 scenario（待实现）；依赖 Catalog + User，结算由前端编排到 Order |
+| **Cart** | 购物车增删改查、结算预览 | ✅ 已实现 | 5 feature（+ smoke），17 scenario，全部通过；依赖 Catalog（CatalogSkuQueryAdapter）+ User，结算由前端编排到 Order |
 | **Inventory** | 同步占用/释放库存 | ✅ 已实现并已与 Order 集成 | Order 同步调用 occupy/release |
 | **Payment** | 扣款/退款/超时检测 | 🔄 开发中 | 5 feature、19 scenario 全绿；超时检测定时自动执行；事件通知 Order（Kafka） |
 | **Pricing** | 算价、优惠 | 🔲 规划中 | 同步调用 |

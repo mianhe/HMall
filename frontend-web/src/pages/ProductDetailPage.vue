@@ -81,8 +81,8 @@
             当前商品暂无规格维度，默认展示首个 SKU 价格。
           </p>
 
-          <!-- 立即购买 -->
-          <div class="mt-6">
+          <!-- 立即购买 / 加入购物车 -->
+          <div class="mt-6 flex flex-wrap gap-3 items-center">
             <button
               :disabled="!matchedSku"
               @click="goCheckout"
@@ -90,6 +90,14 @@
             >
               立即购买
             </button>
+            <button
+              :disabled="!matchedSku || addingToCart"
+              @click="addToCart"
+              class="px-8 py-3 rounded-lg border-2 border-vmall-red text-vmall-red font-medium hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {{ addingToCart ? '添加中…' : '加入购物车' }}
+            </button>
+            <p v-if="addToCartMessage" class="w-full text-sm text-green-600">{{ addToCartMessage }}</p>
           </div>
         </div>
       </div>
@@ -132,6 +140,7 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getProduct, getProductImages, getDimensions, getSkus } from '../shared/api/catalog.js'
+import { addCartItem } from '../shared/api/cart.js'
 import { useAuth } from '../shared/auth.js'
 
 const route = useRoute()
@@ -232,6 +241,30 @@ function goCheckout() {
       },
     },
   })
+}
+
+const addingToCart = ref(false)
+const addToCartMessage = ref('')
+
+async function addToCart() {
+  const sku = matchedSku.value
+  if (!sku) return
+  if (!isLoggedIn.value) {
+    router.push({ path: '/login', query: { redirect: `/products/${id.value}` } })
+    return
+  }
+  addingToCart.value = true
+  addToCartMessage.value = ''
+  try {
+    await addCartItem(sku.id, 1)
+    addToCartMessage.value = '已添加到购物车'
+    window.dispatchEvent(new CustomEvent('cart-updated'))
+    setTimeout(() => { addToCartMessage.value = '' }, 2000)
+  } catch (e) {
+    addToCartMessage.value = e.response?.data?.message || e.message || '添加失败'
+  } finally {
+    addingToCart.value = false
+  }
 }
 
 async function load() {

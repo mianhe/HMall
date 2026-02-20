@@ -22,6 +22,7 @@
 | 路由 | 页面说明 |
 |------|----------|
 | `/my` | 我的：用户信息块 + 收货地址入口 + 我的订单块（分块展示，VMALL 风格） |
+| `/cart` | 购物车：列表、改数量、删除、全选、去结算（白底卡片列表，VMALL 风格） |
 | `/addresses` | 收货地址管理（列表、增删改） |
 | `/orders` | 我的订单列表 |
 | `/orders/:id` | 订单详情 |
@@ -37,8 +38,9 @@
 
 ### 1.4 共享（shared）
 
-- 请求：`/api/users/{userId}/addresses`、`/api/orders?userId=xxx`（列表仅需数量或摘要时可后续加聚合接口）
+- 请求：`/api/users/{userId}/addresses`、`/api/orders?userId=xxx`、`/api/cart` 及购物车相关（见 requirements）
 - 通用 UI：块卡片、带箭头的导航行、图标+文案
+- 顶栏：已登录时展示「购物车」（含件数）、「我的」
 
 ---
 

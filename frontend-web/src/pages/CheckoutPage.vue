@@ -6,24 +6,37 @@
       <span class="text-gray-800">确认订单</span>
     </nav>
 
-    <div v-if="!checkoutItem" class="text-vmall-gray-text py-12">
-      <p>未获取到商品信息，请从商品详情页「立即购买」进入。</p>
+    <div v-if="!hasCheckoutData && !previewLoading" class="text-vmall-gray-text py-12">
+      <p>未获取到商品信息，请从商品详情页「立即购买」或购物车「去结算」进入。</p>
       <router-link to="/" class="mt-4 inline-block text-vmall-red hover:underline">返回首页</router-link>
     </div>
 
+    <div v-else-if="previewLoading" class="text-vmall-gray-text py-12">加载中…</div>
+
     <template v-else>
-      <!-- 商品信息 -->
+      <!-- 商品信息：单件（立即购买）或 多件（购物车） -->
       <div class="bg-white rounded-lg border border-vmall-gray-border p-4 mb-6">
         <h2 class="text-lg font-medium text-gray-800 mb-3">商品信息</h2>
-        <div class="flex gap-4">
-          <div class="w-20 h-20 shrink-0 bg-vmall-gray-bg rounded flex items-center justify-center text-2xl text-vmall-gray-text">📦</div>
-          <div class="flex-1 min-w-0">
-            <p class="font-medium text-gray-800 truncate">{{ checkoutItem.productName || checkoutItem.displayName }}</p>
-            <p v-if="checkoutItem.displayName && checkoutItem.productName" class="text-sm text-vmall-gray-text">{{ checkoutItem.displayName }}</p>
-            <p class="text-vmall-red font-medium mt-1">¥ {{ ((checkoutItem.unitPriceCents || 0) * (checkoutItem.quantity || 1) / 100).toFixed(2) }}</p>
-            <p class="text-sm text-vmall-gray-text">¥ {{ ((checkoutItem.unitPriceCents || 0) / 100).toFixed(2) }} × {{ checkoutItem.quantity }}</p>
+        <template v-if="checkoutPreviewData">
+          <div v-for="row in checkoutPreviewData.items" :key="row.cartItemId" class="flex gap-4 py-3 border-b border-vmall-gray-border last:border-0">
+            <div class="w-20 h-20 shrink-0 bg-vmall-gray-bg rounded flex items-center justify-center text-2xl text-vmall-gray-text">📦</div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-gray-800 truncate">{{ row.skuName }}</p>
+              <p class="text-vmall-red font-medium mt-1">¥ {{ formatPrice(row.price) }} × {{ row.quantity }}</p>
+            </div>
           </div>
-        </div>
+        </template>
+        <template v-else-if="checkoutItem">
+          <div class="flex gap-4">
+            <div class="w-20 h-20 shrink-0 bg-vmall-gray-bg rounded flex items-center justify-center text-2xl text-vmall-gray-text">📦</div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium text-gray-800 truncate">{{ checkoutItem.productName || checkoutItem.displayName }}</p>
+              <p v-if="checkoutItem.displayName && checkoutItem.productName" class="text-sm text-vmall-gray-text">{{ checkoutItem.displayName }}</p>
+              <p class="text-vmall-red font-medium mt-1">¥ {{ ((checkoutItem.unitPriceCents || 0) * (checkoutItem.quantity || 1) / 100).toFixed(2) }}</p>
+              <p class="text-sm text-vmall-gray-text">¥ {{ ((checkoutItem.unitPriceCents || 0) / 100).toFixed(2) }} × {{ checkoutItem.quantity }}</p>
+            </div>
+          </div>
+        </template>
       </div>
 
       <!-- 收货地址 -->
@@ -97,7 +110,7 @@
       <p v-if="error" class="mb-4 px-4 py-2 rounded-lg bg-red-50 text-vmall-red text-sm border border-red-200">{{ error }}</p>
       <div class="flex justify-between items-center">
         <p class="text-gray-800">
-          合计：<span class="text-xl font-bold text-vmall-red">¥ {{ totalCents / 100 }}</span>
+          合计：<span class="text-xl font-bold text-vmall-red">¥ {{ totalDisplay }}</span>
         </p>
         <button
           :disabled="submitting"
@@ -116,6 +129,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { createOrder } from '../shared/api/order.js'
 import { getAddresses } from '../shared/api/user.js'
+import { checkoutPreview, deleteCartItems } from '../shared/api/cart.js'
 import { useAuth } from '../shared/auth.js'
 import { formatApiError } from '../shared/utils/errorMessage.js'
 
@@ -123,6 +137,9 @@ const router = useRouter()
 const { userId, isLoggedIn } = useAuth()
 
 const checkoutItem = ref(null)
+const cartCheckoutIds = ref(null)
+const checkoutPreviewData = ref(null)
+const previewLoading = ref(false)
 const addresses = ref([])
 const selectedAddressId = ref(null)
 const form = ref({
@@ -136,11 +153,21 @@ const form = ref({
 const submitting = ref(false)
 const error = ref('')
 
-const totalCents = computed(() => {
+const hasCheckoutData = computed(() => checkoutItem.value || checkoutPreviewData.value)
+
+const totalDisplay = computed(() => {
+  if (checkoutPreviewData.value?.totalPrice != null) {
+    return Number(checkoutPreviewData.value.totalPrice).toFixed(2)
+  }
   const item = checkoutItem.value
-  if (!item) return 0
-  return (item.unitPriceCents || 0) * (item.quantity || 1)
+  if (!item) return '0.00'
+  return ((item.unitPriceCents || 0) * (item.quantity || 1) / 100).toFixed(2)
 })
+
+function formatPrice(p) {
+  if (p == null) return '0.00'
+  return Number(p).toFixed(2)
+}
 
 watch(selectedAddressId, (id) => {
   if (!id) return
@@ -158,7 +185,18 @@ watch(selectedAddressId, (id) => {
 onMounted(async () => {
   const state = history.state
   const stored = sessionStorage.getItem('checkoutItem')
-  if (state?.checkoutItem) {
+
+  if (state?.cartCheckout?.cartItemIds?.length) {
+    cartCheckoutIds.value = state.cartCheckout.cartItemIds
+    previewLoading.value = true
+    try {
+      checkoutPreviewData.value = await checkoutPreview(cartCheckoutIds.value)
+    } catch (e) {
+      error.value = formatApiError(e, '结算预览加载失败')
+    } finally {
+      previewLoading.value = false
+    }
+  } else if (state?.checkoutItem) {
     checkoutItem.value = state.checkoutItem
     sessionStorage.setItem('checkoutItem', JSON.stringify(state.checkoutItem))
   } else if (stored) {
@@ -168,6 +206,7 @@ onMounted(async () => {
       sessionStorage.removeItem('checkoutItem')
     }
   }
+
   try {
     addresses.value = await getAddresses(userId.value)
     if (addresses.value?.length && !selectedAddressId.value) {
@@ -179,11 +218,16 @@ onMounted(async () => {
 })
 
 async function submitOrder() {
-  const item = checkoutItem.value
-  if (!item?.skuId || !item?.quantity) {
+  let orderItems
+  if (checkoutPreviewData.value?.items?.length) {
+    orderItems = checkoutPreviewData.value.items.map((i) => ({ skuId: i.skuId, quantity: i.quantity }))
+  } else if (checkoutItem.value?.skuId && checkoutItem.value?.quantity) {
+    orderItems = [{ skuId: checkoutItem.value.skuId, quantity: checkoutItem.value.quantity }]
+  } else {
     error.value = '商品信息不完整'
     return
   }
+
   const addr = selectedAddressId.value
     ? (addresses.value.find((a) => a.addressId === selectedAddressId.value) || form.value)
     : form.value
@@ -202,7 +246,7 @@ async function submitOrder() {
   try {
     const order = await createOrder({
       userId: userId.value,
-      items: [{ skuId: item.skuId, quantity: item.quantity }],
+      items: orderItems,
       shippingAddress: {
         recipientName: addr.recipientName,
         phone: addr.phone,
@@ -217,6 +261,10 @@ async function submitOrder() {
       return
     }
     sessionStorage.removeItem('checkoutItem')
+    if (cartCheckoutIds.value?.length) {
+      await deleteCartItems(cartCheckoutIds.value)
+      window.dispatchEvent(new CustomEvent('cart-updated'))
+    }
     router.replace({ path: `/orders/${order.orderId}` })
   } catch (e) {
     error.value = formatApiError(e, '提交失败，请稍后重试')

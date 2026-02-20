@@ -1,28 +1,34 @@
 openapi: 3.0.3
 info:
   title: Cart API
-  version: 0.1.0
-  description: 购物车管理 API
+  version: 0.2.0
+  description: 购物车管理 API。所有端点需通过 X-User-Id 请求头传递用户标识。
 
 paths:
   /api/cart:
     get:
       summary: 查询当前用户购物车
       operationId: getCart
+      parameters:
+        - $ref: '#/components/parameters/XUserId'
       responses:
         '200':
-          description: 购物车项列表
+          description: 购物车项列表（含 SKU 展示信息与可用性标记）
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/CartItemDto'
+        '401':
+          description: 未登录（缺少 X-User-Id）
 
   /api/cart/items:
     post:
       summary: 添加商品到购物车
       operationId: addCartItem
+      parameters:
+        - $ref: '#/components/parameters/XUserId'
       requestBody:
         required: true
         content:
@@ -31,11 +37,19 @@ paths:
               $ref: '#/components/schemas/AddCartItemRequest'
       responses:
         '200':
-          description: 添加成功
+          description: 添加成功（SKU 展示字段为 null，仅返回基础信息）
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/CartItemDto'
+        '400':
+          description: 数量 ≤ 0
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录
         '404':
           description: SKU 不存在
           content:
@@ -45,6 +59,8 @@ paths:
     delete:
       summary: 批量删除购物车项
       operationId: deleteCartItems
+      parameters:
+        - $ref: '#/components/parameters/XUserId'
       requestBody:
         required: true
         content:
@@ -54,12 +70,15 @@ paths:
       responses:
         '204':
           description: 删除成功
+        '401':
+          description: 未登录
 
   /api/cart/items/{cartItemId}:
     put:
       summary: 修改购物车项数量
       operationId: updateCartItem
       parameters:
+        - $ref: '#/components/parameters/XUserId'
         - name: cartItemId
           in: path
           required: true
@@ -74,11 +93,19 @@ paths:
               $ref: '#/components/schemas/UpdateCartItemRequest'
       responses:
         '200':
-          description: 更新成功
+          description: 更新成功（quantity=0 时删除该项，返回空 body）
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/CartItemDto'
+        '400':
+          description: 数量为负数
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录
         '404':
           description: 购物车项不存在
           content:
@@ -89,6 +116,7 @@ paths:
       summary: 删除单个购物车项
       operationId: deleteCartItem
       parameters:
+        - $ref: '#/components/parameters/XUserId'
         - name: cartItemId
           in: path
           required: true
@@ -98,6 +126,8 @@ paths:
       responses:
         '204':
           description: 删除成功
+        '401':
+          description: 未登录
         '404':
           description: 购物车项不存在
           content:
@@ -105,7 +135,45 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/cart/checkout-preview:
+    post:
+      summary: 购物车结算预览（返回选中项摘要与总价）
+      operationId: checkoutPreview
+      parameters:
+        - $ref: '#/components/parameters/XUserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutRequest'
+      responses:
+        '200':
+          description: 结算预览
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutPreviewDto'
+        '400':
+          description: 购物车为空、未选中任何项、或包含不可用 SKU
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: 未登录
+
 components:
+  parameters:
+    XUserId:
+      name: X-User-Id
+      in: header
+      required: true
+      description: 当前登录用户 ID
+      schema:
+        type: integer
+        format: int64
+
   schemas:
     AddCartItemRequest:
       type: object
@@ -136,6 +204,16 @@ components:
             type: integer
             format: int64
 
+    CheckoutRequest:
+      type: object
+      required: [cartItemIds]
+      properties:
+        cartItemIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+
     CartItemDto:
       type: object
       properties:
@@ -150,6 +228,51 @@ components:
         addedAt:
           type: string
           format: date-time
+        skuName:
+          type: string
+          nullable: true
+          description: SKU 展示名称（查询时填充，添加/更新时为 null）
+        skuPrice:
+          type: number
+          nullable: true
+          description: SKU 单价（查询时填充，添加/更新时为 null）
+        skuImageUrl:
+          type: string
+          nullable: true
+          description: SKU 图片 URL（查询时填充，添加/更新时为 null）
+        available:
+          type: boolean
+          nullable: true
+          description: SKU 是否可用（查询时填充，添加/更新时为 null）
+
+    CheckoutPreviewDto:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CheckoutPreviewItem'
+        totalPrice:
+          type: number
+          description: 总价
+
+    CheckoutPreviewItem:
+      type: object
+      properties:
+        cartItemId:
+          type: integer
+          format: int64
+        skuId:
+          type: integer
+          format: int64
+        skuName:
+          type: string
+        price:
+          type: number
+        quantity:
+          type: integer
+        subtotal:
+          type: number
 
     Error:
       type: object

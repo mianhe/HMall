@@ -86,10 +86,14 @@ end note
 |------|------|------|
 | cartItemId | Long | 唯一标识 |
 | skuId | Long | SKU ID，引用 Catalog |
-| quantity | Integer | 数量，> 0 |
+| quantity | int | 数量，> 0 |
 | addedAt | Instant | 添加时间 |
 
 **不变式**：quantity > 0；skuId 必填；同一 Cart 中 skuId 唯一。
+
+**内部方法**（由聚合根调用，不对外暴露）：
+- `increaseQuantity(delta)`：累加数量，delta 必须 > 0
+- `setQuantity(quantity)`：直接设置数量，quantity 必须 > 0
 
 ---
 

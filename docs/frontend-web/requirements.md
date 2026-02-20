@@ -19,8 +19,9 @@
 |------|------|------|----------|
 | `/` | HomePage | 首页：类目导航 + 商品展示（两层类目，参考 VMALL） | `GET /api/categories`、`GET /api/products` |
 | `/my` | MyPage | 我的：用户信息块、收货地址入口、我的订单块（分块展示，Atomic Design） | — |
-| `/products/:id` | ProductDetailPage | 商品详情（VMALL 风格：图廊、规格选择、价格、详情/参数）；含「立即购买」入口 | `GET /api/products/{id}`、`/products/{id}/images`、`/dimensions`、`/skus` |
-| `/checkout` | CheckoutPage | 结账页：商品、选地址/新增地址、提交订单 | `POST /api/orders`、`GET /api/users/{userId}/addresses` |
+| `/cart` | CartPage | 购物车：列表、改数量、删除、全选、去结算（需登录） | `GET /api/cart`、`POST /api/cart/items`、`PUT /api/cart/items/{id}`、`DELETE /api/cart/items`、`POST /api/cart/checkout-preview` |
+| `/products/:id` | ProductDetailPage | 商品详情（图廊、规格、价格、详情/参数）；「立即购买」与「加入购物车」 | `GET /api/products/{id}`、`/images`、`/dimensions`、`/skus`；`POST /api/cart/items` |
+| `/checkout` | CheckoutPage | 结账页：支持立即购买单件或购物车勾选多件；选地址、提交订单；成功后清理已下单项 | `POST /api/orders`、`GET /api/users/{userId}/addresses`；购物车入口时 `POST /api/cart/checkout-preview`、`DELETE /api/cart/items` |
 | `/addresses` | AddressPage | 收货地址管理：列表、新增、编辑、删除 | `GET /api/users/{userId}/addresses`、`POST / PUT / DELETE /api/users/{userId}/addresses/{id}` |
 | `/orders` | OrderListPage | 订单列表：当前用户订单，支持 query 按状态筛选（待付款/待收货/待评价） | `GET /api/orders?userId=xxx` |
 | `/orders/:id` | OrderDetailPage | 订单详情：订单信息、取消、模拟支付 | `GET /api/orders/{id}`、`POST /api/orders/{id}/cancel` |
@@ -34,31 +35,40 @@
 - **商品导航**：右侧网格展示当前选中二级类目下的商品（`GET /api/products?categoryId=xxx`），卡片含商品名称、主图（若有）或占位图，点击进入商品详情页。
 - **契约**：`docs/bounded-contexts/catalog/api.yaml`（Category、Product）。
 
-### 2.2 商品详情页
+### 2.2 购物车页
+
+- **入口**：顶栏「购物车」链接（已登录显示件数）；商品详情页「加入购物车」。
+- **内容**：购物车项列表（SKU 名称、价格、数量、小计）；不可用 SKU 标灰并提示已下架；每项可改数量、删除；全选、已选件数与合计、「去结算」。
+- **去结算**：跳转 `/checkout` 并携带勾选的 `cartItemIds`。
+- **API**：`GET /api/cart`、`POST /api/cart/items`、`PUT /api/cart/items/{cartItemId}`、`DELETE /api/cart/items`（单项或 body 批量）；契约 `docs/bounded-contexts/cart/api.yaml`。请求头 `X-User-Id` 由前端从 JWT 解析注入。
+
+### 2.3 商品详情页
 
 - **结构参考**：华为商城 VMALL 商详页（不含促销、返点、关联推荐）。
 - **面包屑**：首页 > 商品名称。
 - **左侧**：产品图廊（主图 + 缩略图切换）；无图时占位。
 - **右侧**：商品名称、价格（随规格选择变化）、规格维度（颜色、版本等）按钮选择、已选规格摘要。
 - **下方 Tab**：详情（商品描述）、参数（暂无则占位）。
+- **操作**：「立即购买」跳结账页；「加入购物车」调用 `POST /api/cart/items`，成功后提示并更新顶栏购物车件数。
 - **API**：`GET /api/products/{id}`、`GET /api/products/{spuId}/images`、`GET /api/products/{spuId}/dimensions`、`GET /api/products/{spuId}/skus`。
 
-### 2.3 结账页
+### 2.4 结账页
 
-- **入口**：商品详情页「立即购买」，跳转 `/checkout` 并携带商品信息（spuId、skuId、quantity、displayName、unitPriceCents）。
-- **内容**：商品摘要、数量、小计；收货地址：可从已保存地址中选择，或新增填写；链接「管理收货地址」跳转 `/addresses`。
+- **入口**：商品详情页「立即购买」（单件）；或购物车「去结算」（勾选 `cartItemIds`）。
+- **内容**：商品摘要（单件或购物车结算预览多件）、合计；收货地址：可从已保存地址中选择，或新增填写；链接「管理收货地址」跳转 `/addresses`。
+- **购物车入口**：进入时调用 `POST /api/cart/checkout-preview` 获取选中项摘要与总价；提交订单成功后调用 `DELETE /api/cart/items` 清理已下单项。
 - **提交**：调用 `POST /api/orders`，body 为 `OrderCreate`（userId 从 JWT 解析，items、shippingAddress）。
 - **成功**：跳转订单详情 `/orders/{orderId}`；失败：展示后端返回的 message。
-- **契约**：`docs/bounded-contexts/order/api.yaml`（OrderCreate、ShippingAddress）。
+- **契约**：`docs/bounded-contexts/order/api.yaml`（OrderCreate、ShippingAddress）；`docs/bounded-contexts/cart/api.yaml`（checkout-preview、delete items）。
 
-### 2.4 订单列表
+### 2.5 订单列表
 
 - **入口**：顶栏「我的订单」链接；需登录。
 - **内容**：分页展示当前用户订单（orderId、status、totalAmountCents、items 摘要、收货地址）。
 - **API**：`GET /api/orders?userId=xxx&page=0&size=20`，userId 从 JWT 解析。
 - **点击**：进入订单详情 `/orders/{id}`。
 
-### 2.5 订单详情
+### 2.6 订单详情
 
 - **内容**：订单完整信息（明细、收货地址、status）；状态文案映射（如 PENDING_PAYMENT → 待支付）。
 - **操作**：待支付时可「取消订单」`POST /api/orders/{id}/cancel`；可「模拟支付」—— 纯前端 Mock，点击后 toast「支付成功（模拟）」，跳转订单列表。
@@ -93,17 +103,21 @@
 ### 3.4 商品详情页
 
 - 面包屑、图廊（主图 + 缩略图）、规格维度选择（选齐后显示对应 SKU 价格与已选摘要）、详情/参数 Tab；由首页或列表进入。不包含促销、返点、关联推荐。
-- 「立即购买」按钮：选中规格后可用，跳转结账页并携带 skuId、quantity、displayName、unitPriceCents、productName、spuId。
+- 「立即购买」与「加入购物车」按钮：选中规格后可用；加入购物车成功后提示并触发顶栏件数更新。
 
-### 3.5 结账页
+### 3.5 购物车页
 
-- 商品摘要、收货地址表单、提交订单；成功后跳转订单详情。未登录跳转登录页并保存 checkout 数据至 sessionStorage。
+- 购物车列表（名称、价格、数量、小计）、不可用项标灰；改数量、删除、全选、去结算；空车时提示并跳首页。
 
-### 3.6 订单列表
+### 3.6 结账页
+
+- 支持单件（立即购买）或多件（购物车勾选）；商品摘要、收货地址表单、提交订单；成功后跳转订单详情，购物车入口时清理已下单项。未登录跳转登录页并保存 checkout 数据至 sessionStorage。
+
+### 3.7 订单列表
 
 - 按 userId 分页展示订单；顶栏入口「我的订单」。未登录跳转登录页。
 
-### 3.7 订单详情
+### 3.8 订单详情
 
 - 订单信息、取消、模拟支付（前端 Mock）。待支付时可取消；模拟支付后 toast 提示并跳转订单列表。
 
@@ -113,7 +127,7 @@
 
 - **框架**：Vue 3 + Vite + Vue Router
 - **样式**：Tailwind CSS（VMALL 风格）
-- **请求**：axios，baseURL 开发时用 Vite 代理到 BFF `http://localhost:8085`
+- **请求**：axios，baseURL 开发时用 Vite 代理；`/api/cart` 代理到 Cart 服务 `http://localhost:8087`，其余 `/api` 到 BFF `http://localhost:8085`
 - **端口**：开发环境 `5174`
 
 ---
@@ -126,4 +140,5 @@
 | `docs/bounded-contexts/user/api.yaml` | User BC API 契约 |
 | `docs/bounded-contexts/catalog/api.yaml` | Catalog BC API 契约（类目、商品） |
 | `docs/bounded-contexts/order/api.yaml` | Order BC API 契约（订单创建、查询、取消） |
+| `docs/bounded-contexts/cart/api.yaml` | Cart BC API 契约（购物车、结算预览） |
 | `docs/frontend-admin/requirements.md` | 管理后台需求 |
