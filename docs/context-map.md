@@ -40,12 +40,13 @@ flowchart TB
     Order -->|同步占用/释放| Inventory
     Order -->|同步创建支付/退款| Payment
     Order -->|算价| Pricing
-    Order -->|履约单| Fulfillment
+    Order -->|同步创建/取消履约单| Fulfillment
     Payment -->|Kafka 事件| Order
-    Fulfillment -->|Kafka 事件| Order
+    Fulfillment -->|Kafka 事件 Shipped/Delivered| Order
     Order -->|Kafka 事件| Activity
     Payment -->|Kafka 事件| Activity
     Inventory -->|Kafka 事件| Activity
+    Fulfillment -->|Kafka 事件| Activity
 ```
 
 ---
@@ -62,7 +63,7 @@ flowchart TB
 | **Inventory** | 同步占用/释放库存 | ✅ 已实现并已与 Order 集成 | Order 同步调用 occupy/release |
 | **Payment** | 扣款/退款/超时检测 | 🔄 开发中 | 5 feature、19 scenario 全绿；超时检测定时自动执行；事件通知 Order（Kafka） |
 | **Pricing** | 算价、优惠 | 🔲 规划中 | 同步调用 |
-| **Fulfillment** | 拆单、发货、配送 | 🔲 规划中 | Order 以 Port 桩对接 |
+| **Fulfillment** | 拆单、发货、配送 | 🔄 需求已完成 | 5 feature、18 scenario 待实现；同步创建/取消 + Kafka 事件（Shipped/Delivered） |
 | **Activity** | 消费各 BC 事件，构建业务活动记录（审计、统计、监控） | 🔄 骨架已建 | 订阅 Order/Payment/Inventory Kafka 事件 |
 
 ---
@@ -82,9 +83,9 @@ flowchart TB
 | Order | Inventory | REST/同步 | 创建订单时同步占用；取消时同步释放 |
 | Order | Payment | REST/同步 | 创建订单时同步创建支付单；取消时同步退款 |
 | Order | Pricing | 同步调用 | 创建订单时算价 |
-| Order | Fulfillment | 事件 | PaymentCompleted → 创建履约单 |
+| Order | Fulfillment | REST/同步 | 创建履约单（PaymentCompleted 后同步调用，返回 fulfillmentOrderIds）；取消履约单（Order 补偿时同步调用） |
 | Payment | Order | Kafka 事件 | PaymentCompleted / Failed / Expired（Order 通过 KafkaPaymentEventConsumer 消费）；PaymentFailed 不影响订单状态（用户可重试），仅 PaymentExpired 触发取消 |
-| Fulfillment | Order | Kafka 事件 | FulfillmentOrderCreated / Shipped / Delivered（Order 通过 KafkaFulfillmentEventConsumer 消费） |
+| Fulfillment | Order | Kafka 事件 | FulfillmentShipped / Delivered（Order 消费后推进状态）；FulfillmentOrderCreated 仅 Activity 消费 |
 | Order | Activity | Kafka 事件 | OrderCreated / Cancelled / Completed |
 | Payment | Activity | Kafka 事件 | PaymentCompleted / Failed / Expired |
 | Inventory | Activity | Kafka 事件 | StockReserved / StockReleased |
@@ -145,7 +146,7 @@ flowchart TB
 | 事件 | 触发 | 业务实体 | 与 Order 关系 | Topic | 订阅方 | 关键 Payload |
 |------|------|----------|---------------|-------|--------|-------------|
 | OrderCreated | ⌘ PlaceOrder | Order | 自身（聚合根） | `order.created` | Activity | orderId, items[{skuId, quantity}], occurredAt |
-| OrderCancelled | ⟳ PaymentFailed / Expired 或 ⌘ CancelOrder | Order | 自身 | `order.cancelled` | Activity | orderId, occurredAt |
+| OrderCancelled | ⟳ PaymentExpired 或 ⌘ CancelOrder | Order | 自身 | `order.cancelled` | Activity | orderId, occurredAt |
 | OrderCompleted | ⟳ FulfillmentDelivered | Order | 自身 | `order.completed` | Activity | orderId, occurredAt |
 
 ### Payment 发布
@@ -163,13 +164,15 @@ flowchart TB
 | StockReserved | ⌘ PlaceOrder → Inventory.occupy（同步） | Reservation | 1:1（一笔订单一次占用） | `inventory.stock.reserved` | Activity | orderId, items[{skuId, quantity}], occurredAt |
 | StockReleased | ⟳ 取消补偿 或 ⌘ CancelOrder → Inventory.release（同步） | Reservation | 1:1 | `inventory.stock.released` | Activity | orderId, occurredAt |
 
-### Fulfillment 发布（规划中）
+### Fulfillment 发布（需求已完成）
 
 | 事件 | 触发 | 业务实体 | 与 Order 关系 | Topic | 订阅方 | 关键 Payload |
 |------|------|----------|---------------|-------|--------|-------------|
-| FulfillmentOrderCreated | ⟳ PaymentCompleted → Order 创建履约单 | FulfillmentOrder | 1:N（一笔订单可拆多个履约单） | `fulfillment.order.created` | Order, Activity | orderId, fulfillmentOrderIds, occurredAt |
-| FulfillmentShipped | Fulfillment 内部发货流程 | FulfillmentOrder | 1:N | `fulfillment.shipped` | Order, Activity | orderId, occurredAt |
-| FulfillmentDelivered | Fulfillment 内部配送完成 | FulfillmentOrder | 1:N | `fulfillment.delivered` | Order, Activity | orderId, occurredAt |
+| FulfillmentOrderCreated | Order 同步调用创建履约单 | FulfillmentOrder | 1:N（一笔订单可拆多个履约单，MVP 1:1） | `fulfillment.order.created` | Activity | orderId, fulfillmentOrderIds, occurredAt |
+| FulfillmentShipped | Fulfillment 内部发货流程 | FulfillmentOrder | 1:N | `fulfillment.shipped` | Order, Activity | orderId, fulfillmentOrderId, occurredAt |
+| FulfillmentDelivered | Fulfillment 内部签收确认 | FulfillmentOrder | 1:N | `fulfillment.delivered` | Order, Activity | orderId, fulfillmentOrderId, occurredAt |
+
+**注意**：FulfillmentOrderCreated 事件仅 Activity 消费。Order 通过同步调用返回值获取 fulfillmentOrderIds，不再消费此事件。Shipped/Delivered 仍由 Order 消费以推进状态。
 
 ### 事件通用约定
 
@@ -210,6 +213,7 @@ docs/
 │   ├── order/
 │   ├── inventory/
 │   ├── cart/
+│   ├── fulfillment/
 │   ├── bff/
 │   └── ...
 ├── frontend-admin/

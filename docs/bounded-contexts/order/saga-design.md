@@ -19,10 +19,10 @@
 | T1 | PlaceOrder | Order | — | OrderCreated | 无补偿 |
 | T2 | OrderCreated 前 | Inventory | **同步调用** occupy | 无 | 占用失败则 T1 不完成，订单不落库 |
 | T3 | PlaceOrder 流程内 | Payment | **同步调用** createPayment | 支付链接；支付完成由网关回调后 Payment 发事件，Order 订阅 | C2, C1 |
-| T4 | PaymentCompleted | Fulfillment | 调用 | FulfillmentOrderCreated | C3, C2, C1 |
-| T5+ | FulfillmentShipped / Delivered | — | Order 订阅 | 更新 status | — |
+| T4 | PaymentCompleted | Fulfillment | **同步调用** createFulfillment | 返回 fulfillmentOrderIds，Order 当场置 FULFILLING | C3, C2, C1 |
+| T5+ | FulfillmentShipped / Delivered | — | Order 消费 Kafka 事件 | 更新 status | — |
 
-T1～T3 同请求：落单 → occupy → createPayment → 发布 OrderCreated、返回支付链接。
+T1～T3 同请求：落单 → occupy → createPayment → 发布 OrderCreated、返回支付链接。T4 在 PaymentCompleted 事件处理中同步调用。
 
 ### 补偿步骤
 
@@ -31,9 +31,11 @@ T1～T3 同请求：落单 → occupy → createPayment → 发布 OrderCreated�
 | C1 | 取消订单 | Order | 更新 status、发布 OrderCancelled |
 | C2 | 释放库存 | Inventory | **同步调用** release(orderId) |
 | C3 | 退款 | Payment | **同步调用** refund(orderId) |
-| C4 | 取消履约单 | Fulfillment | 调用/事件 |
+| C4 | 取消履约单 | Fulfillment | **同步调用** cancelFulfillment(orderId) |
 
 补偿顺序：失败步骤之后的正向步骤，按**逆序**补偿（如 T3 失败 → 执行 C2, C1）。
+
+**取消规则**：SHIPPED 及之后（SHIPPED / DELIVERED / COMPLETED）不可取消。仅 PENDING_PAYMENT / PAID / FULFILLING 可取消。
 
 ---
 
@@ -46,9 +48,10 @@ stateDiagram-v2
     PENDING_PAYMENT --> PAID: PaymentCompleted
     PENDING_PAYMENT --> PENDING_PAYMENT: PaymentFailed（保持待支付）
     PENDING_PAYMENT --> COMPENSATING: PaymentExpired
-    PAID --> FULFILLING: FulfillmentOrderCreated
-    FULFILLING --> SHIPPED: FulfillmentShipped
-    SHIPPED --> COMPLETED: FulfillmentDelivered
+    PAID --> FULFILLING: 同步调用 createFulfillment 成功
+    FULFILLING --> SHIPPED: FulfillmentShipped（全部发货）
+    SHIPPED --> DELIVERED: FulfillmentDelivered（全部签收）
+    DELIVERED --> COMPLETED: 发布 OrderCompleted
     COMPENSATING --> CANCELLED: 补偿完成（含释放库存）
 ```
 
@@ -60,7 +63,10 @@ stateDiagram-v2
 |------|----------|
 | PaymentFailed | 无补偿（订单保持 PENDING_PAYMENT，用户可重试支付） |
 | PaymentExpired | C2, C1 |
-| 用户取消 | 按当前已完成的步骤逆序补偿（含 C2 释放库存） |
+| 用户取消（PENDING_PAYMENT） | C2, C1 |
+| 用户取消（PAID） | C3, C2, C1 |
+| 用户取消（FULFILLING） | C4, C3, C2, C1 |
+| 用户取消（SHIPPED 及之后） | **不可取消**（返回错误） |
 
 ---
 

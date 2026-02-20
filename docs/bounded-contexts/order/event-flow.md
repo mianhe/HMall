@@ -13,18 +13,19 @@
 | Order | 编排中心 |
 | Inventory | 下游：**同步**占用/释放库存（Order 直接调用） |
 | Payment | 下游：**同步调用**发起支付、退款；支付结果由 Payment 通过 **Kafka 事件**通知（PaymentCompleted/Failed/Expired），Order 通过 KafkaPaymentEventConsumer 消费 |
-| Fulfillment | 下游：拆单、发货、配送 |
+| Fulfillment | 下游：**同步调用**创建/取消履约单；发货/签收由 Fulfillment 通过 **Kafka 事件**通知（FulfillmentShipped/Delivered） |
 | Pricing | 下游：算价（同步调用） |
 
 ---
 
 ## 二、主流程
 
-PlaceOrder →（同步调用 Inventory 占用，成功则）OrderCreated → PaymentCompleted → FulfillmentOrderCreated → FulfillmentShipped → FulfillmentDelivered → OrderCompleted
+PlaceOrder →（同步调用 Inventory 占用，成功则）OrderCreated → PaymentCompleted →（同步调用 Fulfillment 创建履约单，当场置 FULFILLING）→ FulfillmentShipped → FulfillmentDelivered → OrderCompleted
 
 - **PlaceOrder**：保存订单后**同步调用** Inventory 占用；若库存不足则失败返回，订单不落库或回滚
+- **PaymentCompleted**：Order 收到支付完成事件后，**同步调用** Fulfillment 创建履约单，返回 fulfillmentOrderIds，当场更新 fulfillmentRef 并置 FULFILLING
 - **失败分支**：PaymentFailed → 不影响订单（保持待支付，用户可重试）；PaymentExpired → 触发补偿（含释放库存、取消订单）
-- **取消**：Order 取消时**同步调用** Inventory 释放
+- **取消**：Order 取消时**同步调用** Inventory 释放 + Fulfillment 取消履约单（若已创建）；SHIPPED 及之后不可取消
 
 ### 流程图
 
@@ -49,12 +50,12 @@ Payment -[hidden]right-> Fulfillment
 Fulfillment -[hidden]right-> Gateway
 Order --> Inventory : 1. occupy
 Order --> Payment : 2. createPayment
-Order --> Fulfillment : 6. 创建履约单
+Order --> Fulfillment : 6. 创建履约单（同步）
 Payment --> Gateway : 跳转支付
 Gateway ..> Payment : 4. 回调
 Payment ..> Order : 5. PaymentCompleted
-Fulfillment ..> Order : 7. FulfillmentOrderCreated
-Fulfillment ..> Order : 8. Shipped/Delivered
+Fulfillment ..> Order : 7. FulfillmentShipped
+Fulfillment ..> Order : 8. FulfillmentDelivered
 Order ..> Order : 3. OrderCreated\n9. OrderCompleted
 @enduml
 ```
@@ -70,9 +71,11 @@ left to right direction
 component "Order" as Order
 component "Inventory" as Inventory
 component "Payment" as Payment
+component "Fulfillment" as Fulfillment
 Order --> Inventory : 1. release
 Order --> Payment : 2. refund（若已支付）
-Order ..> Order : 3. OrderCancelled
+Order --> Fulfillment : 3. cancelFulfillment（若已创建）
+Order ..> Order : 4. OrderCancelled
 @enduml
 ```
 
@@ -112,11 +115,10 @@ Order 通过 `KafkaPaymentEventConsumer` 消费 Payment 的三个事件 topic，
 
 ### Kafka 消费（Fulfillment 事件）
 
-Order 通过 `KafkaFulfillmentEventConsumer` 消费 Fulfillment 的三个事件 topic，调用 `OrderEventService` 处理。同样由 `OrderKafkaAutoConfiguration` 条件注册。
+Order 通过 `KafkaFulfillmentEventConsumer` 消费 Fulfillment 的 Shipped / Delivered 事件，调用 `OrderEventService` 处理。同样由 `OrderKafkaAutoConfiguration` 条件注册。**FulfillmentOrderCreated 不再由 Order 消费**——Order 通过同步调用返回值获取 fulfillmentOrderIds，当场推进状态。
 
 | Topic | 事件 | Order 处理方法 |
 |-------|------|----------------|
-| `fulfillment.order.created` | FulfillmentOrderCreated | `orderEventService.onFulfillmentOrderCreated(orderId, fulfillmentOrderIds)` |
 | `fulfillment.shipped` | FulfillmentShipped | `orderEventService.onFulfillmentShipped(orderId)` |
 | `fulfillment.delivered` | FulfillmentDelivered | `orderEventService.onFulfillmentDelivered(orderId)` |
 
@@ -124,16 +126,15 @@ Order 通过 `KafkaFulfillmentEventConsumer` 消费 Fulfillment 的三个事件 
 
 | 事件 | 来源 | 传输方式 | 载荷 | Order 反应 |
 |------|------|----------|------|------------|
-| PaymentCompleted | Payment | Kafka（`payment.completed`） | orderId, paymentId | 置 PAID、创建履约单 |
+| PaymentCompleted | Payment | Kafka（`payment.completed`） | orderId, paymentId | 置 PAID，**同步调用** Fulfillment 创建履约单，当场更新 fulfillmentRef、置 FULFILLING |
 | PaymentFailed | Payment | Kafka（`payment.failed`） | orderId | 不做状态变更，保持 PENDING_PAYMENT（用户可重试支付） |
 | PaymentExpired | Payment | Kafka（`payment.expired`） | orderId | 取消、补偿（含释放库存） |
-| FulfillmentOrderCreated | Fulfillment | Kafka（`fulfillment.order.created`） | orderId, fulfillmentOrderIds | 更新 fulfillmentRef、置 FULFILLING |
-| FulfillmentShipped | Fulfillment | Kafka（`fulfillment.shipped`） | orderId | 置 fulfillmentStatus SHIPPED |
-| FulfillmentDelivered | Fulfillment | Kafka（`fulfillment.delivered`） | orderId | 置 DELIVERED、发布 OrderCompleted |
+| FulfillmentShipped | Fulfillment | Kafka（`fulfillment.shipped`） | orderId, fulfillmentOrderId | 置 fulfillmentStatus SHIPPED（1:N 时需全部到达才推进） |
+| FulfillmentDelivered | Fulfillment | Kafka（`fulfillment.delivered`） | orderId, fulfillmentOrderId | 置 DELIVERED、发布 OrderCompleted（1:N 时需全部到达才推进） |
 
 ---
 
-## 四、同步调用（Inventory、Payment）
+## 四、同步调用（Inventory、Payment、Fulfillment）
 
 | 调用 | 时机 | 说明 |
 |------|------|------|
@@ -141,8 +142,10 @@ Order 通过 `KafkaFulfillmentEventConsumer` 消费 Fulfillment 的三个事件 
 | release(orderId) | CancelOrder | 同步释放该订单的库存占用 |
 | createPayment(orderId, amount) | PlaceOrder 库存占用成功后 | 同步创建支付单、获取支付链接；返回给前端跳转 |
 | refund(orderId) | CancelOrder（若已支付） | 同步调用退款 |
+| createFulfillment(orderId, items, shippingAddress) | PaymentCompleted 后 | 同步创建履约单；返回 fulfillmentOrderIds，Order 当场置 FULFILLING |
+| cancelFulfillment(orderId) | CancelOrder（若已创建履约单） | 同步取消该订单的未发货履约单 |
 
-**说明**：支付完成由支付网关回调 Payment，Payment 发布 PaymentCompleted/Failed/Expired 到 Kafka，Order 通过 `KafkaPaymentEventConsumer` 消费后调用 `OrderEventService`。
+**说明**：支付完成由支付网关回调 Payment，Payment 发布 PaymentCompleted/Failed/Expired 到 Kafka，Order 通过 `KafkaPaymentEventConsumer` 消费后调用 `OrderEventService`。创建履约单在 `onPaymentCompleted` 中同步调用。
 
 ---
 

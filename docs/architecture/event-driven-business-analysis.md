@@ -101,4 +101,4 @@ flowchart LR
 
 本方法用于 Order 等编排型限界上下文的业务分析与架构设计，与 [design-principles.md](../design-principles.md) 中的 DDD 分层、限界上下文约定互补。分析产出的领域模型、事件契约、Saga 定义，将作为需求与实现的输入。
 
-完整执行流程（含需求编写）见 Skill：`.cursor/skills/event-driven-analysis/SKILL.md`。
+完整执行流程（含需求编写、关联 BC 影响分析）见 Skill：`.cursor/skills/analyze-requirement/SKILL.md`。

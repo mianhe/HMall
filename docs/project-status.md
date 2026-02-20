@@ -15,7 +15,7 @@ HMall 是一个以 DDD + ATDD 驱动的电商系统练习项目，覆盖商品�
 ### 推进顺序
 
 ```
-Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment 🔄 → Activity ✅ → Cart ✅ → Fulfillment 🔲 → [Pricing 按需]
+Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment 🔄 → Activity ✅ → Cart ✅ → Fulfillment 🔄 → [Pricing 按需]
 ```
 
 ### 各 BC 状态
@@ -29,7 +29,7 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment 🔄 → Ac
 | **Inventory** | 同步占用/释放库存、库存管理 | ✅ 已完成 | 3 feature、11 scenario 全绿；已与 Order 集成 |
 | **Payment** | 扣款/退款/超时检测 | 🔄 开发中 | 5 feature、19 scenario 全绿；超时检测定时自动执行；事件通知 Order（Kafka：PaymentCompleted/Failed/Expired） |
 | **Activity** | 消费 Order/Payment/Inventory 事件，活动记录、查询与统计仪表盘 | ✅ 已完成 | 3 个 feature（consume/query/stats），16 个 scenario，全部通过 |
-| **Fulfillment** | 拆单、发货、配送 | 🔲 规划中 | 依赖 Order，目前 Order 以 Port 桩对接 |
+| **Fulfillment** | 拆单、发货、配送 | 🔄 需求已完成 | 5 feature、18 scenario 待实现；同步创建/取消 + Kafka 事件（Shipped/Delivered）；需同步调整 Order（取消规则、接口变更） |
 | **Pricing** | 算价、优惠 | 🔲 规划中 | 创建订单时同步调用 |
 | **Cart** | 购物车增删改查、结算预览 | ✅ 已完成 | 5 feature（+ smoke），17 scenario，全部通过；依赖 Catalog（SkuQueryPort 桩）+ User，结算由前端编排 |
 
@@ -39,11 +39,11 @@ Order 通过 `RestOccupyInventoryAdapter`、`RestReleaseInventoryAdapter` 调用
 
 ### 下一步
 
-1. **Cart → Catalog 集成**：Cart 的 SkuQueryPort 当前用 Stub，待实现 REST 适配器对接 Catalog 的 SKU API。
-2. **Payment 集成**：Order → Payment 同步创建支付单/退款，当前用 NoOp 桩。
-3. **Kafka 事件**：Order、Inventory、Payment 的领域事件默认不发 Kafka（排除了 KafkaAutoConfiguration），加 `--spring.profiles.active=kafka` 可启用。Payment 已实现 Kafka 发布（PaymentCompleted/Failed/Expired），Order 已实现 Kafka 消费。
-4. **Activity BC 前端**：frontend-admin 统计仪表盘页面（可选）。
-5. **Cart 前端**：frontend-web 购物车页面（可选）。
+1. **Fulfillment BC 实现**：新建 BC 骨架 → 实现 5 个 feature（创建/发货/签收/取消/查询）
+2. **Order 调整 + Fulfillment 集成**：取消规则收紧、CreateFulfillmentPort 接口变更、新增 CancelFulfillmentPort、移除 onFulfillmentOrderCreated 消费
+3. **Cart → Catalog 集成**：Cart 的 SkuQueryPort 当前用 Stub，待实现 REST 适配器对接 Catalog 的 SKU API。
+4. **Payment 集成**：Order → Payment 同步创建支付单/退款，当前用 NoOp 桩。
+5. **Kafka 事件**：Order、Inventory、Payment 的领域事件默认不发 Kafka（排除了 KafkaAutoConfiguration），加 `--spring.profiles.active=kafka` 可启用。Payment 已实现 Kafka 发布（PaymentCompleted/Failed/Expired），Order 已实现 Kafka 消费。
 
 ---
 
@@ -82,6 +82,9 @@ Order 通过 `RestOccupyInventoryAdapter`、`RestReleaseInventoryAdapter` 调用
 | 4 | Inventory 采用同步占用而非事件驱动 | 业务合理性：用户下单需即时获知库存结果；行业惯例为同步预占 | 2026-02-15 |
 | 5 | Payment 采用同步调用 + Kafka 事件 | Order 同步调用创建支付单/退款；Payment 通过 Kafka 发布 PaymentCompleted/Failed/Expired，Order 消费事件驱动状态流转 | 2026-02-19 |
 | 6 | Cart 不快照价格，结算由前端编排 | 购物车展示时实时拉取 Catalog 价格；结算时前端从 Cart 取选中项 → Order API 创建订单，复用 CheckoutPage | 2026-02-20 |
+| 7 | Fulfillment 同步创建 + 事件通知 | 创建/取消履约单为同步调用（与 Inventory、Payment 一致）；Shipped/Delivered 走 Kafka 事件；FulfillmentOrderCreated 事件仅 Activity 消费 | 2026-02-20 |
+| 8 | 拆单由 Fulfillment 负责 | Order 只传 orderId + items，Fulfillment 决定拆单策略；MVP 先 1:1 | 2026-02-20 |
+| 9 | Order 取消规则收紧 | SHIPPED 及之后不可取消（发货后走退货流程）；多履约单按「最慢」原则推进 Order 状态 | 2026-02-20 |
 
 ---
 
@@ -89,6 +92,7 @@ Order 通过 `RestOccupyInventoryAdapter`、`RestReleaseInventoryAdapter` 调用
 
 | 日期 | 变更内容 |
 |------|---------|
+| 2026-02-20 | Fulfillment BC 需求分析完成（requirements.md + domain-model.md + event-flow.md）；5 feature、18 scenario 待实现；Order 变更清单已记录（取消规则、接口变更、移除 FulfillmentOrderCreated 消费） |
 | 2026-02-20 | Cart BC 全部完成（5 feature + smoke，17 scenario 全绿）；DDD 四层架构、SkuQueryPort 出站端口（测试用 Stub）、结算预览 API |
 | 2026-02-20 | Cart BC 需求分析与领域建模完成（requirements.md + domain-model.md）；5 feature、17 scenario 待实现 |
 | 2026-02-19 | Activity BC 全部完成（consume/query/stats 三个 feature，16 scenario）；eventId 幂等、orderId 可空查询维度、统计仪表盘 API |

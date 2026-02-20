@@ -152,14 +152,15 @@ Order 发布：OrderCreated, OrderCancelled, OrderCompleted（定义见 [event-f
 
 订阅事件 → status 映射：
 
-| 事件 | status |
-|------|--------|
-| PlaceOrder 成功（含同步库存占用） | PENDING_PAYMENT |
-| PaymentFailed / PaymentExpired | CANCELLED |
-| PaymentCompleted | PAID |
-| FulfillmentOrderCreated | FULFILLING |
-| FulfillmentShipped | SHIPPED |
-| FulfillmentDelivered | DELIVERED → COMPLETED |
+| 触发 | status | 说明 |
+|------|--------|------|
+| PlaceOrder 成功（含同步库存占用） | PENDING_PAYMENT | — |
+| PaymentFailed | 保持 PENDING_PAYMENT | 用户可重试支付 |
+| PaymentExpired | CANCELLED | 触发补偿（释放库存） |
+| PaymentCompleted + 同步创建履约单 | PAID → FULFILLING | 同步调用 Fulfillment，当场推进 |
+| FulfillmentShipped | SHIPPED | 全部履约单发货才推进（1:N 时） |
+| FulfillmentDelivered | DELIVERED | 全部签收才推进，发布 OrderCompleted |
+| 用户取消（PENDING_PAYMENT / PAID / FULFILLING） | CANCELLED | SHIPPED 及之后不可取消 |
 
 ---
 
