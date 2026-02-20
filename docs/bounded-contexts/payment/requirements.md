@@ -38,7 +38,7 @@ Payment BC 负责**支付单的创建、支付结果处理、退款与超时检�
 `payment-callback.feature`（建议）
 
 - ✅ 2.1 收到网关「支付成功」回调时，应将支付单置为 COMPLETED 并发布 **PaymentCompleted**（orderId, paymentId, occurredAt）
-- ✅ 2.2 收到网关「支付失败」回调时，应将支付单置为 FAILED 并发布 **PaymentFailed**（orderId, occurredAt）
+- ✅ 2.2 收到网关「支付失败」回调时，支付单保持 PENDING（用户可重试），发布 **PaymentFailed**（orderId, occurredAt）通知外界本次尝试失败
 - ✅ 2.3 对同一支付单的重复成功回调应幂等（不重复发布 PaymentCompleted）
 - ✅ 2.4 回调中 paymentId 或签名等不合法时应拒绝并返回 4xx，不发布事件
 
@@ -50,8 +50,8 @@ Payment BC 负责**支付单的创建、支付结果处理、退款与超时检�
 `payment-expire.feature`（建议）
 
 - ✅ 3.1 支付单在配置的超时时长内未支付时，应自动将状态置为 EXPIRED 并发布 **PaymentExpired**（orderId, occurredAt）；超时时长未配置时默认 30 分钟
-- ✅ 3.2 已 COMPLETED 或已 FAILED/EXPIRED 的支付单不再参与超时检测
-- ✅ 3.3 超时检测应自动执行；超时时长可配置，未配置时默认 30 分钟
+- ✅ 3.2 已 COMPLETED 或已 EXPIRED 的支付单不再参与超时检测
+- ✅ 3.3 超时检测应自动执行（定时任务，间隔可配置，默认 1 分钟）；超时时长可配置，未配置时默认 30 分钟
 
 ---
 
@@ -61,7 +61,7 @@ Payment BC 负责**支付单的创建、支付结果处理、退款与超时检�
 - ✅ 4.1 Order 调用退款接口（orderId）且该订单已支付（支付单 COMPLETED）时应退款成功
 - ✅ 4.2 退款成功后应将支付单置为 REFUNDED（或保留 COMPLETED 并记录退款标识，按实现选择）
 - ✅ 4.3 同一 orderId 重复退款应幂等（已退款则返回成功，不重复退）
-- ✅ 4.4 订单未支付（PENDING/FAILED/EXPIRED）时调用退款应返回业务错误（如「未支付不可退款」）
+- ✅ 4.4 订单未支付（PENDING/EXPIRED）时调用退款应返回业务错误（如「未支付不可退款」）
 - ✅ 4.5 orderId 缺失或对应支付单不存在时应返回 400/404
 
 **说明**：真实实现会调用支付网关退款接口；当前可为本地状态更新 + 事件（若需要 PaymentRefunded 可后续补充）。
@@ -103,6 +103,6 @@ Payment BC 负责**支付单的创建、支付结果处理、退款与超时检�
 
 - **幂等**：createPayment 按 orderId 幂等；refund 按 orderId 幂等；回调按 paymentId 幂等。
 - **网关边界**：真实支付网关（支付宝/微信等）由 Payment 通过「支付网关适配器」对接；当前可用模拟网关（返回固定 payUrl，回调由测试或脚本触发）。
-- **事件总线**：PaymentCompleted / PaymentFailed / PaymentExpired 需发布到进程内领域事件，并可选发送至 Kafka，与 Order、Fulfillment 等订阅方式一致（见 [architecture/integration.md](../../architecture/integration.md)）。
+- **事件总线**：PaymentCompleted / PaymentFailed / PaymentExpired 通过 Kafka 发布，跨 BC 通信统一走 Kafka（见 [architecture/integration.md](../../architecture/integration.md)）。
 
 以上为 Payment BC 的需求分析，可作为后续领域模型、API 契约与 ATDD 场景的输入。领域模型见 [domain-model.md](./domain-model.md)。

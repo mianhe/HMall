@@ -6,26 +6,36 @@ import com.hmall.payment.api.dto.PaymentCreatedDto;
 import com.hmall.payment.api.dto.PaymentDto;
 import com.hmall.payment.api.dto.RefundRequestDto;
 import com.hmall.payment.application.PaymentApplicationService;
+import com.hmall.payment.infrastructure.config.PaymentProperties;
+import com.hmall.payment.infrastructure.config.PaymentSettingsInitializer;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/payments")
 public class PaymentController {
 
     private final PaymentApplicationService applicationService;
+    private final PaymentProperties paymentProperties;
+    private final PaymentSettingsInitializer settingsInitializer;
 
-    public PaymentController(PaymentApplicationService applicationService) {
+    public PaymentController(PaymentApplicationService applicationService,
+                             PaymentProperties paymentProperties,
+                             PaymentSettingsInitializer settingsInitializer) {
         this.applicationService = applicationService;
+        this.paymentProperties = paymentProperties;
+        this.settingsInitializer = settingsInitializer;
     }
 
     @GetMapping
@@ -60,7 +70,28 @@ public class PaymentController {
         return ResponseEntity.ok().build();
     }
 
-    @GetMapping("/{paymentId}")
+    @GetMapping("/settings")
+    public ResponseEntity<Map<String, Object>> getSettings() {
+        return ResponseEntity.ok(Map.of("expireMinutes", paymentProperties.getExpireMinutes()));
+    }
+
+    @PutMapping("/settings")
+    public ResponseEntity<Map<String, Object>> updateSettings(@RequestBody Map<String, Object> body) {
+        if (body.containsKey("expireMinutes")) {
+            int val = ((Number) body.get("expireMinutes")).intValue();
+            if (val < 1) {
+                return ResponseEntity.badRequest().body(Map.of("message", "expireMinutes 须大于 0"));
+            }
+            paymentProperties.setExpireMinutes(val);
+            settingsInitializer.persistExpireMinutes(val);
+            int updated = applicationService.rescheduleAllPendingExpiredAt(val);
+            return ResponseEntity.ok(Map.of("expireMinutes", paymentProperties.getExpireMinutes(),
+                    "rescheduledPendingCount", updated));
+        }
+        return ResponseEntity.ok(Map.of("expireMinutes", paymentProperties.getExpireMinutes()));
+    }
+
+    @GetMapping("/{paymentId:\\d+}")
     public ResponseEntity<PaymentDto> getByPaymentId(@PathVariable Long paymentId) {
         return ResponseEntity.ok(applicationService.getByPaymentId(paymentId));
     }

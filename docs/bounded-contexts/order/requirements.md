@@ -46,7 +46,8 @@
 ## 4. 事件驱动（Order 订阅）
 
 - ✅ 4.1 收到 PaymentCompleted 后应将 status 置为 PAID 并创建履约单
-- ✅ 4.2 收到 PaymentFailed 或 PaymentExpired 后应取消订单（含释放库存、取消履约单（若已创建））
+- ✅ 4.2a 收到 PaymentFailed 后订单保持 PENDING_PAYMENT（用户可重试支付），不释放库存
+- ✅ 4.2b 收到 PaymentExpired 后应取消订单（含释放库存、取消履约单（若已创建））
 - ✅ 4.3 收到 FulfillmentOrderCreated 后应更新 fulfillmentRef 并将 status 置为 FULFILLING
 - ✅ 4.4 收到 FulfillmentShipped 后应更新 fulfillmentStatus 为 SHIPPED
 - ✅ 4.5 收到 FulfillmentDelivered 后应将 status 置为 DELIVERED 并发布 OrderCompleted
@@ -59,8 +60,7 @@
 |------|----------------|------|-------------|
 | 1. 创建订单 | order-create.feature | ✅ 已完成 | 8 |
 | 2. 取消订单 | order-cancel.feature | ✅ 已完成 | 6 |
-| smoke | smoke.feature | ✅ | 1 |
 | 3. 查询订单 | order-query.feature | ✅ 已完成 | 3 |
 | 4. 事件驱动 | order-events.feature | ✅ 已完成 | 5 |
 
-**当前 Order 验收**：共 23 个 scenario。
+**当前 Order 验收**：共 22 个业务 scenario（另含技术脚手架 smoke 1 个）。

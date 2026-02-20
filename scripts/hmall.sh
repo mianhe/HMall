@@ -10,7 +10,7 @@ COMPOSE_FILE="${ROOT}/infra/docker-compose.yml"
 CONTAINER_NAME="hmall-postgres"
 PID_DIR="${ROOT}/.hmall/pids"
 LOG_DIR="${ROOT}/.hmall/logs"
-ALL_COMPONENTS="db catalog-service user-service order-service inventory-service payment-service bff-web frontend-admin frontend-web mcp"
+ALL_COMPONENTS="db catalog-service user-service order-service inventory-service payment-service activity-service bff-web frontend-admin frontend-web mcp"
 
 # 确保目录存在
 mkdir -p "$PID_DIR" "$LOG_DIR"
@@ -73,6 +73,14 @@ status_payment_service() {
   fi
 }
 
+status_activity_service() {
+  if is_port_listen 8086; then
+    echo "  activity-service   up      http://127.0.0.1:8086"
+  else
+    echo "  activity-service   down    -"
+  fi
+}
+
 status_bff_web() {
   if is_port_listen 8085; then
     echo "  bff-web       up      http://127.0.0.1:8085"
@@ -113,6 +121,7 @@ cmd_status() {
   status_order_service
   status_inventory_service
   status_payment_service
+  status_activity_service
   status_bff_web
   status_frontend_admin
   status_frontend_web
@@ -232,6 +241,20 @@ start_payment_service() {
   wait_for_port 8084 "payment-service" || true
   sleep 2
   echo "Payment-service started."
+}
+
+start_activity_service() {
+  if is_port_listen 8086; then
+    echo "Activity-service already running on 8086."
+    return 0
+  fi
+  echo "Starting activity-service..."
+  (cd "${ROOT}/services/activity-service" && mvn spring-boot:run >> "${LOG_DIR}/activity-service.log" 2>&1 &)
+  echo $! > "${PID_DIR}/activity-service.pid"
+  echo "Waiting for activity-service (8086)..."
+  wait_for_port 8086 "activity-service" || true
+  sleep 2
+  echo "Activity-service started."
 }
 
 start_bff_web() {
@@ -366,6 +389,30 @@ stop_catalog_service() {
     fi
   fi
   echo "Catalog-service stopped."
+}
+
+stop_activity_service() {
+  local pid_file="${PID_DIR}/activity-service.pid"
+  if [ -f "$pid_file" ]; then
+    local pid
+    pid=$(cat "$pid_file")
+    if kill -0 "$pid" 2>/dev/null; then
+      echo "Stopping activity-service (PID $pid)..."
+      kill "$pid" 2>/dev/null || true
+      sleep 2
+      kill -9 "$pid" 2>/dev/null || true
+    fi
+    rm -f "$pid_file"
+  fi
+  if is_port_listen 8086; then
+    local p
+    p=$(lsof -i :8086 -sTCP:LISTEN -t 2>/dev/null | head -1)
+    if [ -n "$p" ]; then
+      echo "Killing process on 8086 (PID $p)..."
+      kill "$p" 2>/dev/null || kill -9 "$p" 2>/dev/null || true
+    fi
+  fi
+  echo "Activity-service stopped."
 }
 
 stop_bff_web() {
@@ -516,6 +563,7 @@ run_start() {
       order-service) start_order_service ;;
       inventory-service) start_inventory_service ;;
       payment-service) start_payment_service ;;
+      activity-service) start_activity_service ;;
       bff-web) start_bff_web ;;
       frontend-admin) start_frontend_admin ;;
       frontend-web) start_frontend_web ;;
@@ -527,7 +575,7 @@ run_start() {
 
 run_stop() {
   local components="$*"
-  [ -z "$components" ] && components="mcp frontend-web frontend-admin bff-web payment-service inventory-service order-service user-service catalog-service db"
+  [ -z "$components" ] && components="mcp frontend-web frontend-admin bff-web activity-service payment-service inventory-service order-service user-service catalog-service db"
   for c in $components; do
     case "$c" in
       db) stop_db ;;
@@ -536,6 +584,7 @@ run_stop() {
       order-service) stop_order_service ;;
       inventory-service) stop_inventory_service ;;
       payment-service) stop_payment_service ;;
+      activity-service) stop_activity_service ;;
       bff-web) stop_bff_web ;;
       frontend-admin) stop_frontend_admin ;;
       frontend-web) stop_frontend_web ;;
@@ -567,6 +616,7 @@ print_test_summary() {
       order-service) name="Order" ;;
       inventory-service) name="Inventory" ;;
       payment-service) name="Payment" ;;
+      activity-service) name="Activity" ;;
       *) name="$key" ;;
     esac
     local run fail err
@@ -608,9 +658,10 @@ cmd_test() {
           order) bc_filter="@order" ;;
           inventory) bc_filter="@inventory" ;;
           payment) bc_filter="@payment" ;;
+          activity) bc_filter="@activity" ;;
           all) bc_filter="" ;;
           *)
-            echo "Error: --bc must be catalog, user, order, inventory, payment, or all" >&2
+            echo "Error: --bc must be catalog, user, order, inventory, payment, activity, or all" >&2
             exit 1
             ;;
         esac
@@ -654,6 +705,8 @@ cmd_test() {
     run_service_test "inventory-service" "inventory-service (Inventory)"
   elif [ "$bc_filter" = "@payment" ]; then
     run_service_test "payment-service" "payment-service (Payment)"
+  elif [ "$bc_filter" = "@activity" ]; then
+    run_service_test "activity-service" "activity-service (Activity)"
   else
     # 全部微服务：catalog-service、user-service、order-service、inventory-service、payment-service
     run_service_test "catalog-service" "Catalog"
@@ -661,18 +714,41 @@ cmd_test() {
     run_service_test "order-service" "order-service (Order)"
     run_service_test "inventory-service" "inventory-service (Inventory)"
     run_service_test "payment-service" "payment-service (Payment)"
+    run_service_test "activity-service" "activity-service (Activity)"
     print_test_summary || overall_rc=1
   fi
 
   exit $overall_rc
 }
 
+# ---------- seed-inventory ----------
+# 为指定 skuId 设置可用库存（经 BFF 调用），便于提交订单。不传参数时默认 1～20。
+seed_inventory() {
+  local sku_ids="${*:-}"
+  if [ -z "$sku_ids" ]; then
+    sku_ids="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50"
+  fi
+  if ! is_port_listen 8085; then
+    echo "BFF (8085) 未启动，请先执行: $0 start bff-web" >&2
+    return 1
+  fi
+  echo "为 SKU 设置库存（经 BFF）..."
+  for sku in $sku_ids; do
+    if curl -s -o /dev/null -w "%{http_code}" -X PUT "http://127.0.0.1:8085/api/inventory/stock/${sku}" \
+      -H "Content-Type: application/json" -d '{"available":99}' | grep -qE '^200|^201'; then
+      echo "  skuId ${sku} -> available 99"
+    fi
+  done
+  echo "完成。若商品仍提示库存不足，请在管理后台 http://localhost:5173 库存页为对应 SKU 设置可用数量。"
+}
+
 # ---------- main ----------
 usage() {
   echo "Usage: $0 <command> [options] [components]"
-  echo "  command:  start | stop | status | restart | test"
-  echo "  components: db | catalog-service | user-service | order-service | inventory-service | payment-service | bff-web | frontend-admin | frontend-web | mcp (default: all for start/stop/restart)"
-  echo "  test options: [--cucumber-only] [--clean] [--bc catalog|user|order|inventory|payment|all]"
+  echo "  command:  start | stop | status | restart | test | seed-inventory"
+  echo "  components: db | catalog-service | user-service | order-service | inventory-service | payment-service | activity-service | bff-web | frontend-admin | frontend-web | mcp (default: all for start/stop/restart)"
+  echo "  seed-inventory: 可选 skuId 列表，不传则对 1～50 设置 available=99"
+  echo "  test options: [--cucumber-only] [--clean] [--bc catalog|user|order|inventory|payment|activity|all]"
   echo "See scripts/README.md for details."
 }
 
@@ -696,6 +772,10 @@ case "${1:-}" in
   test)
     shift
     cmd_test "$@"
+    ;;
+  seed-inventory)
+    shift
+    seed_inventory "$@"
     ;;
   -h|--help|help)
     usage

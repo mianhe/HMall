@@ -10,16 +10,18 @@
 | **stop** | 停止指定组件或全部 | `./scripts/hmall.sh stop`、`./scripts/hmall.sh stop catalog-service mcp` |
 | **status** | 查看各组件运行状态与端口 | `./scripts/hmall.sh status` |
 | **restart** | 重启（先停再起） | `./scripts/hmall.sh restart`、`./scripts/hmall.sh restart catalog-service` |
+| **seed-inventory** | 为 SKU 设置可用库存（经 BFF），便于提交订单 | `./scripts/hmall.sh seed-inventory`（默认 skuId 1～20）、`./scripts/hmall.sh seed-inventory 1 5 10` |
 | **test** | 执行后端用例（需数据库已启动） | `./scripts/hmall.sh test`、`./scripts/hmall.sh test --cucumber-only`、`./scripts/hmall.sh test --bc user` |
 
 ## 组件名称
 
-- **db** — 基础设施（Docker：PostgreSQL 5432、Kafka 9092、MinIO 9000）。脚本会在启动 db 后等待 Kafka 就绪再继续。order-service 和 inventory-service 默认不依赖 Kafka（已排除 KafkaAutoConfiguration），Kafka 未就绪不影响启动。
+- **db** — 基础设施（Docker：PostgreSQL 5432、Kafka 9092、MinIO 9000）。脚本会在启动 db 后等待 Kafka 就绪再继续。
 - **catalog-service** — Catalog 微服务（端口 8080）
 - **user-service** — User 微服务（端口 8082）
 - **order-service** — Order 微服务（端口 8081）
 - **inventory-service** — Inventory 微服务（端口 8083，脚本启动时固定 8083 以与 user-service 错开）
 - **payment-service** — Payment 微服务（端口 8084）
+- **activity-service** — Activity 微服务（端口 8086），消费 Kafka 事件，提供业务活动查询与统计
 - **bff-web** — BFF 微服务（端口 8085），frontend-admin、frontend-web 经此代理调用后端
 - **frontend-admin** — 管理后台（Vite，端口 5173）
 - **frontend-web** — 消费者端（Vite，端口 5174）
@@ -56,15 +58,23 @@
   - `./scripts/hmall.sh restart` — 重启全部
   - `./scripts/hmall.sh restart catalog-service` — 仅重启后端
 
-### test [--cucumber-only] [--clean] [--bc catalog|user|order|inventory|payment|all]
+### seed-inventory [skuId ...]
 
-- 执行全部微服务测试（catalog-service + user-service + order-service + inventory-service + payment-service）；执行前会检查数据库是否已启动。
+- 经 BFF 调用 Inventory，为指定 skuId 设置可用库存 99；不传参数时对 skuId 1～50 执行。**提交订单前若提示库存不足，可先执行此命令或到管理后台 http://localhost:5173 库存页设置。**
+- 需 BFF 与 inventory-service 已启动。
+- 示例：
+  - `./scripts/hmall.sh seed-inventory` — 为 1～20 设置库存
+  - `./scripts/hmall.sh seed-inventory 1 2 3` — 仅为 skuId 1、2、3 设置
+
+### test [--cucumber-only] [--clean] [--bc catalog|user|order|inventory|payment|activity|all]
+
+- 执行全部微服务测试（catalog-service + user-service + order-service + inventory-service + payment-service + activity-service）；执行前会检查数据库是否已启动。
 - **测试与生产数据隔离**：验收测试使用 H2 内存库（`application-test.yml`），与 PostgreSQL 完全隔离，测试结束后不会清空生产/开发库。
 - 参数：
   - 无参数：`mvn test`（单元 + Cucumber 验收）
   - `--cucumber-only`：仅验收测试 `mvn test -Dtest=RunCucumberTest`
   - `--clean`：先清理再测 `mvn clean test`
-  - `--bc <catalog|user|order|inventory|payment|all>`：仅执行指定微服务/BC 的测试
+  - `--bc <catalog|user|order|inventory|payment|activity|all>`：仅执行指定微服务/BC 的测试
   - 示例：
   - `./scripts/hmall.sh test` — 执行全部微服务测试（含 payment-service）
   - `./scripts/hmall.sh test --cucumber-only`
@@ -73,6 +83,7 @@
   - `./scripts/hmall.sh test --cucumber-only --bc order` — 仅 order-service（Order）
   - `./scripts/hmall.sh test --cucumber-only --bc inventory` — 仅 inventory-service（Inventory）
   - `./scripts/hmall.sh test --cucumber-only --bc payment` — 仅 payment-service（Payment）
+  - `./scripts/hmall.sh test --cucumber-only --bc activity` — 仅 activity-service（Activity）
   - `./scripts/hmall.sh test --clean`
 
 ## 环境与约定

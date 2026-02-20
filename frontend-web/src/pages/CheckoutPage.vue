@@ -117,6 +117,7 @@ import { useRouter } from 'vue-router'
 import { createOrder } from '../shared/api/order.js'
 import { getAddresses } from '../shared/api/user.js'
 import { useAuth } from '../shared/auth.js'
+import { formatApiError } from '../shared/utils/errorMessage.js'
 
 const router = useRouter()
 const { userId, isLoggedIn } = useAuth()
@@ -166,13 +167,6 @@ onMounted(async () => {
     } catch {
       sessionStorage.removeItem('checkoutItem')
     }
-  }
-  if (!isLoggedIn.value || !userId.value) {
-    if (checkoutItem.value) {
-      sessionStorage.setItem('checkoutItem', JSON.stringify(checkoutItem.value))
-    }
-    router.replace({ path: '/login', query: { redirect: '/checkout' } })
-    return
   }
   try {
     addresses.value = await getAddresses(userId.value)
@@ -225,11 +219,7 @@ async function submitOrder() {
     sessionStorage.removeItem('checkoutItem')
     router.replace({ path: `/orders/${order.orderId}` })
   } catch (e) {
-    if (e.code === 'ECONNABORTED') {
-      error.value = '请求超时，请稍后重试'
-    } else {
-      error.value = e.response?.data?.message || e.message || '提交失败'
-    }
+    error.value = formatApiError(e, '提交失败，请稍后重试')
   } finally {
     submitting.value = false
   }

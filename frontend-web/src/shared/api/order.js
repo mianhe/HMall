@@ -1,13 +1,7 @@
 /**
  * 订单限定上下文 API，与 docs/bounded-contexts/order/api.yaml 一致
  */
-import axios from 'axios'
-
-const client = axios.create({
-  baseURL: '/api',
-  headers: { 'Content-Type': 'application/json' },
-  timeout: 15000,
-})
+import client from './client.js'
 
 /**
  * 创建订单（含占用库存等，可能较慢，单独延长超时）

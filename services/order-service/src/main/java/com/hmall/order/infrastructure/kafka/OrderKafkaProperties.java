@@ -11,6 +11,12 @@ public class OrderKafkaProperties {
     private String orderCreated = "order.created";
     private String orderCancelled = "order.cancelled";
     private String orderCompleted = "order.completed";
+    private String paymentCompleted = "payment.completed";
+    private String paymentFailed = "payment.failed";
+    private String paymentExpired = "payment.expired";
+    private String fulfillmentOrderCreated = "fulfillment.order.created";
+    private String fulfillmentShipped = "fulfillment.shipped";
+    private String fulfillmentDelivered = "fulfillment.delivered";
 
     public String getOrderCreated() {
         return orderCreated;
@@ -34,5 +40,53 @@ public class OrderKafkaProperties {
 
     public void setOrderCompleted(String orderCompleted) {
         this.orderCompleted = orderCompleted;
+    }
+
+    public String getPaymentCompleted() {
+        return paymentCompleted;
+    }
+
+    public void setPaymentCompleted(String paymentCompleted) {
+        this.paymentCompleted = paymentCompleted;
+    }
+
+    public String getPaymentFailed() {
+        return paymentFailed;
+    }
+
+    public void setPaymentFailed(String paymentFailed) {
+        this.paymentFailed = paymentFailed;
+    }
+
+    public String getPaymentExpired() {
+        return paymentExpired;
+    }
+
+    public void setPaymentExpired(String paymentExpired) {
+        this.paymentExpired = paymentExpired;
+    }
+
+    public String getFulfillmentOrderCreated() {
+        return fulfillmentOrderCreated;
+    }
+
+    public void setFulfillmentOrderCreated(String fulfillmentOrderCreated) {
+        this.fulfillmentOrderCreated = fulfillmentOrderCreated;
+    }
+
+    public String getFulfillmentShipped() {
+        return fulfillmentShipped;
+    }
+
+    public void setFulfillmentShipped(String fulfillmentShipped) {
+        this.fulfillmentShipped = fulfillmentShipped;
+    }
+
+    public String getFulfillmentDelivered() {
+        return fulfillmentDelivered;
+    }
+
+    public void setFulfillmentDelivered(String fulfillmentDelivered) {
+        this.fulfillmentDelivered = fulfillmentDelivered;
     }
 }

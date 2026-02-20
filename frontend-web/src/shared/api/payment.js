@@ -1,13 +1,7 @@
 /**
  * 支付限定上下文 API，与 docs/bounded-contexts/payment/api.yaml 一致
  */
-import axios from 'axios'
-
-const client = axios.create({
-  baseURL: '/api',
-  headers: { 'Content-Type': 'application/json' },
-  timeout: 10000,
-})
+import client from './client.js'
 
 /**
  * 按 orderId 查询支付单（含 payUrl 用于跳转支付）

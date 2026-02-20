@@ -7,7 +7,7 @@
 ## 一、集成方式
 
 - **入站**：Order 通过 **REST/同步调用** 创建支付单（createPayment）、退款（refund）；支付网关通过 **HTTP 回调** 通知支付结果。
-- **出站**：Payment 根据支付结果发布 **领域事件**（PaymentCompleted / PaymentFailed / PaymentExpired），Order 订阅并驱动状态与下游履约。
+- **出站**：Payment 根据支付结果通过 **Kafka** 发布领域事件（PaymentCompleted / PaymentFailed / PaymentExpired），Order 通过 Kafka Consumer 订阅并驱动状态与下游履约。不使用 Spring 进程内事件（跨应用通信统一走 Kafka）。
 
 ---
 
@@ -77,7 +77,7 @@ Payment --> Order : success
 | 回调结果 | Payment 行为 | 发布事件 |
 |----------|--------------|----------|
 | 成功 | 支付单置 COMPLETED | PaymentCompleted（orderId, paymentId） |
-| 失败 | 支付单置 FAILED | PaymentFailed（orderId） |
+| 失败 | 支付单保持 PENDING（用户可重试） | PaymentFailed（orderId）——通知本次尝试失败 |
 
 **超时**：由 Payment 内部自动检测，不依赖网关回调；状态置 EXPIRED，发布 PaymentExpired（orderId）。
 
@@ -123,10 +123,10 @@ Order                          Payment                        模拟网关/测�
 | 事件 | 时机 | 载荷 | 订阅方（典型） |
 |------|------|------|----------------|
 | PaymentCompleted | 网关回调支付成功 / 模拟成功 | orderId, paymentId, occurredAt | Order（置 PAID、创建履约单） |
-| PaymentFailed | 网关回调支付失败 | orderId, occurredAt | Order（取消、补偿） |
+| PaymentFailed | 网关回调支付失败 | orderId, occurredAt | Order（不变更状态，仅通知）、Activity |
 | PaymentExpired | 超时检测到未支付 | orderId, occurredAt | Order（取消、补偿） |
 
-### Kafka 发布（可选，与 Order/Inventory 一致）
+### Kafka 发布（已实现）
 
 | Topic | 事件 | 消息体（JSON）示例 |
 |-------|------|---------------------|

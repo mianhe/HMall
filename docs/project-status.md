@@ -15,7 +15,7 @@ HMall 是一个以 DDD + ATDD 驱动的电商系统练习项目，覆盖商品�
 ### 推进顺序
 
 ```
-Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment 🔲 → Fulfillment 🔲 → [Pricing / Cart 按需]
+Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment 🔄 → Activity ✅ → Fulfillment 🔲 → [Pricing / Cart 按需]
 ```
 
 ### 各 BC 状态
@@ -27,7 +27,8 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment 🔲 → Fu
 | **Order** | 订单创建、取消、查询、事件驱动、状态流转 | ✅ 已完成 | 4 个 feature，23 个 scenario，全部通过 |
 | **BFF** | frontend 统一 API 入口，代理 Catalog/User/Order/Inventory | ✅ POC 完成 | 透传代理、CORS、4xx/5xx 转发，端口 8085 |
 | **Inventory** | 同步占用/释放库存、库存管理 | ✅ 已完成 | 3 feature、11 scenario 全绿；已与 Order 集成 |
-| **Payment** | 扣款/退款/超时检测 | 🔲 规划中 | 依赖 Order，目前 Order 以 Port 桩对接 |
+| **Payment** | 扣款/退款/超时检测 | 🔄 开发中 | 5 feature、19 scenario 全绿；超时检测定时自动执行；事件通知 Order（Kafka：PaymentCompleted/Failed/Expired） |
+| **Activity** | 消费 Order/Payment/Inventory 事件，活动记录、查询与统计仪表盘 | ✅ 已完成 | 3 个 feature（consume/query/stats），16 个 scenario，全部通过 |
 | **Fulfillment** | 拆单、发货、配送 | 🔲 规划中 | 依赖 Order，目前 Order 以 Port 桩对接 |
 | **Pricing** | 算价、优惠 | 🔲 规划中 | 创建订单时同步调用 |
 | **Cart** | 购物车管理 | 🔲 规划中 | 依赖 Catalog + User，按需实现 |
@@ -39,7 +40,8 @@ Order 通过 `RestOccupyInventoryAdapter`、`RestReleaseInventoryAdapter` 调用
 ### 下一步
 
 1. **Payment 集成**：Order → Payment 同步创建支付单/退款，当前用 NoOp 桩。
-2. **Kafka 事件**：Order 和 Inventory 的领域事件（OrderCreated、StockReserved 等）默认不发 Kafka（排除了 KafkaAutoConfiguration），加 `--spring.profiles.active=kafka` 可启用。后续计划增加事件监控。
+2. **Kafka 事件**：Order、Inventory、Payment 的领域事件默认不发 Kafka（排除了 KafkaAutoConfiguration），加 `--spring.profiles.active=kafka` 可启用。Payment 已实现 Kafka 发布（PaymentCompleted/Failed/Expired），Order 已实现 Kafka 消费。
+3. **Activity BC 前端**：frontend-admin 统计仪表盘页面（可选）。
 
 ---
 
@@ -76,7 +78,7 @@ Order 通过 `RestOccupyInventoryAdapter`、`RestReleaseInventoryAdapter` 调用
 | 2 | 先做 Order 前端，延后 Inventory/Payment/Fulfillment 后端 | Order 后端已完成且以 Port 桩对接下游；先打通消费者端交易 UI 体验，支付/履约用模拟，后端后续补 | 2025-02-13 |
 | 3 | User 地址簿推迟到 Order 前实现 | 创建订单需要收货地址，但 Cart 阶段暂不需要 | 2025-02-12 |
 | 4 | Inventory 采用同步占用而非事件驱动 | 业务合理性：用户下单需即时获知库存结果；行业惯例为同步预占 | 2026-02-15 |
-| 5 | Payment 采用同步调用+回调 | Order 同步调用创建支付单；支付完成由网关回调 Payment，Payment 发布 PaymentCompleted 等事件 | 2026-02-15 |
+| 5 | Payment 采用同步调用 + Kafka 事件 | Order 同步调用创建支付单/退款；Payment 通过 Kafka 发布 PaymentCompleted/Failed/Expired，Order 消费事件驱动状态流转 | 2026-02-19 |
 
 ---
 
@@ -84,6 +86,9 @@ Order 通过 `RestOccupyInventoryAdapter`、`RestReleaseInventoryAdapter` 调用
 
 | 日期 | 变更内容 |
 |------|---------|
+| 2026-02-19 | Activity BC 全部完成（consume/query/stats 三个 feature，16 scenario）；eventId 幂等、orderId 可空查询维度、统计仪表盘 API |
+| 2026-02-19 | Activity BC 纳入路线图与状态表；需求与契约已对齐 Order/Payment/Inventory 事件，准备开发 |
+| 2026-02-19 | Payment→Order 全面切换到 Kafka 事件；移除 Spring 进程内事件、HTTP 回调、internal API；Payment 测试改用 stub 替身，Order 测试直接调用 OrderEventService |
 | 2026-02-17 | Order–Inventory 集成完成（适配器 + 集成测试 + BFF 4xx 转发 + Kafka 默认排除保证无 Kafka 时可用） |
 | 2026-02-16 | Inventory BC 完成（占用/释放/库存管理，11 scenario）；frontend-admin 库存管理页（平铺表格+过滤） |
 | 2026-02-15 | Order 同步占用与支付、Payment/Inventory 方案落定（决策#4/#5）；frontend-web 阶段完成 |

@@ -48,9 +48,9 @@
 | StockReserved（库存已占用） | occupy 成功 | orderId, items: [{ skuId, quantity }], occurredAt |
 | StockReleased（库存已释放） | release 成功 | orderId, occurredAt |
 
-### Kafka 发布（进程外可订阅）
+### Kafka 发布
 
-领域事件在进程内发布后，同时发送至 Kafka，供其他应用（如读写分离、报表、审计）订阅。
+领域事件直接发布至 Kafka，供其他应用（如读写分离、报表、审计）订阅。不使用 Spring 进程内事件，跨 BC 通信统一走 Kafka。
 
 | Topic | 事件 | 消息体（JSON） |
 |-------|------|----------------|
@@ -59,6 +59,7 @@
 
 - 配置：`application.yml` 中 `spring.kafka.bootstrap-servers`、`inventory.kafka.topic.*`
 - 运行前需启动 Kafka（如 `docker compose -f infra/docker-compose.yml up -d`，含 Kafka 容器）
+- Kafka 默认启用，测试中排除 `KafkaAutoConfiguration` 并使用 `EventCapture` 测试替身
 
 ---
 

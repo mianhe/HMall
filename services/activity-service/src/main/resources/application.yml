@@ -1,0 +1,23 @@
+server:
+  port: 8086
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/hmall
+    username: hmall
+    password: hmall_dev
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: activity-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.value.default.type: java.util.HashMap
+      auto-offset-reset: earliest

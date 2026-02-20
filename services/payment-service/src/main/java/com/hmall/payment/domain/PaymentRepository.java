@@ -14,4 +14,7 @@ public interface PaymentRepository {
 
     /** 查询状态为 PENDING 且 expiredAt <= before 的支付单（用于超时检测）。 */
     List<Payment> findPendingWithExpiredAtBefore(Instant before);
+
+    /** 查询所有 PENDING 状态的支付单（用于批量重算超时时间）。 */
+    List<Payment> findAllPending();
 }

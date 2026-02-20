@@ -66,15 +66,6 @@ public class Payment {
         this.updatedAt = now;
     }
 
-    /** 支付失败。仅 PENDING 可执行。 */
-    public void fail(Instant now) {
-        if (status != PaymentStatus.PENDING) {
-            throw new IllegalStateException("仅 PENDING 支付单可置为 FAILED，当前: " + status);
-        }
-        this.status = PaymentStatus.FAILED;
-        this.updatedAt = now;
-    }
-
     /** 超时过期。仅 PENDING 且 now >= expiredAt 可执行。 */
     public void expire(Instant now) {
         if (status != PaymentStatus.PENDING) {

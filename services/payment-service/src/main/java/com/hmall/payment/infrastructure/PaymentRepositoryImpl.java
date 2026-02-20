@@ -24,20 +24,7 @@ public class PaymentRepositoryImpl implements PaymentRepository {
     public Payment save(Payment payment) {
         PaymentEntity entity = toEntity(payment);
         PaymentEntity saved = jpaRepository.save(entity);
-        if (saved.getPayUrl() == null || saved.getPayUrl().isEmpty()) {
-            saved.setPayUrl("/mock-pay?paymentId=" + saved.getId());
-            saved = jpaRepository.save(saved);
-        }
-        return Payment.reconstitute(
-            saved.getId(),
-            saved.getOrderId(),
-            saved.getAmountCents(),
-            saved.getStatus(),
-            saved.getPayUrl(),
-            saved.getCreatedAt(),
-            saved.getUpdatedAt(),
-            saved.getExpiredAt()
-        );
+        return toDomain(saved);
     }
 
     @Override
@@ -55,6 +42,14 @@ public class PaymentRepositoryImpl implements PaymentRepository {
     @Override
     public List<Payment> findPendingWithExpiredAtBefore(Instant before) {
         return jpaRepository.findByStatusAndExpiredAtBefore(PaymentStatus.PENDING, before)
+            .stream()
+            .map(this::toDomain)
+            .toList();
+    }
+
+    @Override
+    public List<Payment> findAllPending() {
+        return jpaRepository.findByStatus(PaymentStatus.PENDING)
             .stream()
             .map(this::toDomain)
             .toList();

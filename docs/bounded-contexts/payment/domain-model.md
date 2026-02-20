@@ -34,7 +34,6 @@ class Payment <<聚合根>> {
   --
   + create(orderId, amountCents): Payment
   + complete(): void
-  + fail(): void
   + expire(): void
   + refund(): void
 }
@@ -42,7 +41,6 @@ class Payment <<聚合根>> {
 enum PaymentStatus {
   PENDING
   COMPLETED
-  FAILED
   EXPIRED
   REFUNDED
 }
@@ -65,7 +63,7 @@ class PaymentExpired <<领域事件>> {
 
 Payment ..> PaymentStatus : status
 Payment ..> PaymentCompleted : complete 时发布
-Payment ..> PaymentFailed : fail 时发布
+Payment ..> PaymentFailed : 回调失败时发布（不改变状态）
 Payment ..> PaymentExpired : expire 时发布
 
 note right of Payment
@@ -94,22 +92,23 @@ end note
 | updatedAt | Instant | 更新时间 |
 | expiredAt | Instant | 约定超时时间，用于超时检测 |
 
-**PaymentStatus**：PENDING | COMPLETED | FAILED | EXPIRED | REFUNDED
+**PaymentStatus**：PENDING | COMPLETED | EXPIRED | REFUNDED
 
 **不变式**：orderId、amountCents>0 必填；status 仅允许合法流转（见下）。
 
 **状态流转**：
 - 创建后：**PENDING**
 - 网关回调成功 → **COMPLETED**，发布 PaymentCompleted
-- 网关回调失败 → **FAILED**，发布 PaymentFailed
+- 网关回调失败 → **保持 PENDING**（用户可重试支付），发布 PaymentFailed 通知外界本次尝试失败
 - 超时检测触发 → **EXPIRED**，发布 PaymentExpired
 - 退款成功 → **REFUNDED**（或保留 COMPLETED + 退款标识，按实现选择）
 
 **领域行为**（概念层）：
 - `complete()`：仅当 PENDING 时可执行，置 COMPLETED 并发布 PaymentCompleted（幂等：已 COMPLETED 不重复发布）
-- `fail()`：仅当 PENDING 时可执行，置 FAILED 并发布 PaymentFailed
 - `expire()`：仅当 PENDING 且已过 expiredAt 时可执行，置 EXPIRED 并发布 PaymentExpired
 - `refund()`：仅当 COMPLETED 时可执行，置 REFUNDED（幂等：已 REFUNDED 直接成功）
+
+**设计决策**：支付失败是一次"尝试失败"，不是支付单的终态。支付单真正的终结只有两种：成功（COMPLETED）或超时（EXPIRED）。
 
 ---
 
@@ -120,7 +119,7 @@ end note
 | 事件 | 时机 | 载荷 | 订阅方（典型） |
 |------|------|------|----------------|
 | PaymentCompleted | 网关回调支付成功（或模拟） | orderId, paymentId, occurredAt | Order（置 PAID、创建履约单） |
-| PaymentFailed | 网关回调支付失败 | orderId, occurredAt | Order（取消、补偿） |
+| PaymentFailed | 网关回调支付失败（支付单保持 PENDING） | orderId, occurredAt | Order（不变更状态）、Activity |
 | PaymentExpired | 超时检测到未支付 | orderId, occurredAt | Order（取消、补偿） |
 
 可选：若需显式通知退款完成，可增加 **PaymentRefunded**（orderId, occurredAt）；当前 requirements 允许仅做本地状态更新。
@@ -130,7 +129,7 @@ end note
 ## 四、与 Event Flow / Requirements 的对应
 
 - **创建支付**：Order 调用 createPayment(orderId, amountCents) → 聚合根 Payment 创建，状态 PENDING，返回 paymentId、payUrl；同一 orderId 幂等。
-- **支付结果**：网关回调 → 聚合 complete() / fail()，更新 status 并发布对应事件；重复成功回调幂等。
+- **支付结果**：网关回调成功 → 聚合 complete()，更新 status 并发布 PaymentCompleted（重复成功回调幂等）；回调失败 → 不改变状态，仅发布 PaymentFailed 通知。
 - **超时**：定时/延迟任务根据 expiredAt 与 status 调用 expire()，仅对 PENDING 且已过期生效。
 - **退款**：Order 调用 refund(orderId) → 聚合 refund()，仅 COMPLETED 可退；同一 orderId 幂等。
 

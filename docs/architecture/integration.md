@@ -59,7 +59,7 @@ frontend-admin、frontend-web 所有 API 请求统一经 BFF（端口 8085）转
 | **Topic 命名** | 按事件类型，如 `order.created`、`order.cancelled` |
 | **消息格式** | JSON，含 `eventType`、`aggregateId`、`payload`、`occurredAt` 等 |
 | **消费语义** | 至少一次（at-least-once），消费者需保证幂等 |
-| **当前** | **Inventory** 与 **Order** 的领域事件**只发往 Kafka**（不进程内发布），供进程外/其他应用订阅。Topic：`inventory.stock.*`、`order.created` / `order.cancelled` / `order.completed`。验收测试机制统一：两 BC 均使用 **EventCapture**（实现发布端口并记录事件），Step 断言基于 Capture，无需真实 Kafka。 |
+| **当前** | 所有 BC 的领域事件**统一发往 Kafka**（不使用 Spring 进程内事件），供跨 BC 订阅。Topic：`inventory.stock.*`、`order.created` / `order.cancelled` / `order.completed`、`payment.completed` / `payment.failed` / `payment.expired`、`fulfillment.order.created` / `fulfillment.shipped` / `fulfillment.delivered`。验收测试使用 **EventCapture**（实现发布端口并记录事件），Step 断言基于 Capture，无需真实 Kafka。 |
 
 ---
 
@@ -67,5 +67,5 @@ frontend-admin、frontend-web 所有 API 请求统一经 BFF（端口 8085）转
 
 | 形态 | 前端接入 | REST（BC 间） | 事件 |
 |------|----------|---------------|------|
-| **当前** | BFF 代理（frontend-admin、frontend-web → BFF → Catalog/User/Order） | 进程内/HTTP | Spring ApplicationEventPublisher |
+| **当前** | BFF 代理（frontend-admin、frontend-web → BFF → Catalog/User/Order） | REST/HTTP | Kafka |
 | **微服务** | BFF 代理 + 服务发现 | HTTP + 服务发现 | Kafka |

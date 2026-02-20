@@ -56,7 +56,67 @@ com.hmall.<context>/
 | 异常 | 业务校验失败 → 领域异常 → 400；资源不存在 → 404；统一 `{ "message": "..." }` |
 | 持久化 | domain 与 JPA 分离；仓储内完成 domain ↔ entity 转换 |
 
-### 2.5 验收测试
+### 2.5 事件驱动与跨 BC 通信
+
+#### 核心原则
+
+- **所有跨 BC 事件统一通过 Kafka 发布/消费**，不使用 Spring `ApplicationEventPublisher` / `@EventListener`。
+- **同步调用 + 事件**可共存：例如 Order 同步调用 Inventory 占用库存，Inventory 完成后发布 `StockReserved` 事件到 Kafka 供审计/读模型订阅。
+- 事件契约定义在各 BC 的 `docs/bounded-contexts/<context>/event-flow.md`；上下游关系见 `docs/context-map.md`。
+
+#### 发布端（出站事件）
+
+| 层 | 命名 | 职责 |
+|----|------|------|
+| `application/port/` | `XxxEventPublisher`（接口） | 领域事件发布端口，定义 `publish(XxxEvent)` 方法 |
+| `infrastructure/kafka/` | `SpringXxxEventPublisher` 或 `KafkaXxxEventPublisher`（实现） | 通过 `KafkaTemplate` 发送到 Kafka topic |
+| `infrastructure/kafka/` | `XxxMessage`（record） | Kafka 消息体，`from(...)` 静态工厂构造 |
+| `infrastructure/kafka/` | `XxxKafkaProperties`（`@ConfigurationProperties`） | topic 名称配置 |
+
+- 当 `KafkaTemplate` 不可用时（测试环境），使用 `@Autowired(required = false)` 或 `@AutoConfiguration(after = KafkaAutoConfiguration.class)` + `@ConditionalOnBean(KafkaTemplate.class)` 保护。
+- 生产环境 `application.yml` 中 **不排除** `KafkaAutoConfiguration`（Kafka 始终启用）。
+
+#### 消费端（入站事件）
+
+| 层 | 命名 | 职责 |
+|----|------|------|
+| `infrastructure/kafka/` | `KafkaXxxEventConsumer` | `@KafkaListener` 消费 topic，解析 `Map<String, Object>`，调用 `XxxEventService` |
+
+- Consumer 由 `@AutoConfiguration` 类条件注册（见 Order 的 `OrderKafkaAutoConfiguration`）。
+- topic 名称通过 `${order.kafka.topic.xxx:默认值}` 引用，便于配置覆盖。
+
+#### 测试约定
+
+| 关注点 | 做法 |
+|--------|------|
+| 出站事件 | `EventCapture` 实现发布端口并记录事件；测试配置中以 `@Primary` 覆盖生产实现 |
+| 入站事件模拟 | 测试直接调用 `XxxEventService.onXxx(...)` 方法，不通过 `ApplicationEventPublisher` |
+| Kafka 隔离 | 测试 `application.yml` 中 `spring.autoconfigure.exclude: KafkaAutoConfiguration` |
+
+#### Topic 命名
+
+`<bc>.<event-type>`，例如：`payment.completed`、`order.created`、`inventory.stock.reserved`、`fulfillment.shipped`。
+
+#### 配置
+
+```yaml
+# application.yml（生产） — Kafka 始终启用
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+<bc>:
+  kafka:
+    topic:
+      <event>: <bc>.<event-type>
+
+# application.yml（测试） — 排除 Kafka
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+```
+
+### 2.6 验收测试
 
 需求与 .feature 一一对应；先红后绿；Step Definitions 按 OpenAPI 调用；场景覆盖成功与失败（404、400）情形。
 

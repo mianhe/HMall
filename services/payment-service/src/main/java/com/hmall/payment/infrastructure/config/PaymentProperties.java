@@ -27,14 +27,15 @@ public class PaymentProperties {
         this.mockPayBaseUrl = mockPayBaseUrl;
     }
 
-    /** Order 服务 base URL；配置后回调成功会 POST 通知 Order 更新订单状态。 */
-    private String orderBaseUrl = "http://localhost:8081";
+    /** 超时检测执行间隔（毫秒），默认 60000（1 分钟）。 */
+    private long expireCheckIntervalMs = 60000;
 
-    public String getOrderBaseUrl() {
-        return orderBaseUrl;
+    public long getExpireCheckIntervalMs() {
+        return expireCheckIntervalMs;
     }
 
-    public void setOrderBaseUrl(String orderBaseUrl) {
-        this.orderBaseUrl = orderBaseUrl;
+    public void setExpireCheckIntervalMs(long expireCheckIntervalMs) {
+        this.expireCheckIntervalMs = expireCheckIntervalMs;
     }
+
 }

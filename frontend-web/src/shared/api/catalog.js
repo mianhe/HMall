@@ -1,13 +1,7 @@
 /**
  * 商品限定上下文 API，与 docs/bounded-contexts/catalog/api.yaml 一致
  */
-import axios from 'axios'
-
-const client = axios.create({
-  baseURL: '/api',
-  headers: { 'Content-Type': 'application/json' },
-  timeout: 15000,
-})
+import client from './client.js'
 
 /** 根类目不传 parentId，子类目传 parentId */
 export async function getCategories(parentId = null) {

@@ -3,9 +3,7 @@ package com.hmall.order.api;
 import com.hmall.order.api.dto.OrderCreateDto;
 import com.hmall.order.api.dto.OrderDto;
 import com.hmall.order.api.dto.OrderListPageDto;
-import com.hmall.order.api.dto.PaymentCompletedRequestDto;
 import com.hmall.order.application.OrderApplicationService;
-import com.hmall.order.application.OrderEventService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,11 +20,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class OrderController {
 
     private final OrderApplicationService applicationService;
-    private final OrderEventService orderEventService;
 
-    public OrderController(OrderApplicationService applicationService, OrderEventService orderEventService) {
+    public OrderController(OrderApplicationService applicationService) {
         this.applicationService = applicationService;
-        this.orderEventService = orderEventService;
     }
 
     @GetMapping("/{orderId}")
@@ -56,11 +52,5 @@ public class OrderController {
         return ResponseEntity.ok().build();
     }
 
-    /** 内部接口：Payment 回调成功后通知订单支付完成，将订单置为 PAID 并触发履约。 */
-    @PostMapping("/internal/payment-completed")
-    public ResponseEntity<Void> paymentCompleted(@Valid @RequestBody PaymentCompletedRequestDto dto) {
-        orderEventService.onPaymentCompleted(dto.orderId(), dto.paymentId());
-        return ResponseEntity.ok().build();
-    }
 }
 

@@ -2,14 +2,13 @@ package com.hmall.order.acceptance;
 
 import com.hmall.order.acceptance.config.EventInvocationRecorder;
 import com.hmall.order.acceptance.config.LastOrderContext;
-import com.hmall.order.application.event.*;
+import com.hmall.order.application.OrderEventService;
 import com.hmall.order.domain.*;
 import io.cucumber.java.Before;
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.ResponseEntity;
 
 import java.time.Instant;
@@ -22,21 +21,21 @@ public class OrderEventsStepDefinitions {
     private final LastOrderContext lastOrderContext;
     private final EventInvocationRecorder eventRecorder;
     private final OrderEventCapture orderEventCapture;
-    private final ApplicationEventPublisher eventPublisher;
+    private final OrderEventService orderEventService;
     private final TestRestTemplate restTemplate;
-    private final com.hmall.order.domain.OrderRepository orderRepository;
+    private final OrderRepository orderRepository;
 
     public OrderEventsStepDefinitions(
             LastOrderContext lastOrderContext,
             EventInvocationRecorder eventRecorder,
             OrderEventCapture orderEventCapture,
-            ApplicationEventPublisher eventPublisher,
+            OrderEventService orderEventService,
             TestRestTemplate restTemplate,
-            com.hmall.order.domain.OrderRepository orderRepository) {
+            OrderRepository orderRepository) {
         this.lastOrderContext = lastOrderContext;
         this.eventRecorder = eventRecorder;
         this.orderEventCapture = orderEventCapture;
-        this.eventPublisher = eventPublisher;
+        this.orderEventService = orderEventService;
         this.restTemplate = restTemplate;
         this.orderRepository = orderRepository;
     }
@@ -51,42 +50,42 @@ public class OrderEventsStepDefinitions {
     public void 发布PaymentCompleted事件针对该订单(long paymentId) {
         Long orderId = lastOrderContext.getLastOrderId();
         assertThat(orderId).isNotNull();
-        eventPublisher.publishEvent(new PaymentCompletedEvent(orderId, paymentId));
+        orderEventService.onPaymentCompleted(orderId, paymentId);
     }
 
     @When("发布 PaymentFailed 事件 针对该订单")
     public void 发布PaymentFailed事件针对该订单() {
         Long orderId = lastOrderContext.getLastOrderId();
         assertThat(orderId).isNotNull();
-        eventPublisher.publishEvent(new PaymentFailedEvent(orderId));
+        orderEventService.onPaymentFailed(orderId);
     }
 
     @When("发布 PaymentExpired 事件 针对该订单")
     public void 发布PaymentExpired事件针对该订单() {
         Long orderId = lastOrderContext.getLastOrderId();
         assertThat(orderId).isNotNull();
-        eventPublisher.publishEvent(new PaymentExpiredEvent(orderId));
+        orderEventService.onPaymentExpired(orderId);
     }
 
     @When("发布 FulfillmentOrderCreated 事件 针对该订单 履约单 ID {long} {long}")
     public void 发布FulfillmentOrderCreated事件针对该订单(long id1, long id2) {
         Long orderId = lastOrderContext.getLastOrderId();
         assertThat(orderId).isNotNull();
-        eventPublisher.publishEvent(new FulfillmentOrderCreatedEvent(orderId, List.of(id1, id2)));
+        orderEventService.onFulfillmentOrderCreated(orderId, List.of(id1, id2));
     }
 
     @When("发布 FulfillmentShipped 事件 针对该订单")
     public void 发布FulfillmentShipped事件针对该订单() {
         Long orderId = lastOrderContext.getLastOrderId();
         assertThat(orderId).isNotNull();
-        eventPublisher.publishEvent(new FulfillmentShippedEvent(orderId));
+        orderEventService.onFulfillmentShipped(orderId);
     }
 
     @When("发布 FulfillmentDelivered 事件 针对该订单")
     public void 发布FulfillmentDelivered事件针对该订单() {
         Long orderId = lastOrderContext.getLastOrderId();
         assertThat(orderId).isNotNull();
-        eventPublisher.publishEvent(new FulfillmentDeliveredEvent(orderId));
+        orderEventService.onFulfillmentDelivered(orderId);
     }
 
     @Then("订单 status 应为 {word}")

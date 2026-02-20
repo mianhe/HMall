@@ -10,34 +10,25 @@ import com.hmall.payment.domain.Payment;
 import com.hmall.payment.domain.PaymentRepository;
 import com.hmall.payment.domain.PaymentStatus;
 import com.hmall.payment.infrastructure.config.PaymentProperties;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class PaymentApplicationService {
 
-    private static final Logger log = LoggerFactory.getLogger(PaymentApplicationService.class);
-
     private final PaymentRepository paymentRepository;
     private final PaymentDomainEventPublisher eventPublisher;
     private final PaymentProperties paymentProperties;
-    private final RestTemplate restTemplate;
 
     public PaymentApplicationService(PaymentRepository paymentRepository,
                                     PaymentDomainEventPublisher eventPublisher,
-                                    PaymentProperties paymentProperties,
-                                    RestTemplate restTemplate) {
+                                    PaymentProperties paymentProperties) {
         this.paymentRepository = paymentRepository;
         this.eventPublisher = eventPublisher;
         this.paymentProperties = paymentProperties;
-        this.restTemplate = restTemplate;
     }
 
     /** @return 创建结果：dto 与是否为新创建（true=201，false=200 幂等） */
@@ -48,41 +39,19 @@ public class PaymentApplicationService {
         }
         var existing = paymentRepository.findByOrderId(orderId);
         if (existing.isPresent()) {
-            Payment p = existing.get();
-            return new CreatePaymentResult(
-                new PaymentCreatedDto(
-                    p.getPaymentId(),
-                    p.getOrderId(),
-                    p.getAmountCents(),
-                    p.getStatus().name(),
-                    p.getPayUrl()
-                ),
-                false
-            );
+            return new CreatePaymentResult(toCreatedDto(existing.get()), false);
         }
+        String payUrl = buildPayUrl(orderId);
         int expireMinutes = paymentProperties.getExpireMinutes();
-        String base = paymentProperties.getMockPayBaseUrl();
-        if (base != null && !base.isEmpty()) {
-            base = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
-        }
-        String payUrl = (base != null && !base.isEmpty())
-            ? base + "/mock-pay?orderId=" + orderId
-            : "";
         Payment payment = Payment.create(orderId, amountCents, payUrl, Instant.now(), expireMinutes);
         Payment saved = paymentRepository.save(payment);
-        return new CreatePaymentResult(
-            new PaymentCreatedDto(
-                saved.getPaymentId(),
-                saved.getOrderId(),
-                saved.getAmountCents(),
-                saved.getStatus().name(),
-                saved.getPayUrl()
-            ),
-            true
-        );
+        return new CreatePaymentResult(toCreatedDto(saved), true);
     }
 
-    /** 处理网关回调。成功时置 COMPLETED 并发布 PaymentCompleted（重复成功幂等）；失败时置 FAILED 并发布 PaymentFailed。 */
+    /**
+     * 处理网关回调。成功时置 COMPLETED 并发布 PaymentCompleted（重复成功幂等）；
+     * 失败时不改变支付单状态（保持 PENDING，用户可重试），仅发布 PaymentFailed 通知。
+     */
     @Transactional
     public void handleCallback(Long paymentId, boolean success) {
         if (paymentId == null) {
@@ -98,10 +67,7 @@ public class PaymentApplicationService {
             payment.complete(now);
             paymentRepository.save(payment);
             eventPublisher.publish(new PaymentCompletedEvent(payment.getOrderId(), payment.getPaymentId(), now));
-            notifyOrderPaymentCompleted(payment.getOrderId(), payment.getPaymentId());
         } else {
-            payment.fail(now);
-            paymentRepository.save(payment);
             eventPublisher.publish(new PaymentFailedEvent(payment.getOrderId(), now));
         }
     }
@@ -116,6 +82,25 @@ public class PaymentApplicationService {
             paymentRepository.save(p);
             eventPublisher.publish(new PaymentExpiredEvent(p.getOrderId(), now));
         }
+    }
+
+    /**
+     * 将所有 PENDING 支付单的 expiredAt 按 expireMinutes 重新计算（createdAt + expireMinutes 分钟）。
+     * 用于管理员修改超时配置后立即生效到已有订单。
+     */
+    @Transactional
+    public int rescheduleAllPendingExpiredAt(int expireMinutes) {
+        List<Payment> pending = paymentRepository.findAllPending();
+        for (Payment p : pending) {
+            Instant newExpiredAt = p.getCreatedAt().plusSeconds(expireMinutes * 60L);
+            Payment rescheduled = Payment.reconstitute(
+                p.getPaymentId(), p.getOrderId(), p.getAmountCents(),
+                p.getStatus(), p.getPayUrl(),
+                p.getCreatedAt(), p.getUpdatedAt(), newExpiredAt
+            );
+            paymentRepository.save(rescheduled);
+        }
+        return pending.size();
     }
 
     /** 退款。仅 COMPLETED 可退；同一 orderId 幂等。 */
@@ -155,31 +140,26 @@ public class PaymentApplicationService {
         return toDto(p);
     }
 
-    private static PaymentDto toDto(Payment p) {
-        return new PaymentDto(
-            p.getPaymentId(),
-            p.getOrderId(),
-            p.getAmountCents(),
-            p.getStatus().name(),
-            p.getPayUrl(),
-            p.getCreatedAt(),
-            p.getUpdatedAt(),
-            p.getExpiredAt()
+    private String buildPayUrl(Long orderId) {
+        String base = paymentProperties.getMockPayBaseUrl();
+        if (base == null || base.isBlank()) return "";
+        base = base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
+        return base + "/mock-pay?orderId=" + orderId;
+    }
+
+    private static PaymentCreatedDto toCreatedDto(Payment p) {
+        return new PaymentCreatedDto(
+            p.getPaymentId(), p.getOrderId(), p.getAmountCents(),
+            p.getStatus().name(), p.getPayUrl()
         );
     }
 
-    /** 通知 Order 服务支付完成（将订单置为 PAID）。 */
-    private void notifyOrderPaymentCompleted(Long orderId, Long paymentId) {
-        String base = paymentProperties.getOrderBaseUrl();
-        if (base == null || base.isEmpty()) {
-            return;
-        }
-        String url = (base.endsWith("/") ? base : base + "/") + "api/orders/internal/payment-completed";
-        try {
-            restTemplate.postForObject(url, Map.of("orderId", orderId, "paymentId", paymentId), Void.class);
-        } catch (Exception e) {
-            log.warn("通知 Order 支付完成失败: orderId={}, paymentId={}", orderId, paymentId, e);
-        }
+    private static PaymentDto toDto(Payment p) {
+        return new PaymentDto(
+            p.getPaymentId(), p.getOrderId(), p.getAmountCents(),
+            p.getStatus().name(), p.getPayUrl(),
+            p.getCreatedAt(), p.getUpdatedAt(), p.getExpiredAt()
+        );
     }
 
     public record CreatePaymentResult(PaymentCreatedDto dto, boolean created) {}

@@ -24,7 +24,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
@@ -37,19 +36,19 @@ public class BffProxyFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(BffProxyFilter.class);
 
-    private static final List<String> ALLOWED_ORIGINS = List.of(
-        "http://127.0.0.1:5173", "http://127.0.0.1:5174",
-        "http://localhost:5173", "http://localhost:5174"
-    );
-
     private final BffRoutingService routingService;
+    private final BffProperties properties;
     private final RestTemplate restTemplate;
 
-    public BffProxyFilter(BffRoutingService routingService) {
+    public BffProxyFilter(BffRoutingService routingService, BffProperties properties) {
         this.routingService = routingService;
+        this.properties = properties;
+        BffProperties.Proxy proxy = properties.proxy() != null
+            ? properties.proxy()
+            : new BffProperties.Proxy(null, 0, 0);
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(5_000);
-        factory.setReadTimeout(25_000);
+        factory.setConnectTimeout(proxy.connectTimeoutMs());
+        factory.setReadTimeout(proxy.readTimeoutMs());
         this.restTemplate = new RestTemplate(factory);
     }
 
@@ -97,7 +96,8 @@ public class BffProxyFilter extends OncePerRequestFilter {
             }
         } catch (RestClientResponseException e) {
             response.setStatus(e.getStatusCode().value());
-            response.setContentType("application/json");
+            response.setContentType("application/json;charset=UTF-8");
+            response.setCharacterEncoding("UTF-8");
             String body = e.getResponseBodyAsString();
             response.getWriter().write(body != null && !body.isBlank() ? body : "{\"message\":\"downstream error\"}");
         } catch (Exception e) {
@@ -112,7 +112,8 @@ public class BffProxyFilter extends OncePerRequestFilter {
 
     private void addCorsHeaders(HttpServletRequest request, HttpServletResponse response) {
         String origin = request.getHeader("Origin");
-        if (origin != null && ALLOWED_ORIGINS.contains(origin)) {
+        List<String> allowed = properties.proxy() != null ? properties.proxy().allowedOrigins() : List.of();
+        if (origin != null && allowed.contains(origin)) {
             response.setHeader("Access-Control-Allow-Origin", origin);
         }
         response.setHeader("Access-Control-Allow-Credentials", "true");
@@ -122,7 +123,8 @@ public class BffProxyFilter extends OncePerRequestFilter {
 
     private static void writeJson(HttpServletResponse response, int status, String json) throws IOException {
         response.setStatus(status);
-        response.setContentType("application/json");
+        response.setContentType("application/json;charset=UTF-8");
+        response.setCharacterEncoding("UTF-8");
         response.getWriter().write(json);
     }
 

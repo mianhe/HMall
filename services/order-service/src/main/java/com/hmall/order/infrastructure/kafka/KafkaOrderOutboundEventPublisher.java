@@ -6,15 +6,9 @@ import com.hmall.order.application.event.OrderCreatedEvent;
 import com.hmall.order.application.port.OrderOutboundEventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
-import org.springframework.context.annotation.Primary;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.stereotype.Component;
 
-/** Kafka 启用时发布 Order 出站事件。@Primary 覆盖 PortStubConfig 的 NoOp。 */
-@Component
-@Primary
-@ConditionalOnBean(KafkaTemplate.class)
+/** 发布 Order 出站事件到 Kafka。由 OrderKafkaAutoConfiguration 注册并标记为 @Primary。 */
 public class KafkaOrderOutboundEventPublisher implements OrderOutboundEventPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(KafkaOrderOutboundEventPublisher.class);

@@ -11,12 +11,12 @@
     那么 订单 status 应为 PAID
     并且 应已发起创建履约单
 
-  场景: 4.4a 收到 PaymentFailed 后应取消订单
+  场景: 4.4a 收到 PaymentFailed 后订单应保持 PENDING_PAYMENT（用户可重试支付）
     假如 已存在用户 "alice" 密码 "secret123"
     并且 Catalog 已有商品 "iPhone 15" skuId 123 价格 599900 分
     当 用户 "alice" 提交订单 收货地址 "何勉" "13641793760" "上海" "上海" "浦东新区" "羽山路100弄9号2902" 购买 "iPhone 15" 数量 1
     当 发布 PaymentFailed 事件 针对该订单
-    那么 订单 status 应为 CANCELLED
+    那么 订单 status 应为 PENDING_PAYMENT
 
   场景: 4.4b 收到 PaymentExpired 后应取消订单
     假如 已存在用户 "alice" 密码 "secret123"
@@ -45,3 +45,4 @@
     当 发布 FulfillmentDelivered 事件 针对该订单
     那么 订单 status 应为 DELIVERED
     并且 应已发布 OrderCompleted
+

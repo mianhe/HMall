@@ -43,7 +43,7 @@ paths:
   /api/payments/callback:
     post:
       summary: 支付网关回调（支付结果）
-      description: 网关通知支付成功或失败；成功时置 COMPLETED 并发布 PaymentCompleted，失败时置 FAILED 并发布 PaymentFailed。重复成功回调幂等。
+      description: 网关通知支付成功或失败；成功时置 COMPLETED 并发布 PaymentCompleted（重复成功回调幂等）；失败时保持 PENDING（用户可重试），仅发布 PaymentFailed 通知。
       requestBody:
         required: true
         content:
@@ -95,6 +95,40 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           description: 支付单不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/payments/settings:
+    get:
+      summary: 查询支付设置
+      description: 返回当前支付超时时间等设置。
+      responses:
+        '200':
+          description: 设置详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentSettings'
+    put:
+      summary: 更新支付设置
+      description: 修改支付超时时间等设置，运行时即时生效。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentSettings'
+      responses:
+        '200':
+          description: 更新后的设置
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentSettings'
+        '400':
+          description: 参数非法（如 expireMinutes < 1）
           content:
             application/json:
               schema:
@@ -213,7 +247,7 @@ components:
           format: int64
         status:
           type: string
-          enum: [PENDING, COMPLETED, FAILED, EXPIRED, REFUNDED]
+          enum: [PENDING, COMPLETED, EXPIRED, REFUNDED]
         payUrl:
           type: string
         createdAt:
@@ -225,6 +259,14 @@ components:
         expiredAt:
           type: string
           format: date-time
+    PaymentSettings:
+      type: object
+      properties:
+        expireMinutes:
+          type: integer
+          description: 支付超时时间（分钟），最小 1，默认 30
+          minimum: 1
+          example: 30
     Error:
       type: object
       properties:

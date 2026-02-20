@@ -37,10 +37,11 @@ public class OrderEventService {
         createFulfillmentPort.createFulfillment(orderId);
     }
 
-    @Transactional
+    /**
+     * 支付失败不取消订单，保持 PENDING_PAYMENT，用户可重试支付。
+     * 仅 PaymentExpired（超时）才触发取消与补偿。
+     */
     public void onPaymentFailed(Long orderId) {
-        releaseInventoryPort.release(orderId);
-        updateOrderStatus(orderId, OrderStatus.CANCELLED);
     }
 
     @Transactional

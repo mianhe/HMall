@@ -1,13 +1,7 @@
 /**
  * 用户限定上下文 API，与 docs/bounded-contexts/user/api.yaml 一致
  */
-import axios from 'axios'
-
-const client = axios.create({
-  baseURL: '/api',
-  headers: { 'Content-Type': 'application/json' },
-  timeout: 15000,
-})
+import client from './client.js'
 
 export async function register(username, password) {
   const { data } = await client.post('/users', { username, password })

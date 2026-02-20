@@ -44,7 +44,8 @@ stateDiagram-v2
     [*] --> PENDING_PAYMENT: PlaceOrder + 同步占用成功
     PENDING_PAYMENT --> CANCELLED: 占用失败（订单不落库）
     PENDING_PAYMENT --> PAID: PaymentCompleted
-    PENDING_PAYMENT --> COMPENSATING: PaymentFailed/Expired
+    PENDING_PAYMENT --> PENDING_PAYMENT: PaymentFailed（保持待支付）
+    PENDING_PAYMENT --> COMPENSATING: PaymentExpired
     PAID --> FULFILLING: FulfillmentOrderCreated
     FULFILLING --> SHIPPED: FulfillmentShipped
     SHIPPED --> COMPLETED: FulfillmentDelivered
@@ -57,7 +58,7 @@ stateDiagram-v2
 
 | 来源 | 触发补偿 |
 |------|----------|
-| PaymentFailed | C2, C1 |
+| PaymentFailed | 无补偿（订单保持 PENDING_PAYMENT，用户可重试支付） |
 | PaymentExpired | C2, C1 |
 | 用户取消 | 按当前已完成的步骤逆序补偿（含 C2 释放库存） |
 

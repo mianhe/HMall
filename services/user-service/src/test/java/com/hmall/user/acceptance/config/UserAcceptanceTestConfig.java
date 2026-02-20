@@ -18,8 +18,8 @@ public class UserAcceptanceTestConfig {
 
     @Bean
     @Primary
-    public UserSmokeStepDefinitions userSmokeStepDefinitions() {
-        return new UserSmokeStepDefinitions();
+    public UserSmokeStepDefinitions userSmokeStepDefinitions(TestRestTemplate testRestTemplate) {
+        return new UserSmokeStepDefinitions(testRestTemplate);
     }
 
     @Bean

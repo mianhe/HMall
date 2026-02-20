@@ -2,10 +2,6 @@ server:
   port: 8081
 
 spring:
-  autoconfigure:
-    # 默认排除 Kafka；启用时加 --spring.profiles.active=kafka
-    exclude:
-      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
   datasource:
     url: jdbc:postgresql://localhost:5432/hmall
     username: hmall
@@ -22,6 +18,14 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       properties:
         spring.json.add.type.headers: false
+    consumer:
+      group-id: order-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.value.default.type: java.util.HashMap
+      auto-offset-reset: earliest
 
 order:
   kafka:
@@ -29,6 +33,12 @@ order:
       order-created: order.created
       order-cancelled: order.cancelled
       order-completed: order.completed
+      payment-completed: payment.completed
+      payment-failed: payment.failed
+      payment-expired: payment.expired
+      fulfillment-order-created: fulfillment.order.created
+      fulfillment-shipped: fulfillment.shipped
+      fulfillment-delivered: fulfillment.delivered
 
 catalog:
   base-url: http://localhost:8080

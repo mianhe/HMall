@@ -28,7 +28,7 @@
             <p v-if="o.createdAt" class="text-xs text-vmall-gray-text mt-0.5">{{ formatTime(o.createdAt) }}</p>
           </div>
           <span class="px-2 py-0.5 rounded text-xs font-medium" :class="statusClass(o.status)">
-            {{ statusMap[o.status] ?? o.status }}
+            {{ mapStatusText(o.status) }}
           </span>
         </div>
         <div class="text-gray-800">
@@ -47,6 +47,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getOrders } from '../shared/api/order.js'
 import { useAuth } from '../shared/auth.js'
+import { statusText as mapStatusText, statusClass } from '../shared/composables/useOrderStatus.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -76,22 +77,6 @@ const filteredOrders = computed(() => {
   return list
 })
 
-const statusMap = {
-  PENDING_PAYMENT: '待支付',
-  PAID: '已支付',
-  FULFILLING: '履约中',
-  SHIPPED: '已发货',
-  DELIVERED: '已送达',
-  COMPLETED: '已完成',
-  CANCELLED: '已取消',
-}
-
-function statusClass(s) {
-  if (s === 'PENDING_PAYMENT') return 'bg-amber-100 text-amber-800'
-  if (s === 'CANCELLED') return 'bg-gray-100 text-gray-600'
-  if (['PAID', 'FULFILLING', 'SHIPPED', 'DELIVERED', 'COMPLETED'].includes(s)) return 'bg-green-100 text-green-800'
-  return 'bg-vmall-gray-bg text-vmall-gray-text'
-}
 
 function formatTime(iso) {
   if (!iso) return ''
@@ -119,12 +104,6 @@ async function load() {
   }
 }
 
-onMounted(() => {
-  if (!isLoggedIn.value || !userId.value) {
-    router.replace({ path: '/login', query: { redirect: route.fullPath } })
-    return
-  }
-  load()
-})
+onMounted(() => load())
 watch(() => route.query.status, () => { /* filteredOrders 依赖 orders + query，无需重载 */ })
 </script>

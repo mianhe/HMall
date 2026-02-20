@@ -3,33 +3,36 @@ package com.hmall.payment.acceptance.config;
 import com.hmall.payment.application.event.PaymentCompletedEvent;
 import com.hmall.payment.application.event.PaymentExpiredEvent;
 import com.hmall.payment.application.event.PaymentFailedEvent;
-import org.springframework.context.ApplicationEvent;
-import org.springframework.context.ApplicationListener;
-import org.springframework.context.PayloadApplicationEvent;
+import com.hmall.payment.application.port.PaymentDomainEventPublisher;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-/** 验收测试中捕获 Payment 发布的领域事件，供 Step Definitions 断言。 */
-public class PaymentEventCapture implements ApplicationListener<ApplicationEvent> {
+/**
+ * 测试替身：实现 PaymentDomainEventPublisher，记录事件调用供断言。
+ * 在测试中以 @Primary 覆盖生产实现。
+ */
+public class PaymentEventCapture implements PaymentDomainEventPublisher {
 
     private final List<PaymentCompletedEvent> completedEvents = new CopyOnWriteArrayList<>();
     private final List<PaymentFailedEvent> failedEvents = new CopyOnWriteArrayList<>();
     private final List<PaymentExpiredEvent> expiredEvents = new CopyOnWriteArrayList<>();
 
     @Override
-    public void onApplicationEvent(ApplicationEvent event) {
-        if (event instanceof PayloadApplicationEvent<?> pa) {
-            if (pa.getPayload() instanceof PaymentCompletedEvent e) {
-                completedEvents.add(e);
-            } else if (pa.getPayload() instanceof PaymentFailedEvent e) {
-                failedEvents.add(e);
-            } else if (pa.getPayload() instanceof PaymentExpiredEvent e) {
-                expiredEvents.add(e);
-            }
-        }
+    public void publish(PaymentCompletedEvent event) {
+        completedEvents.add(event);
+    }
+
+    @Override
+    public void publish(PaymentFailedEvent event) {
+        failedEvents.add(event);
+    }
+
+    @Override
+    public void publish(PaymentExpiredEvent event) {
+        expiredEvents.add(event);
     }
 
     public List<PaymentCompletedEvent> getCompletedEvents() {

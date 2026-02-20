@@ -1,7 +1,11 @@
 payment:
   expire-minutes: 0
+  expire-check-enabled: false
 
 spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
   datasource:
     url: jdbc:h2:mem:payment_test;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
     username: sa

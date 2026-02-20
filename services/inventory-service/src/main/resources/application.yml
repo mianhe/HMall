@@ -3,10 +3,6 @@ server:
   port: 8082
 
 spring:
-  autoconfigure:
-    # 默认排除 Kafka；启用时加 --spring.profiles.active=kafka
-    exclude:
-      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
   datasource:
     url: jdbc:postgresql://localhost:5432/hmall
     username: hmall

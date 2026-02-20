@@ -208,11 +208,5 @@ async function load() {
   }
 }
 
-onMounted(() => {
-  if (!isLoggedIn.value || !userId.value) {
-    router.replace({ path: '/login', query: { redirect: '/addresses' } })
-    return
-  }
-  load()
-})
+onMounted(() => load())
 </script>

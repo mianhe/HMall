@@ -1,5 +1,0 @@
-# 启用 Kafka 时使用：--spring.profiles.active=kafka（且需 Kafka 已启动）
-# 使用后 Order 出站事件将发往 Kafka；不启用时使用 NoOpOrderOutboundEventPublisher
-spring:
-  autoconfigure:
-    exclude: []  # 不排除 Kafka，使用 KafkaAutoConfiguration

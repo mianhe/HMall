@@ -17,6 +17,18 @@
         >
           库存管理
         </router-link>
+        <router-link
+          to="/activity"
+          class="inline-flex items-center px-4 py-3 rounded-lg bg-white border border-vmall-gray-border text-vmall-gray-text hover:bg-vmall-gray-bg transition-colors"
+        >
+          活动监控
+        </router-link>
+        <router-link
+          to="/settings"
+          class="inline-flex items-center px-4 py-3 rounded-lg bg-white border border-vmall-gray-border text-vmall-gray-text hover:bg-vmall-gray-bg transition-colors"
+        >
+          系统设置
+        </router-link>
       </div>
     </main>
   </div>

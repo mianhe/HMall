@@ -12,4 +12,6 @@ public interface PaymentJpaRepository extends JpaRepository<PaymentEntity, Long>
     Optional<PaymentEntity> findByOrderId(Long orderId);
 
     List<PaymentEntity> findByStatusAndExpiredAtBefore(PaymentStatus status, Instant expiredAt);
+
+    List<PaymentEntity> findByStatus(PaymentStatus status);
 }

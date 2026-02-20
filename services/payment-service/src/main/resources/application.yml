@@ -3,7 +3,12 @@ server:
 
 payment:
   expire-minutes: 30
-  order-base-url: http://localhost:8081
+  expire-check-interval-ms: 60000
+  kafka:
+    topic:
+      payment-completed: payment.completed
+      payment-failed: payment.failed
+      payment-expired: payment.expired
 
 spring:
   datasource:
@@ -15,3 +20,10 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: false
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false

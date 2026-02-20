@@ -5,7 +5,11 @@ import com.hmall.payment.acceptance.PaymentCreateStepDefinitions;
 import com.hmall.payment.acceptance.PaymentExpireStepDefinitions;
 import com.hmall.payment.acceptance.PaymentQueryStepDefinitions;
 import com.hmall.payment.acceptance.PaymentRefundStepDefinitions;
+import com.hmall.payment.acceptance.PaymentSettingsStepDefinitions;
 import com.hmall.payment.acceptance.PaymentSmokeStepDefinitions;
+import com.hmall.payment.application.port.PaymentDomainEventPublisher;
+import com.hmall.payment.infrastructure.config.PaymentProperties;
+import com.hmall.payment.infrastructure.config.PaymentSettingsInitializer;
 import com.hmall.payment.infrastructure.persistence.PaymentJpaRepository;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -16,9 +20,20 @@ import org.springframework.context.annotation.Primary;
 public class PaymentAcceptanceTestConfig {
 
     @Bean
+    public PaymentEventCapture paymentEventCapture() {
+        return new PaymentEventCapture();
+    }
+
+    @Bean
     @Primary
-    public PaymentSmokeStepDefinitions paymentSmokeStepDefinitions() {
-        return new PaymentSmokeStepDefinitions();
+    public PaymentDomainEventPublisher testEventPublisher(PaymentEventCapture capture) {
+        return capture;
+    }
+
+    @Bean
+    @Primary
+    public PaymentSmokeStepDefinitions paymentSmokeStepDefinitions(TestRestTemplate restTemplate) {
+        return new PaymentSmokeStepDefinitions(restTemplate);
     }
 
     @Bean
@@ -70,6 +85,18 @@ public class PaymentAcceptanceTestConfig {
     }
 
     @Bean
+    @Primary
+    public PaymentSettingsStepDefinitions paymentSettingsStepDefinitions(
+            TestRestTemplate restTemplate,
+            LastResponseContext lastResponseContext,
+            LastPaymentContext lastPaymentContext,
+            PaymentProperties paymentProperties,
+            PaymentSettingsInitializer settingsInitializer) {
+        return new PaymentSettingsStepDefinitions(restTemplate, lastResponseContext, lastPaymentContext,
+                paymentProperties, settingsInitializer);
+    }
+
+    @Bean
     public LastResponseContext lastResponseContext() {
         return new LastResponseContext();
     }
@@ -77,10 +104,5 @@ public class PaymentAcceptanceTestConfig {
     @Bean
     public LastPaymentContext lastPaymentContext() {
         return new LastPaymentContext();
-    }
-
-    @Bean
-    public PaymentEventCapture paymentEventCapture() {
-        return new PaymentEventCapture();
     }
 }
