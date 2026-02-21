@@ -197,8 +197,8 @@ const fullAddress = computed(() => {
 const JOURNEY_STEPS = [
   { key: 'submitted', label: '提交订单', eventTypes: ['OrderCreated'] },
   { key: 'paid',      label: '付款成功', eventTypes: ['PaymentCompleted'] },
-  { key: 'fulfilling', label: '正在配货', eventTypes: [] },
-  { key: 'shipped',   label: '等待收货', eventTypes: [] },
+  { key: 'fulfilling', label: '正在配货', eventTypes: ['FulfillmentOrderAllocated'] },
+  { key: 'shipped',   label: '等待收货', eventTypes: ['FulfillmentShipped'] },
   { key: 'completed', label: '已完成',   eventTypes: ['OrderCompleted'] },
 ]
 
@@ -230,14 +230,18 @@ const journeySteps = computed(() => {
 })
 
 const EVENT_DESCRIPTIONS = {
-  OrderCreated:     '您提交了订单，请等待系统确认',
-  StockReserved:    '商品已确认，库存已锁定',
-  PaymentCompleted: '支付成功',
-  PaymentFailed:    '支付失败，请重新尝试支付',
-  PaymentExpired:   '支付超时，订单将自动取消',
-  OrderCancelled:   '订单已取消',
-  OrderCompleted:   '订单已完成',
-  StockReleased:    '库存已释放',
+  OrderCreated:               '您提交了订单，请等待系统确认',
+  StockReserved:              '商品已确认，库存已锁定',
+  PaymentCompleted:           '支付成功',
+  PaymentFailed:              '支付失败，请重新尝试支付',
+  PaymentExpired:             '支付超时，订单将自动取消',
+  OrderCancelled:             '订单已取消',
+  OrderCompleted:             '订单已完成',
+  StockReleased:              '库存已释放',
+  FulfillmentOrderCreated:    '履约单已创建，等待配货',
+  FulfillmentOrderAllocated:  '商品正在配货中',
+  FulfillmentShipped:         '商品已发货，等待签收',
+  FulfillmentDelivered:       '商品已签收',
 }
 
 const timeline = computed(() =>
@@ -336,6 +340,17 @@ async function load() {
   }
 }
 
+let pollRetries = 0
+async function loadWithPaymentPoll() {
+  await load()
+  if (order.value?.status === 'PENDING_PAYMENT' && pollRetries < 5) {
+    pollRetries++
+    setTimeout(loadWithPaymentPoll, 1500)
+  } else {
+    pollRetries = 0
+  }
+}
+
 async function handleCancel() {
   actionError.value = ''
   cancelling.value = true
@@ -385,7 +400,14 @@ async function handlePay() {
   }
 }
 
-onMounted(() => load())
+onMounted(() => {
+  const fromPay = document.referrer && document.referrer.includes('mock-pay')
+  if (fromPay) {
+    loadWithPaymentPoll()
+  } else {
+    load()
+  }
+})
 onUnmounted(() => stopCountdown())
 watch(() => route.params.id, load)
 </script>

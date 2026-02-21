@@ -63,6 +63,11 @@ public class ActivityRepositoryImpl implements ActivityRepository {
     }
 
     @Override
+    public List<String> findPayloadsByEventTypeInRange(String eventType, Instant from, Instant to) {
+        return jpaRepository.findPayloadsByEventTypeInRange(eventType, from, to);
+    }
+
+    @Override
     @Transactional
     public void deleteByOrderId(Long orderId) {
         jpaRepository.deleteByOrderId(orderId);

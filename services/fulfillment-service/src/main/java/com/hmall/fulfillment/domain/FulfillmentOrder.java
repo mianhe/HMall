@@ -43,9 +43,17 @@ public class FulfillmentOrder {
         this.updatedAt = updatedAt;
     }
 
-    public void ship(String carrier, String trackingNumber) {
+    public void allocate() {
         if (status != FulfillmentOrderStatus.CREATED) {
-            throw new IllegalStateException("只有 CREATED 状态可以发货，当前状态: " + status);
+            throw new IllegalStateException("只有 CREATED 状态可以开始配货，当前状态: " + status);
+        }
+        this.status = FulfillmentOrderStatus.ALLOCATING;
+        this.updatedAt = Instant.now();
+    }
+
+    public void ship(String carrier, String trackingNumber) {
+        if (status != FulfillmentOrderStatus.ALLOCATING) {
+            throw new IllegalStateException("只有 ALLOCATING 状态可以发货，当前状态: " + status);
         }
         this.shippingInfo = new ShippingInfo(carrier, trackingNumber, Instant.now());
         this.status = FulfillmentOrderStatus.SHIPPED;
@@ -62,8 +70,8 @@ public class FulfillmentOrder {
     }
 
     public void cancel() {
-        if (status != FulfillmentOrderStatus.CREATED) {
-            throw new IllegalStateException("只有 CREATED 状态可以取消，当前状态: " + status);
+        if (status != FulfillmentOrderStatus.CREATED && status != FulfillmentOrderStatus.ALLOCATING) {
+            throw new IllegalStateException("只有 CREATED 或 ALLOCATING 状态可以取消，当前状态: " + status);
         }
         this.status = FulfillmentOrderStatus.CANCELLED;
         this.updatedAt = Instant.now();

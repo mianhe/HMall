@@ -2,6 +2,7 @@ package com.hmall.fulfillment.acceptance.config;
 
 import com.hmall.fulfillment.acceptance.DatabaseResetHook;
 import com.hmall.fulfillment.acceptance.EventCapture;
+import com.hmall.fulfillment.acceptance.FulfillmentAllocateStepDefinitions;
 import com.hmall.fulfillment.acceptance.FulfillmentCancelStepDefinitions;
 import com.hmall.fulfillment.acceptance.FulfillmentCommonStepDefinitions;
 import com.hmall.fulfillment.acceptance.FulfillmentCreateStepDefinitions;
@@ -61,6 +62,15 @@ public class AcceptanceTestConfig {
             FulfillmentTestContext context,
             EventCapture eventCapture) {
         return new FulfillmentCreateStepDefinitions(restTemplate, context, eventCapture);
+    }
+
+    @Bean
+    @Primary
+    public FulfillmentAllocateStepDefinitions fulfillmentAllocateStepDefinitions(
+            TestRestTemplate restTemplate,
+            FulfillmentTestContext context,
+            EventCapture eventCapture) {
+        return new FulfillmentAllocateStepDefinitions(restTemplate, context, eventCapture);
     }
 
     @Bean

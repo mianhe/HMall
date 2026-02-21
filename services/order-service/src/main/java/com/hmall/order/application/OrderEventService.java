@@ -50,6 +50,11 @@ public class OrderEventService {
                 order.getShippingAddress().detail());
 
         createFulfillmentPort.createFulfillment(orderId, items, addr);
+        // 保持 PAID；收到 FulfillmentOrderAllocated 后再置 FULFILLING
+    }
+
+    @Transactional
+    public void onFulfillmentOrderAllocated(Long orderId) {
         updateOrderStatus(orderId, OrderStatus.FULFILLING);
     }
 

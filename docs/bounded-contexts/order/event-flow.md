@@ -20,12 +20,13 @@
 
 ## 二、主流程
 
-PlaceOrder →（同步调用 Inventory 占用，成功则）OrderCreated → PaymentCompleted →（同步调用 Fulfillment 创建履约单，当场置 FULFILLING）→ FulfillmentShipped → FulfillmentDelivered → OrderCompleted
+PlaceOrder →（同步调用 Inventory 占用，成功则）OrderCreated → PaymentCompleted →（同步调用 Fulfillment 创建履约单，保持 PAID）→ FulfillmentOrderAllocated（Order 置 FULFILLING）→ FulfillmentShipped → FulfillmentDelivered → OrderCompleted
 
 - **PlaceOrder**：保存订单后**同步调用** Inventory 占用；若库存不足则失败返回，订单不落库或回滚
-- **PaymentCompleted**：Order 收到支付完成事件后，**同步调用** Fulfillment 创建履约单，返回 fulfillmentOrderIds，当场更新 fulfillmentRef 并置 FULFILLING
+- **PaymentCompleted**：Order 收到支付完成事件后，置 PAID 并**同步调用** Fulfillment 创建履约单，返回后**保持 PAID**（不置 FULFILLING）
+- **FulfillmentOrderAllocated**：Order 消费 Fulfillment 的「开始配货」事件后置 FULFILLING（订单页可显示「正在配货」）
 - **失败分支**：PaymentFailed → 不影响订单（保持待支付，用户可重试）；PaymentExpired → 触发补偿（含释放库存、取消订单）
-- **取消**：Order 取消时**同步调用** Inventory 释放 + Fulfillment 取消履约单（若已创建）；SHIPPED 及之后不可取消
+- **取消**：Order 取消时**同步调用** Inventory 释放 + 若 PAID 或 FULFILLING 则调用 Fulfillment 取消履约单；SHIPPED 及之后不可取消
 
 ### 流程图
 
@@ -54,6 +55,7 @@ Order --> Fulfillment : 6. 创建履约单（同步）
 Payment --> Gateway : 跳转支付
 Gateway ..> Payment : 4. 回调
 Payment ..> Order : 5. PaymentCompleted
+Fulfillment ..> Order : 6a. FulfillmentOrderAllocated（开始配货）
 Fulfillment ..> Order : 7. FulfillmentShipped
 Fulfillment ..> Order : 8. FulfillmentDelivered
 Order ..> Order : 3. OrderCreated\n9. OrderCompleted
@@ -115,10 +117,11 @@ Order 通过 `KafkaPaymentEventConsumer` 消费 Payment 的三个事件 topic，
 
 ### Kafka 消费（Fulfillment 事件）
 
-Order 通过 `KafkaFulfillmentEventConsumer` 消费 Fulfillment 的 Shipped / Delivered 事件，调用 `OrderEventService` 处理。同样由 `OrderKafkaAutoConfiguration` 条件注册。**FulfillmentOrderCreated 不再由 Order 消费**——Order 通过同步调用返回值获取 fulfillmentOrderIds，当场推进状态。
+Order 通过 `KafkaFulfillmentEventConsumer` 消费 Fulfillment 的 Allocated / Shipped / Delivered 事件，调用 `OrderEventService` 处理。同样由 `OrderKafkaAutoConfiguration` 条件注册。
 
 | Topic | 事件 | Order 处理方法 |
 |-------|------|----------------|
+| `fulfillment.order.allocated` | FulfillmentOrderAllocated | `orderEventService.onFulfillmentOrderAllocated(orderId)` → 置 FULFILLING |
 | `fulfillment.shipped` | FulfillmentShipped | `orderEventService.onFulfillmentShipped(orderId)` |
 | `fulfillment.delivered` | FulfillmentDelivered | `orderEventService.onFulfillmentDelivered(orderId)` |
 
@@ -126,7 +129,8 @@ Order 通过 `KafkaFulfillmentEventConsumer` 消费 Fulfillment 的 Shipped / De
 
 | 事件 | 来源 | 传输方式 | 载荷 | Order 反应 |
 |------|------|----------|------|------------|
-| PaymentCompleted | Payment | Kafka（`payment.completed`） | orderId, paymentId | 置 PAID，**同步调用** Fulfillment 创建履约单，当场更新 fulfillmentRef、置 FULFILLING |
+| PaymentCompleted | Payment | Kafka（`payment.completed`） | orderId, paymentId | 置 PAID，**同步调用** Fulfillment 创建履约单，**保持 PAID**（不置 FULFILLING） |
+| FulfillmentOrderAllocated | Fulfillment | Kafka（`fulfillment.order.allocated`） | orderId, fulfillmentOrderId | 置 FULFILLING |
 | PaymentFailed | Payment | Kafka（`payment.failed`） | orderId | 不做状态变更，保持 PENDING_PAYMENT（用户可重试支付） |
 | PaymentExpired | Payment | Kafka（`payment.expired`） | orderId | 取消、补偿（含释放库存） |
 | FulfillmentShipped | Fulfillment | Kafka（`fulfillment.shipped`） | orderId, fulfillmentOrderId | 置 fulfillmentStatus SHIPPED（1:N 时需全部到达才推进） |
@@ -142,8 +146,8 @@ Order 通过 `KafkaFulfillmentEventConsumer` 消费 Fulfillment 的 Shipped / De
 | release(orderId) | CancelOrder | 同步释放该订单的库存占用 |
 | createPayment(orderId, amount) | PlaceOrder 库存占用成功后 | 同步创建支付单、获取支付链接；返回给前端跳转 |
 | refund(orderId) | CancelOrder（若已支付） | 同步调用退款 |
-| createFulfillment(orderId, items, shippingAddress) | PaymentCompleted 后 | 同步创建履约单；返回 fulfillmentOrderIds，Order 当场置 FULFILLING |
-| cancelFulfillment(orderId) | CancelOrder（若已创建履约单） | 同步取消该订单的未发货履约单 |
+| createFulfillment(orderId, items, shippingAddress) | PaymentCompleted 后 | 同步创建履约单；返回 fulfillmentOrderIds，Order 保持 PAID |
+| cancelFulfillment(orderId) | CancelOrder（若 status 为 PAID 或 FULFILLING） | 同步取消该订单的未发货履约单（CREATED/ALLOCATING） |
 
 **说明**：支付完成由支付网关回调 Payment，Payment 发布 PaymentCompleted/Failed/Expired 到 Kafka，Order 通过 `KafkaPaymentEventConsumer` 消费后调用 `OrderEventService`。创建履约单在 `onPaymentCompleted` 中同步调用。
 

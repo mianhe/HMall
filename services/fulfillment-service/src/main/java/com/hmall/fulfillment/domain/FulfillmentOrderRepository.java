@@ -10,4 +10,6 @@ public interface FulfillmentOrderRepository {
     Optional<FulfillmentOrder> findById(Long fulfillmentOrderId);
 
     List<FulfillmentOrder> findByOrderId(Long orderId);
+
+    List<FulfillmentOrder> findAll();
 }

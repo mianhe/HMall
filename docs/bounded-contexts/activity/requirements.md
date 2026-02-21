@@ -53,6 +53,11 @@
 | | 成功支付数 | 支付成功笔数 | PaymentCompleted |
 | | 支付失败数 | 网关返回失败 | PaymentFailed |
 | | 支付过期数 | 超时未支付 | PaymentExpired |
+| | 成功支付金额 | 统计周期内成功支付总金额（分） | PaymentCompleted.amountCents |
+| **履约** | 履约单创建数 | 统计周期内创建的履约单数 | FulfillmentOrderCreated |
+| | 开始配货数 | 统计周期内开始配货的履约单数 | FulfillmentOrderAllocated |
+| | 已发货数 | 统计周期内发货的履约单数 | FulfillmentShipped |
+| | 已签收数 | 统计周期内签收的履约单数 | FulfillmentDelivered |
 | **库存（可选）** | 库存占用次数 | 占库成功次数 | StockReserved |
 | | 库存释放次数 | 释放次数 | StockReleased |
 

@@ -11,3 +11,18 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: false
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+
+fulfillment:
+  kafka:
+    topic:
+      fulfillment-order-created: fulfillment.order.created
+      fulfillment-order-allocated: fulfillment.order.allocated
+      fulfillment-shipped: fulfillment.shipped
+      fulfillment-delivered: fulfillment.delivered

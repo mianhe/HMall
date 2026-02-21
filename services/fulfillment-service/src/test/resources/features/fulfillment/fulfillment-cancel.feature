@@ -9,6 +9,13 @@
     那么 应返回 200
     并且 该履约单状态应为 CANCELLED
 
+  场景: ALLOCATING 状态的履约单取消应成功且状态变为 CANCELLED
+    假如 已存在 ALLOCATING 状态的履约单 orderId 9010
+    当 Order 调用取消履约单接口 orderId 9010
+    那么 应返回 200
+    并且 返回的 cancelledCount 应为 1
+    并且 该履约单状态应为 CANCELLED
+
   场景: SHIPPED 或 DELIVERED 状态取消应失败并返回错误
     假如 已存在 SHIPPED 状态的履约单 orderId 9002
     当 Order 调用取消履约单接口 orderId 9002

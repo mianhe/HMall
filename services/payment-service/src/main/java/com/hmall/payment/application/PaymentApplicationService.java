@@ -66,7 +66,7 @@ public class PaymentApplicationService {
             }
             payment.complete(now);
             paymentRepository.save(payment);
-            eventPublisher.publish(new PaymentCompletedEvent(payment.getOrderId(), payment.getPaymentId(), now));
+            eventPublisher.publish(new PaymentCompletedEvent(payment.getOrderId(), payment.getPaymentId(), payment.getAmountCents(), now));
         } else {
             eventPublisher.publish(new PaymentFailedEvent(payment.getOrderId(), now));
         }

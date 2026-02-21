@@ -7,8 +7,13 @@ public record ActivityStats(
     int paymentSuccess,
     int paymentFailed,
     int paymentExpired,
+    long paymentTotalCents,
     int stockReserved,
-    int stockReleased
+    int stockReleased,
+    int fulfillmentCreated,
+    int fulfillmentAllocated,
+    int fulfillmentShipped,
+    int fulfillmentDelivered
 ) {
     public int paymentAttempts() {
         return paymentSuccess + paymentFailed + paymentExpired;

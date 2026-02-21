@@ -69,12 +69,16 @@ public class MockPayController {
             const paymentId = %d;
             const returnUrl = "%s";
             async function submit(success) {
+              const btn = event.target;
+              btn.disabled = true;
+              btn.textContent = '处理中…';
               await fetch("/api/payments/callback", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ paymentId, success })
               });
-              window.location.href = returnUrl;
+              btn.textContent = success ? '支付成功，跳转中…' : '已提交，跳转中…';
+              setTimeout(() => { window.location.href = returnUrl; }, 1500);
             }
             </script>
             </body></html>

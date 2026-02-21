@@ -10,7 +10,7 @@
 |----|------|----------|
 | Order | 上游：调用创建/取消履约单 | **同步调用**（REST） |
 | Fulfillment | 当前 BC | — |
-| Order | 下游：订阅 Shipped / Delivered | **Kafka 事件** |
+| Order | 下游：订阅 Allocated / Shipped / Delivered | **Kafka 事件** |
 | Activity | 下游：订阅全部事件 | **Kafka 事件** |
 
 ---
@@ -22,11 +22,16 @@
 ```
 Order 同步调用 createFulfillment(orderId, items, shippingAddress)
   → Fulfillment 拆单、创建 FulfillmentOrder（MVP: 1:1）
-  → 返回 fulfillmentOrderIds（Order 当场置 FULFILLING）
+  → 返回 fulfillmentOrderIds（Order 保持 PAID，不置 FULFILLING）
   → 发布 FulfillmentOrderCreated 事件（Activity 消费）
 
+管理后台/内部操作：开始配货
+  → 调用 POST /api/fulfillment/{fulfillmentOrderId}/allocate
+  → FulfillmentOrder 状态 CREATED → ALLOCATING
+  → 发布 FulfillmentOrderAllocated 事件（Order 消费后置 FULFILLING，Activity 消费）
+
 管理后台/内部操作：发货
-  → FulfillmentOrder 状态 CREATED → SHIPPED
+  → FulfillmentOrder 状态 ALLOCATING → SHIPPED
   → 发布 FulfillmentShipped 事件（Order + Activity 消费）
 
 物流签收确认
@@ -38,7 +43,7 @@ Order 同步调用 createFulfillment(orderId, items, shippingAddress)
 
 ```
 Order 同步调用 cancelFulfillment(orderId)
-  → Fulfillment 取消该 orderId 下所有 CREATED 状态的履约单
+  → Fulfillment 取消该 orderId 下所有 CREATED、ALLOCATING 状态的履约单
   → 已 SHIPPED / DELIVERED 的履约单不受影响（不可取消）
 ```
 
@@ -55,6 +60,8 @@ component "Activity" as Activity
 Order --> Fulfillment : 1. createFulfillment（同步）
 Order <-- Fulfillment : 返回 fulfillmentOrderIds
 Fulfillment ..> Activity : 2. FulfillmentOrderCreated
+Fulfillment ..> Order : 2a. FulfillmentOrderAllocated（开始配货后）
+Fulfillment ..> Activity : 2a. FulfillmentOrderAllocated
 Fulfillment ..> Order : 3. FulfillmentShipped
 Fulfillment ..> Activity : 3. FulfillmentShipped
 Fulfillment ..> Order : 4. FulfillmentDelivered
@@ -137,6 +144,20 @@ POST /api/fulfillment/cancel
 | 无可取消的履约单 | 200 | cancelledCount = 0（幂等） |
 | 缺失 orderId | 400 | 参数校验失败 |
 
+### 开始配货
+
+```
+POST /api/fulfillment/{fulfillmentOrderId}/allocate
+```
+
+无请求体。
+
+| 场景 | 状态码 | 说明 |
+|------|--------|------|
+| 开始配货成功 | 200 | 状态 CREATED → ALLOCATING |
+| 非 CREATED 状态 | 400 | 状态不允许开始配货 |
+| 履约单不存在 | 404 | — |
+
 ### 发货
 
 ```
@@ -154,8 +175,8 @@ POST /api/fulfillment/{fulfillmentOrderId}/ship
 
 | 场景 | 状态码 | 说明 |
 |------|--------|------|
-| 发货成功 | 200 | 状态 → SHIPPED |
-| 非 CREATED 状态 | 400 | 状态不允许发货 |
+| 发货成功 | 200 | 状态 ALLOCATING → SHIPPED |
+| 非 ALLOCATING 状态（含 CREATED） | 400 | 状态不允许发货 |
 | 履约单不存在 | 404 | — |
 
 ### 签收确认
@@ -174,8 +195,13 @@ POST /api/fulfillment/{fulfillmentOrderId}/deliver
 
 ```
 GET /api/fulfillment/{fulfillmentOrderId}
-GET /api/fulfillment?orderId={orderId}
+GET /api/fulfillment?orderId={orderId}&status={status}
 ```
+
+| 参数 | 说明 |
+|------|------|
+| orderId | 可选。不传则返回全部履约单（管理端列表）；传则仅返回该订单的履约单。 |
+| status | 可选。CREATED / ALLOCATING / SHIPPED / DELIVERED / CANCELLED，过滤状态。 |
 
 ---
 
@@ -186,10 +212,11 @@ GET /api/fulfillment?orderId={orderId}
 | 事件 | 时机 | Topic | 订阅方 | 关键 Payload |
 |------|------|-------|--------|-------------|
 | FulfillmentOrderCreated | 创建履约单成功 | `fulfillment.order.created` | Activity | orderId, fulfillmentOrderIds, occurredAt |
+| FulfillmentOrderAllocated | 开始配货成功 | `fulfillment.order.allocated` | Order, Activity | orderId, fulfillmentOrderId, occurredAt |
 | FulfillmentShipped | 发货成功 | `fulfillment.shipped` | Order, Activity | orderId, fulfillmentOrderId, occurredAt |
 | FulfillmentDelivered | 签收确认 | `fulfillment.delivered` | Order, Activity | orderId, fulfillmentOrderId, occurredAt |
 
-**注意**：FulfillmentOrderCreated 事件仅 Activity 消费（审计/统计），Order 通过同步调用返回值获取结果，不再消费此事件。
+**注意**：FulfillmentOrderCreated 事件仅 Activity 消费。Order 在同步创建履约单后保持 PAID；收到 FulfillmentOrderAllocated 后置 FULFILLING。
 
 ### 事件消息体
 
@@ -202,6 +229,18 @@ GET /api/fulfillment?orderId={orderId}
   "orderId": 12345,
   "fulfillmentOrderIds": [1001],
   "occurredAt": "2026-02-20T10:00:00Z"
+}
+```
+
+**FulfillmentOrderAllocated**：
+
+```json
+{
+  "eventType": "FulfillmentOrderAllocated",
+  "eventId": "uuid",
+  "orderId": 12345,
+  "fulfillmentOrderId": 1001,
+  "occurredAt": "2026-02-20T10:05:00Z"
 }
 ```
 

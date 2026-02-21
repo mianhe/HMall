@@ -37,7 +37,7 @@ public class SpringPaymentDomainEventPublisher implements PaymentDomainEventPubl
     public void publish(PaymentCompletedEvent event) {
         sendToKafka(kafkaProperties != null ? kafkaProperties.getPaymentCompleted() : null,
                 String.valueOf(event.orderId()),
-                PaymentCompletedMessage.from(event.orderId(), event.paymentId(), event.occurredAt()));
+                PaymentCompletedMessage.from(event.orderId(), event.paymentId(), event.amountCents(), event.occurredAt()));
     }
 
     @Override

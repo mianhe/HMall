@@ -26,7 +26,8 @@ public class FulfillmentCancelApplicationService {
         List<FulfillmentOrder> orders = repository.findByOrderId(orderId);
         int cancelledCount = 0;
         for (FulfillmentOrder order : orders) {
-            if (order.getStatus() == FulfillmentOrderStatus.CREATED) {
+            if (order.getStatus() == FulfillmentOrderStatus.CREATED
+                    || order.getStatus() == FulfillmentOrderStatus.ALLOCATING) {
                 order.cancel();
                 repository.save(order);
                 cancelledCount++;

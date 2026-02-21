@@ -15,6 +15,7 @@ public class OrderKafkaProperties {
     private String paymentFailed = "payment.failed";
     private String paymentExpired = "payment.expired";
     private String fulfillmentOrderCreated = "fulfillment.order.created";
+    private String fulfillmentOrderAllocated = "fulfillment.order.allocated";
     private String fulfillmentShipped = "fulfillment.shipped";
     private String fulfillmentDelivered = "fulfillment.delivered";
 
@@ -72,6 +73,14 @@ public class OrderKafkaProperties {
 
     public void setFulfillmentOrderCreated(String fulfillmentOrderCreated) {
         this.fulfillmentOrderCreated = fulfillmentOrderCreated;
+    }
+
+    public String getFulfillmentOrderAllocated() {
+        return fulfillmentOrderAllocated;
+    }
+
+    public void setFulfillmentOrderAllocated(String fulfillmentOrderAllocated) {
+        this.fulfillmentOrderAllocated = fulfillmentOrderAllocated;
     }
 
     public String getFulfillmentShipped() {

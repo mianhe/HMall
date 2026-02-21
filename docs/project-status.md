@@ -29,8 +29,8 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 | **Smart Interaction** | LLM + MCP 智能交互（对话式操作） | ✅ 已完成 | 端口 8089；4 个验收场景全绿；从 BFF 拆分为独立 BC |
 | **Inventory** | 同步占用/释放库存、库存管理 | ✅ 已完成 | 3 feature、11 scenario 全绿；已与 Order 集成 |
 | **Payment** | 扣款/退款/超时检测 | ✅ 已完成 | 5 feature、19 scenario 全绿；超时检测定时自动执行；事件通知 Order（Kafka：PaymentCompleted/Failed/Expired）；已与 Order 集成（同步创建支付单/退款） |
-| **Activity** | 消费 Order/Payment/Inventory 事件，活动记录、查询与统计仪表盘 | ✅ 已完成 | 3 个 feature（consume/query/stats），16 个 scenario，全部通过 |
-| **Fulfillment** | 拆单、发货、签收、取消、查询 | ✅ 已完成 | 端口 8088；5 feature、18 scenario 全绿；同步创建/取消 + Kafka 事件（Shipped/Delivered）；已与 Order 集成 |
+| **Activity** | 消费 Order/Payment/Inventory/Fulfillment 事件，活动记录、查询与统计仪表盘 | ✅ 已完成 | 3 个 feature（consume/query/stats），16 个 scenario，全部通过；已订阅 Fulfillment 全部 4 个事件 |
+| **Fulfillment** | 拆单、开始配货、发货、签收、取消、查询 | ✅ 已完成 | 端口 8088；6 feature、24 scenario 全绿；ALLOCATING 状态与「开始配货」API；同步创建/取消 + Kafka 事件发布（Created/Allocated/Shipped/Delivered）；已与 Order、Activity 集成 |
 | **Pricing** | 算价、优惠 | 🔲 规划中 | 创建订单时同步调用 |
 | **Cart** | 购物车增删改查、结算预览 | ✅ 已完成 | 5 feature（+ smoke），17 scenario，全部通过；依赖 Catalog（SkuQueryPort 桩）+ User，结算由前端编排 |
 
@@ -41,10 +41,11 @@ Order 通过 `RestOccupyInventoryAdapter`、`RestReleaseInventoryAdapter` 调用
 ### 已完成：Order 与 Fulfillment 集成
 
 Order 通过 `RestCreateFulfillmentAdapter`、`RestCancelFulfillmentAdapter` 调用 Fulfillment 的 `POST /api/fulfillment/create`、`POST /api/fulfillment/cancel`。验收测试用 Stub，配置 `fulfillment.base-url` 后启用真实适配器。变更要点：
-- `CreateFulfillmentPort` 签名变更：新增 items + shippingAddress 参数，返回 `List<Long>` fulfillmentOrderIds
-- 新增 `CancelFulfillmentPort`：Order 取消 FULFILLING 状态订单时同步调用
-- 移除 `onFulfillmentOrderCreated` 消费：改为 `onPaymentCompleted` 同步创建后直接置 FULFILLING
-- 取消规则收紧：SHIPPED / DELIVERED 状态不可取消（新增 2 个场景）
+- `CreateFulfillmentPort` 签名：`createFulfillment(orderId, items, shippingAddress) → List<Long>`；Order 创建履约单后**保持 PAID**（不置 FULFILLING）
+- Fulfillment 新增 **ALLOCATING** 状态与「开始配货」`POST /api/fulfillment/{id}/allocate`；发布 **FulfillmentOrderAllocated** 事件（Topic `fulfillment.order.allocated`）
+- Order 消费 **FulfillmentOrderAllocated** 后置 FULFILLING（订单页「正在配货」仅在真正开始配货时显示）
+- 新增 `CancelFulfillmentPort`：Order 取消时若 status 为 **PAID 或 FULFILLING** 则同步调用（原仅 FULFILLING）
+- 取消规则：SHIPPED / DELIVERED 状态不可取消
 
 ### 已完成：Order 与 Payment 集成
 
@@ -52,7 +53,7 @@ Order 通过 `RestCreatePaymentAdapter`、`RestRefundPaymentAdapter` 调用 Paym
 
 ### 已完成：Kafka 事件联通
 
-各 BC 的 Kafka 事件发布/消费已实现。默认不发 Kafka（排除 KafkaAutoConfiguration），加 `--spring.profiles.active=kafka` 启用。已联通链路：Payment → Order（PaymentCompleted/Failed/Expired）、Fulfillment → Order（Shipped/Delivered）、Order/Payment/Inventory → Activity。
+各 BC 的 Kafka 事件发布/消费已实现。测试中排除 KafkaAutoConfiguration（使用桩替身），生产环境有 Kafka 时自动启用 `@Primary` 的 Kafka 实现。已联通链路：Payment → Order（PaymentCompleted/Failed/Expired）、Fulfillment → Order（OrderAllocated/Shipped/Delivered）、Order/Payment/Inventory/Fulfillment → Activity。
 
 ### 下一步
 
@@ -107,6 +108,7 @@ Order 通过 `RestCreatePaymentAdapter`、`RestRefundPaymentAdapter` 调用 Paym
 
 | 日期 | 变更内容 |
 |------|---------|
+| 2026-02-21 | Fulfillment Kafka 事件发布实现：新增 KafkaDomainEventPublisher（@Primary 覆盖 LoggingDomainEventPublisher），发布 Created/Allocated/Shipped/Delivered 到 Kafka；Activity 订阅 Fulfillment 全部 4 个 topic；端到端链路打通（Fulfillment → Kafka → Order + Activity） |
 | 2026-02-21 | Smart Interaction BC 拆分：AI Chat 模块从 BFF 拆分为独立限界上下文 smart-interaction-service（端口 8089）；代码、测试、配置完整迁移；BFF 清理（移除 ai 包、webflux/Cucumber/WireMock 依赖）；脚本支持 `--bc smart-interaction` |
 | 2026-02-21 | BFF AI Chat 模块完成：LLM + MCP Tool Calling 对话式操作；后端（AiChatService/LlmClient/McpToolBridge）+ frontend-admin 全局 Drawer；验收测试 4 场景（WireMock stub LLM/MCP）全绿 |
 | 2026-02-20 | Order + Fulfillment 集成完成：CreateFulfillmentPort 签名变更（新增 items/addr，返回 fulfillmentOrderIds）、新增 CancelFulfillmentPort、移除 onFulfillmentOrderCreated 消费、取消规则收紧（SHIPPED/DELIVERED 不可取消）；Order 25 scenario 全绿 |

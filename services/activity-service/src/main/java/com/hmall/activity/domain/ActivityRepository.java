@@ -16,6 +16,8 @@ public interface ActivityRepository {
 
     Map<String, Long> countByEventTypeInRange(Instant from, Instant to);
 
+    List<String> findPayloadsByEventTypeInRange(String eventType, Instant from, Instant to);
+
     void deleteByOrderId(Long orderId);
 
     void deleteAll();

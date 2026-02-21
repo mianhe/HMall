@@ -13,6 +13,7 @@ public record BffProperties(
     Payment payment,
     Activity activity,
     Cart cart,
+    Fulfillment fulfillment,
     Proxy proxy
 ) {
     public record Catalog(String baseUrl) {}
@@ -22,6 +23,7 @@ public record BffProperties(
     public record Payment(String baseUrl) {}
     public record Activity(String baseUrl) {}
     public record Cart(String baseUrl) {}
+    public record Fulfillment(String baseUrl) {}
 
     public record Proxy(
         List<String> allowedOrigins,

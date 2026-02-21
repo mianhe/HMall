@@ -36,10 +36,18 @@ public class FulfillmentCommonStepDefinitions {
         createFulfillmentOrder(orderId);
     }
 
+    @假如("已存在 ALLOCATING 状态的履约单 orderId {long}")
+    public void 已存在ALLOCATING状态的履约单(long orderId) {
+        createFulfillmentOrder(orderId);
+        Long foId = context.getLastFulfillmentOrderId();
+        allocateFulfillmentOrder(foId);
+    }
+
     @假如("已存在 SHIPPED 状态的履约单 orderId {long}")
     public void 已存在SHIPPED状态的履约单(long orderId) {
         createFulfillmentOrder(orderId);
         Long foId = context.getLastFulfillmentOrderId();
+        allocateFulfillmentOrder(foId);
         shipFulfillmentOrder(foId);
     }
 
@@ -56,6 +64,11 @@ public class FulfillmentCommonStepDefinitions {
     @并且("该履约单状态应为 CANCELLED")
     public void 该履约单状态应为CANCELLED() {
         assertFulfillmentOrderStatus("CANCELLED");
+    }
+
+    @并且("该履约单状态应为 ALLOCATING")
+    public void 该履约单状态应为ALLOCATING() {
+        assertFulfillmentOrderStatus("ALLOCATING");
     }
 
     private void createFulfillmentOrder(long orderId) {
@@ -78,6 +91,15 @@ public class FulfillmentCommonStepDefinitions {
         @SuppressWarnings("unchecked")
         List<Number> ids = (List<Number>) res.getBody().get("fulfillmentOrderIds");
         context.setLastFulfillmentOrderId(ids.get(0).longValue());
+    }
+
+    private void allocateFulfillmentOrder(Long fulfillmentOrderId) {
+        restTemplate.exchange(
+            "/api/fulfillment/" + fulfillmentOrderId + "/allocate",
+            HttpMethod.POST,
+            null,
+            new ParameterizedTypeReference<Map<String, Object>>() {}
+        );
     }
 
     private void shipFulfillmentOrder(Long fulfillmentOrderId) {

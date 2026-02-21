@@ -67,6 +67,13 @@ public class OrderEventsStepDefinitions {
         orderEventService.onPaymentExpired(orderId);
     }
 
+    @When("发布 FulfillmentOrderAllocated 事件 针对该订单")
+    public void 发布FulfillmentOrderAllocated事件针对该订单() {
+        Long orderId = lastOrderContext.getLastOrderId();
+        assertThat(orderId).isNotNull();
+        orderEventService.onFulfillmentOrderAllocated(orderId);
+    }
+
     @When("发布 FulfillmentShipped 事件 针对该订单")
     public void 发布FulfillmentShipped事件针对该订单() {
         Long orderId = lastOrderContext.getLastOrderId();

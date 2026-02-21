@@ -16,6 +16,8 @@ bff:
     base-url: http://localhost:8086
   cart:
     base-url: http://localhost:8087
+  fulfillment:
+    base-url: http://localhost:8088
   proxy:
     allowed-origins:
       - http://127.0.0.1:5173

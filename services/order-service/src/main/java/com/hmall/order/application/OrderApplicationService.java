@@ -129,7 +129,7 @@ public class OrderApplicationService {
         if (order.getStatus() != OrderStatus.PENDING_PAYMENT) {
             refundPaymentPort.refund(orderId);
         }
-        if (order.getStatus() == OrderStatus.FULFILLING) {
+        if (order.getStatus() == OrderStatus.PAID || order.getStatus() == OrderStatus.FULFILLING) {
             cancelFulfillmentPort.cancelFulfillment(orderId);
         }
 

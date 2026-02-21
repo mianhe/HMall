@@ -6,7 +6,7 @@
 
 ## 一、职责说明
 
-Fulfillment 负责订单的履约执行：接收 Order 的创建请求后，按业务规则拆单（MVP 阶段 1:1），管理每个履约单从 CREATED → SHIPPED → DELIVERED 的生命周期，通过 Kafka 事件通知 Order 推进状态。
+Fulfillment 负责订单的履约执行：接收 Order 的创建请求后，按业务规则拆单（MVP 阶段 1:1），管理每个履约单从 CREATED → ALLOCATING → SHIPPED → DELIVERED 的生命周期，通过 Kafka 事件通知 Order 推进状态。
 
 ---
 
@@ -31,6 +31,7 @@ class FulfillmentOrder <<聚合根>> {
   --
   不变式: orderId 必填, items 非空, shippingAddress 必填
   --
+  + allocate(): void
   + ship(carrier, trackingNumber): void
   + confirmDelivery(): void
   + cancel(): void
@@ -62,6 +63,7 @@ class ShippingInfo <<值对象>> {
 
 enum FulfillmentOrderStatus {
   CREATED
+  ALLOCATING
   SHIPPED
   DELIVERED
   CANCELLED
@@ -70,6 +72,12 @@ enum FulfillmentOrderStatus {
 class FulfillmentOrderCreated <<领域事件>> {
   orderId: Long
   fulfillmentOrderIds: List<Long>
+  occurredAt: Instant
+}
+
+class FulfillmentOrderAllocated <<领域事件>> {
+  orderId: Long
+  fulfillmentOrderId: Long
   occurredAt: Instant
 }
 
@@ -90,6 +98,7 @@ FulfillmentOrder "1" *-- "1" ShippingAddress
 FulfillmentOrder "1" *-- "0..1" ShippingInfo
 FulfillmentOrder ..> FulfillmentOrderStatus : status
 FulfillmentOrder ..> FulfillmentOrderCreated : 创建成功时发布
+FulfillmentOrder ..> FulfillmentOrderAllocated : allocate 成功时发布
 FulfillmentOrder ..> FulfillmentShipped : ship 成功时发布
 FulfillmentOrder ..> FulfillmentDelivered : confirmDelivery 成功时发布
 
@@ -118,14 +127,15 @@ end note
 | createdAt | Instant | 创建时间 |
 | updatedAt | Instant | 更新时间 |
 
-**FulfillmentOrderStatus**：CREATED | SHIPPED | DELIVERED | CANCELLED
+**FulfillmentOrderStatus**：CREATED | ALLOCATING | SHIPPED | DELIVERED | CANCELLED
 
 **不变式**：orderId 必填；items 非空且每项 quantity > 0；shippingAddress 必填。
 
 **领域行为**：
-- `ship(carrier, trackingNumber)`：仅 CREATED → SHIPPED，填充 shippingInfo
+- `allocate()`：仅 CREATED → ALLOCATING（开始配货）
+- `ship(carrier, trackingNumber)`：仅 ALLOCATING → SHIPPED，填充 shippingInfo
 - `confirmDelivery()`：仅 SHIPPED → DELIVERED，记录 deliveredAt
-- `cancel()`：仅 CREATED → CANCELLED（已发货不可取消）
+- `cancel()`：仅 CREATED 或 ALLOCATING → CANCELLED（已发货不可取消）
 
 ### FulfillmentItem — 实体
 
@@ -170,17 +180,20 @@ end note
 ```mermaid
 stateDiagram-v2
     [*] --> CREATED: 创建履约单
-    CREATED --> SHIPPED: ship（发货）
+    CREATED --> ALLOCATING: allocate（开始配货）
     CREATED --> CANCELLED: cancel（取消）
+    ALLOCATING --> SHIPPED: ship（发货）
+    ALLOCATING --> CANCELLED: cancel（取消）
     SHIPPED --> DELIVERED: confirmDelivery（签收）
 ```
 
 | 转换 | 前置条件 | 动作 |
 |------|----------|------|
 | → CREATED | Order 同步调用创建 | 保存履约单，发布 FulfillmentOrderCreated |
-| CREATED → SHIPPED | 提供 carrier + trackingNumber | 填充 shippingInfo，发布 FulfillmentShipped |
+| CREATED → ALLOCATING | 管理端/内部调用开始配货 | 发布 FulfillmentOrderAllocated |
+| ALLOCATING → SHIPPED | 提供 carrier + trackingNumber | 填充 shippingInfo，发布 FulfillmentShipped |
 | SHIPPED → DELIVERED | 物流签收确认 | 记录 deliveredAt，发布 FulfillmentDelivered |
-| CREATED → CANCELLED | Order 补偿调用 | 标记取消，不发布事件 |
+| CREATED / ALLOCATING → CANCELLED | Order 补偿调用 | 标记取消，不发布事件 |
 
 ---
 
@@ -189,6 +202,7 @@ stateDiagram-v2
 | 事件 | 时机 | 载荷 |
 |------|------|------|
 | FulfillmentOrderCreated（履约单已创建） | 创建履约单成功 | orderId, fulfillmentOrderIds, occurredAt |
+| FulfillmentOrderAllocated（已开始配货） | allocate 成功 | orderId, fulfillmentOrderId, occurredAt |
 | FulfillmentShipped（已发货） | ship 成功 | orderId, fulfillmentOrderId, occurredAt |
 | FulfillmentDelivered（已签收） | confirmDelivery 成功 | orderId, fulfillmentOrderId, occurredAt |
 

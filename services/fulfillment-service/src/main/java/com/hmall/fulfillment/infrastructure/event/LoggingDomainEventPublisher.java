@@ -2,6 +2,7 @@ package com.hmall.fulfillment.infrastructure.event;
 
 import com.hmall.fulfillment.domain.DomainEventPublisher;
 import com.hmall.fulfillment.domain.FulfillmentDelivered;
+import com.hmall.fulfillment.domain.FulfillmentOrderAllocated;
 import com.hmall.fulfillment.domain.FulfillmentOrderCreated;
 import com.hmall.fulfillment.domain.FulfillmentShipped;
 import org.slf4j.Logger;
@@ -20,6 +21,12 @@ public class LoggingDomainEventPublisher implements DomainEventPublisher {
     public void publish(FulfillmentOrderCreated event) {
         log.info("领域事件 FulfillmentOrderCreated: orderId={}, fulfillmentOrderIds={}",
                 event.orderId(), event.fulfillmentOrderIds());
+    }
+
+    @Override
+    public void publish(FulfillmentOrderAllocated event) {
+        log.info("领域事件 FulfillmentOrderAllocated: orderId={}, fulfillmentOrderId={}",
+                event.orderId(), event.fulfillmentOrderId());
     }
 
     @Override

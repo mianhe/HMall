@@ -8,8 +8,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import java.util.Map;
 
 /**
- * 从 Kafka 消费 Fulfillment 领域事件（Shipped / Delivered）。
- * FulfillmentOrderCreated 不再由 Order 消费——改为同步调用返回值推进状态。
+ * 从 Kafka 消费 Fulfillment 领域事件（OrderAllocated / Shipped / Delivered）。
  * 由 OrderKafkaAutoConfiguration 条件注册，测试中排除 KafkaAutoConfiguration 时不创建。
  */
 public class KafkaFulfillmentEventConsumer {
@@ -20,6 +19,14 @@ public class KafkaFulfillmentEventConsumer {
 
     public KafkaFulfillmentEventConsumer(OrderEventService orderEventService) {
         this.orderEventService = orderEventService;
+    }
+
+    @KafkaListener(topics = "${order.kafka.topic.fulfillment-order-allocated:fulfillment.order.allocated}",
+                   groupId = "${spring.kafka.consumer.group-id:order-service}")
+    public void onFulfillmentOrderAllocated(Map<String, Object> message) {
+        Long orderId = toLong(message.get("orderId"));
+        log.info("收到 FulfillmentOrderAllocated: orderId={}", orderId);
+        orderEventService.onFulfillmentOrderAllocated(orderId);
     }
 
     @KafkaListener(topics = "${order.kafka.topic.fulfillment-shipped:fulfillment.shipped}",

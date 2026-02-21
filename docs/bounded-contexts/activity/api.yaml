@@ -141,6 +141,10 @@ components:
         paymentExpired:
           type: integer
           description: 支付过期数（PaymentExpired）
+        paymentTotalCents:
+          type: integer
+          format: int64
+          description: 成功支付总金额（分）
         # 库存活动（Inventory 事件，可选）
         stockReserved:
           type: integer
@@ -148,6 +152,19 @@ components:
         stockReleased:
           type: integer
           description: 库存释放次数（StockReleased）
+        # 履约概览（Fulfillment 事件）
+        fulfillmentCreated:
+          type: integer
+          description: 履约单创建数（FulfillmentOrderCreated）
+        fulfillmentAllocated:
+          type: integer
+          description: 开始配货数（FulfillmentOrderAllocated）
+        fulfillmentShipped:
+          type: integer
+          description: 已发货数（FulfillmentShipped）
+        fulfillmentDelivered:
+          type: integer
+          description: 已签收数（FulfillmentDelivered）
         # 元数据
         from:
           type: string

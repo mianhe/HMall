@@ -29,9 +29,9 @@
 
 - ✅ 2.1 待支付（已占用库存）状态下取消应成功并发布 OrderCancelled，同步释放库存
 - ✅ 2.2 已支付时取消应触发退款、释放库存等补偿
-- 🔄 2.2a 已履约（FULFILLING）状态取消应同步取消履约单 + 退款 + 释放库存（**需改**：新增 CancelFulfillmentPort 调用）
-- 🔲 2.2b 已发货（SHIPPED）状态下取消应失败并返回错误（**新增**：当前实现允许取消，需收紧）
-- 🔲 2.2c 已签收（DELIVERED）状态下取消应失败并返回错误（**新增**：当前实现允许取消，需收紧）
+- ✅ 2.2a 已履约（FULFILLING）或已支付（PAID）状态取消应同步取消履约单（若已创建）+ 退款 + 释放库存
+- ✅ 2.2b 已发货（SHIPPED）状态下取消应失败并返回错误
+- ✅ 2.2c 已签收（DELIVERED）状态下取消应失败并返回错误
 - ✅ 2.3 已取消或已完成状态下取消订单应失败并返回错误
 - ✅ 2.4 订单不存在时取消应返回 404
 
@@ -48,11 +48,11 @@
 
 ## 4. 事件驱动（Order 订阅）与同步调用 Fulfillment
 
-- 🔄 4.1 收到 PaymentCompleted 后应将 status 置为 PAID，**同步调用 Fulfillment 创建履约单**，返回 fulfillmentOrderIds 后当场更新 fulfillmentRef 并置 FULFILLING（**需改**：原为置 PAID 后调用 NoOp 桩，不推进状态；现改为同步调用 + 当场推进到 FULFILLING）
+- ✅ 4.1 收到 PaymentCompleted 后应将 status 置为 PAID，**同步调用 Fulfillment 创建履约单**，返回后**保持 PAID**（不置 FULFILLING）
 - ✅ 4.2a 收到 PaymentFailed 后订单保持 PENDING_PAYMENT（用户可重试支付），不释放库存
 - ✅ 4.2b 收到 PaymentExpired 后应取消订单（含释放库存、取消履约单（若已创建））
-- ~~✅ 4.3 收到 FulfillmentOrderCreated 后应更新 fulfillmentRef 并将 status 置为 FULFILLING~~（**删除**：改为同步调用返回后当场推进，不再消费此事件）
-- ✅ 4.4 收到 FulfillmentShipped 后应更新 fulfillmentStatus 为 SHIPPED
+- ✅ 4.3 收到 FulfillmentOrderAllocated 后应将 status 置为 FULFILLING（履约已开始配货，订单页可显示「正在配货」）
+- ✅ 4.4 收到 FulfillmentShipped 后应更新 status 为 SHIPPED
 - ✅ 4.5 收到 FulfillmentDelivered 后应将 status 置为 DELIVERED 并发布 OrderCompleted
 
 ---
@@ -61,29 +61,16 @@
 
 | 功能 | .feature 文件 | 状态 | Scenario 数 | 备注 |
 |------|----------------|------|-------------|------|
-| 1. 创建订单 | order-create.feature | ✅ 已完成 | 8 | 无变更 |
-| 2. 取消订单 | order-cancel.feature | 🔄 需调整 | 6 → ~8 | 新增 SHIPPED/DELIVERED 不可取消；FULFILLING 取消需调用 CancelFulfillmentPort |
-| 3. 查询订单 | order-query.feature | ✅ 已完成 | 3 | 无变更 |
-| 4. 事件驱动 | order-events.feature | 🔄 需调整 | 5 → ~4 | 4.1 改为同步调用+当场推进；删除 4.3（不再消费 FulfillmentOrderCreated） |
+| 1. 创建订单 | order-create.feature | ✅ 已完成 | 8 | — |
+| 2. 取消订单 | order-cancel.feature | ✅ 已完成 | 8 | PAID/FULFILLING 取消调用 CancelFulfillmentPort；SHIPPED/DELIVERED 不可取消 |
+| 3. 查询订单 | order-query.feature | ✅ 已完成 | 3 | — |
+| 4. 事件驱动 | order-events.feature | ✅ 已完成 | 6 | 4.1 保持 PAID；4.3 消费 FulfillmentOrderAllocated 置 FULFILLING |
 
 ---
 
-## Fulfillment 集成带来的 Order 变更汇总
+## Fulfillment 集成带来的 Order 变更汇总（已完成）
 
-> 以下变更在 Fulfillment BC 实现后、集成阶段执行。详见 [fulfillment/requirements.md](../fulfillment/requirements.md) 的「Order BC 变更清单」。
+> 以下变更已实现。详见 [fulfillment/requirements.md](../fulfillment/requirements.md) 的「Order BC 变更清单」。
 
-### order-cancel.feature 变更
-
-| 变更 | 现状 | 目标 |
-|------|------|------|
-| 取消规则收紧 | 仅 CANCELLED / COMPLETED 不可取消 | SHIPPED / DELIVERED / COMPLETED / CANCELLED 不可取消 |
-| FULFILLING 取消补偿 | 仅释放库存 + 退款 | 新增同步调用 CancelFulfillmentPort 取消履约单 |
-| 新增 scenario | — | 2.2b SHIPPED 不可取消、2.2c DELIVERED 不可取消 |
-
-### order-events.feature 变更
-
-| 变更 | 现状 | 目标 |
-|------|------|------|
-| 4.1 PaymentCompleted 处理 | 置 PAID + 调用 NoOp 桩 | 置 PAID + **同步调用 Fulfillment 创建履约单** + 返回后当场更新 fulfillmentRef、置 FULFILLING |
-| 4.3 FulfillmentOrderCreated | Order 消费 Kafka 事件 → 置 FULFILLING | **删除**：不再消费此事件，改为同步调用返回后推进 |
-| CreateFulfillmentPort 签名 | `createFulfillment(orderId)` | `createFulfillment(orderId, items, shippingAddress) → List<Long>` |
+- **order-cancel**：取消仅允许 PENDING_PAYMENT / PAID / FULFILLING；PAID 或 FULFILLING 取消时同步调用 CancelFulfillmentPort；SHIPPED / DELIVERED 取消失败（2.2b、2.2c）。
+- **order-events**：4.1 PaymentCompleted 后置 PAID 并同步创建履约单，保持 PAID；4.3 消费 FulfillmentOrderAllocated 后置 FULFILLING。

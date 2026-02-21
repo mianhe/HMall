@@ -12,8 +12,13 @@ public record StatsDto(
     int paymentSuccess,
     int paymentFailed,
     int paymentExpired,
+    long paymentTotalCents,
     int stockReserved,
     int stockReleased,
+    int fulfillmentCreated,
+    int fulfillmentAllocated,
+    int fulfillmentShipped,
+    int fulfillmentDelivered,
     String from,
     String to
 ) {
@@ -21,7 +26,9 @@ public record StatsDto(
         return new StatsDto(
             s.ordersCreated(), s.ordersCancelled(), s.ordersCompleted(),
             s.paymentAttempts(), s.paymentSuccess(), s.paymentFailed(), s.paymentExpired(),
+            s.paymentTotalCents(),
             s.stockReserved(), s.stockReleased(),
+            s.fulfillmentCreated(), s.fulfillmentAllocated(), s.fulfillmentShipped(), s.fulfillmentDelivered(),
             fromDate.toString(), toDate.toString()
         );
     }

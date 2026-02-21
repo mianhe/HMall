@@ -17,8 +17,12 @@
       | a0000001-0000-0000-0000-000000000004 | PaymentCompleted | payment.completed         | 104     | 2025-02-19T10:03:00Z |
       | a0000001-0000-0000-0000-000000000005 | PaymentFailed    | payment.failed            | 105     | 2025-02-19T10:04:00Z |
       | a0000001-0000-0000-0000-000000000006 | PaymentExpired   | payment.expired           | 106     | 2025-02-19T10:05:00Z |
-      | a0000001-0000-0000-0000-000000000007 | StockReserved    | inventory.stock.reserved  | 107     | 2025-02-19T10:06:00Z |
-      | a0000001-0000-0000-0000-000000000008 | StockReleased    | inventory.stock.released  | 108     | 2025-02-19T10:07:00Z |
+      | a0000001-0000-0000-0000-000000000007 | StockReserved              | inventory.stock.reserved    | 107     | 2025-02-19T10:06:00Z |
+      | a0000001-0000-0000-0000-000000000008 | StockReleased              | inventory.stock.released    | 108     | 2025-02-19T10:07:00Z |
+      | a0000001-0000-0000-0000-000000000009 | FulfillmentOrderCreated    | fulfillment.order.created   | 109     | 2025-02-19T10:08:00Z |
+      | a0000001-0000-0000-0000-000000000010 | FulfillmentOrderAllocated  | fulfillment.order.allocated | 110     | 2025-02-19T10:09:00Z |
+      | a0000001-0000-0000-0000-000000000011 | FulfillmentShipped         | fulfillment.shipped         | 111     | 2025-02-19T10:10:00Z |
+      | a0000001-0000-0000-0000-000000000012 | FulfillmentDelivered       | fulfillment.delivered       | 112     | 2025-02-19T10:11:00Z |
 
   场景: 重复事件不应重复记录
     假如 已存在活动记录 eventId "dup-event-001" eventType "OrderCreated" topic "order.created" orderId 201 occurredAt "2025-02-19T12:00:00Z"

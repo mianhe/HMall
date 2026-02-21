@@ -39,6 +39,11 @@ public class FulfillmentOrderRepositoryImpl implements FulfillmentOrderRepositor
         return jpaRepository.findByOrderId(orderId).stream().map(this::toDomain).toList();
     }
 
+    @Override
+    public List<FulfillmentOrder> findAll() {
+        return jpaRepository.findAll().stream().map(this::toDomain).toList();
+    }
+
     private FulfillmentOrderEntity toEntity(FulfillmentOrder domain) {
         FulfillmentOrderEntity e = new FulfillmentOrderEntity();
         if (domain.getFulfillmentOrderId() != null) {

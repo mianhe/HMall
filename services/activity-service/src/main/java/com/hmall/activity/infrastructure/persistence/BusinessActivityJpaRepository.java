@@ -19,6 +19,12 @@ public interface BusinessActivityJpaRepository extends JpaRepository<BusinessAct
            "WHERE e.occurredAt >= :from AND e.occurredAt < :to GROUP BY e.eventType")
     List<Object[]> countGroupByEventType(@Param("from") Instant from, @Param("to") Instant to);
 
+    @Query("SELECT e.payload FROM BusinessActivityEntity e " +
+           "WHERE e.eventType = :eventType AND e.occurredAt >= :from AND e.occurredAt < :to")
+    List<String> findPayloadsByEventTypeInRange(@Param("eventType") String eventType,
+                                                @Param("from") Instant from,
+                                                @Param("to") Instant to);
+
     @Modifying
     @Query("DELETE FROM BusinessActivityEntity e WHERE e.orderId = :orderId")
     void deleteByOrderId(@Param("orderId") Long orderId);

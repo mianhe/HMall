@@ -6,6 +6,7 @@
         <router-link to="/" class="hover:underline opacity-95">首页</router-link>
         <router-link to="/catalog" class="hover:underline opacity-95">Catalog</router-link>
         <router-link to="/inventory" class="hover:underline opacity-95">库存</router-link>
+        <router-link to="/fulfillment" class="hover:underline opacity-95">履约</router-link>
         <router-link to="/activity" class="hover:underline opacity-95">监控</router-link>
         <router-link to="/settings" class="hover:underline opacity-95">设置</router-link>
       </nav>

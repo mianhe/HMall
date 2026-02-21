@@ -47,6 +47,9 @@ public class BffRoutingService {
         if (path.startsWith("/api/cart")) {
             return new Downstream("cart", props.cart().baseUrl());
         }
+        if (path.startsWith("/api/fulfillment")) {
+            return new Downstream("fulfillment", props.fulfillment().baseUrl());
+        }
         return null;
     }
 

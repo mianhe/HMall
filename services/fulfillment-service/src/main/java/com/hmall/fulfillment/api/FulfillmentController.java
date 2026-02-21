@@ -6,6 +6,7 @@ import com.hmall.fulfillment.api.dto.CreateFulfillmentRequestDto;
 import com.hmall.fulfillment.api.dto.CreateFulfillmentResponseDto;
 import com.hmall.fulfillment.api.dto.FulfillmentOrderDto;
 import com.hmall.fulfillment.api.dto.ShipRequestDto;
+import com.hmall.fulfillment.application.FulfillmentAllocateApplicationService;
 import com.hmall.fulfillment.application.FulfillmentCancelApplicationService;
 import com.hmall.fulfillment.application.FulfillmentCancelApplicationService.CancelResult;
 import com.hmall.fulfillment.application.FulfillmentCreateApplicationService;
@@ -33,17 +34,20 @@ import java.util.List;
 public class FulfillmentController {
 
     private final FulfillmentCreateApplicationService createService;
+    private final FulfillmentAllocateApplicationService allocateService;
     private final FulfillmentShipApplicationService shipService;
     private final FulfillmentDeliverApplicationService deliverService;
     private final FulfillmentCancelApplicationService cancelService;
     private final FulfillmentQueryApplicationService queryService;
 
     public FulfillmentController(FulfillmentCreateApplicationService createService,
-                                 FulfillmentShipApplicationService shipService,
-                                 FulfillmentDeliverApplicationService deliverService,
-                                 FulfillmentCancelApplicationService cancelService,
-                                 FulfillmentQueryApplicationService queryService) {
+                                FulfillmentAllocateApplicationService allocateService,
+                                FulfillmentShipApplicationService shipService,
+                                FulfillmentDeliverApplicationService deliverService,
+                                FulfillmentCancelApplicationService cancelService,
+                                FulfillmentQueryApplicationService queryService) {
         this.createService = createService;
+        this.allocateService = allocateService;
         this.shipService = shipService;
         this.deliverService = deliverService;
         this.cancelService = cancelService;
@@ -68,6 +72,12 @@ public class FulfillmentController {
         );
         CreateFulfillmentResult result = createService.create(dto.orderId(), items, address);
         return ResponseEntity.ok(new CreateFulfillmentResponseDto(result.orderId(), result.fulfillmentOrderIds()));
+    }
+
+    @PostMapping("/{fulfillmentOrderId}/allocate")
+    public ResponseEntity<Void> allocate(@PathVariable Long fulfillmentOrderId) {
+        allocateService.allocate(fulfillmentOrderId);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{fulfillmentOrderId}/ship")
@@ -97,8 +107,10 @@ public class FulfillmentController {
     }
 
     @GetMapping
-    public ResponseEntity<List<FulfillmentOrderDto>> listByOrderId(@RequestParam Long orderId) {
-        List<FulfillmentOrderDto> result = queryService.listByOrderId(orderId).stream()
+    public ResponseEntity<List<FulfillmentOrderDto>> list(
+            @RequestParam(required = false) Long orderId,
+            @RequestParam(required = false) String status) {
+        List<FulfillmentOrderDto> result = queryService.list(orderId, status).stream()
             .map(FulfillmentOrderDto::from)
             .toList();
         return ResponseEntity.ok(result);

@@ -1,8 +1,12 @@
 package com.hmall.activity.application;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hmall.activity.domain.ActivityRepository;
 import com.hmall.activity.domain.ActivityStats;
 import com.hmall.activity.domain.BusinessActivity;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,10 +19,14 @@ import java.util.Map;
 @Service
 public class ActivityApplicationService {
 
-    private final ActivityRepository repository;
+    private static final Logger log = LoggerFactory.getLogger(ActivityApplicationService.class);
 
-    public ActivityApplicationService(ActivityRepository repository) {
+    private final ActivityRepository repository;
+    private final ObjectMapper objectMapper;
+
+    public ActivityApplicationService(ActivityRepository repository, ObjectMapper objectMapper) {
         this.repository = repository;
+        this.objectMapper = objectMapper;
     }
 
     public List<BusinessActivity> listByOrderId(Long orderId, int limit) {
@@ -40,14 +48,37 @@ public class ActivityApplicationService {
         long pf = counts.getOrDefault("PaymentFailed", 0L);
         long pe = counts.getOrDefault("PaymentExpired", 0L);
 
+        long paymentTotalCents = sumAmountCentsFromPayloads(
+            repository.findPayloadsByEventTypeInRange("PaymentCompleted", from, to));
+
         return new ActivityStats(
             counts.getOrDefault("OrderCreated", 0L).intValue(),
             counts.getOrDefault("OrderCancelled", 0L).intValue(),
             counts.getOrDefault("OrderCompleted", 0L).intValue(),
             (int) ps, (int) pf, (int) pe,
+            paymentTotalCents,
             counts.getOrDefault("StockReserved", 0L).intValue(),
-            counts.getOrDefault("StockReleased", 0L).intValue()
+            counts.getOrDefault("StockReleased", 0L).intValue(),
+            counts.getOrDefault("FulfillmentOrderCreated", 0L).intValue(),
+            counts.getOrDefault("FulfillmentOrderAllocated", 0L).intValue(),
+            counts.getOrDefault("FulfillmentShipped", 0L).intValue(),
+            counts.getOrDefault("FulfillmentDelivered", 0L).intValue()
         );
+    }
+
+    private long sumAmountCentsFromPayloads(List<String> payloads) {
+        long total = 0;
+        for (String payload : payloads) {
+            try {
+                JsonNode node = objectMapper.readTree(payload);
+                if (node.has("amountCents")) {
+                    total += node.get("amountCents").asLong();
+                }
+            } catch (Exception e) {
+                log.warn("解析 PaymentCompleted payload 失败", e);
+            }
+        }
+        return total;
     }
 
     @Transactional
