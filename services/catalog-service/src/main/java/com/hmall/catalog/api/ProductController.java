@@ -2,9 +2,14 @@ package com.hmall.catalog.api;
 
 import com.hmall.catalog.api.dto.ProductCreateDto;
 import com.hmall.catalog.api.dto.ProductDto;
+import com.hmall.catalog.api.dto.ProductImageDto;
 import com.hmall.catalog.api.dto.ProductUpdateDto;
+import com.hmall.catalog.application.SpecDimensionApplicationService;
 import com.hmall.catalog.application.SpuApplicationService;
+import com.hmall.catalog.domain.ProductImage;
 import com.hmall.catalog.domain.Spu;
+import com.hmall.filestorage.FileStorageService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -24,9 +29,16 @@ import java.util.List;
 public class ProductController {
 
     private final SpuApplicationService applicationService;
+    private final SpecDimensionApplicationService specDimensionApplicationService;
+    private final FileStorageService fileStorageService;
 
-    public ProductController(SpuApplicationService applicationService) {
+    public ProductController(
+            SpuApplicationService applicationService,
+            SpecDimensionApplicationService specDimensionApplicationService,
+            @Autowired(required = false) FileStorageService fileStorageService) {
         this.applicationService = applicationService;
+        this.specDimensionApplicationService = specDimensionApplicationService;
+        this.fileStorageService = fileStorageService;
     }
 
     @PostMapping
@@ -67,6 +79,32 @@ public class ProductController {
     }
 
     private ProductDto toDto(Spu s) {
-        return new ProductDto(s.getId(), s.getCategoryId(), s.getName(), s.getDescription());
+        List<ProductImage> defaultImages = specDimensionApplicationService.getDefaultDisplayImages(s.getId());
+        String coverImageUrl = defaultImages.isEmpty() ? null : toImageDto(defaultImages.get(0)).imageUrl();
+        List<ProductImageDto> defaultDisplayImages = defaultImages.stream()
+            .map(this::toImageDto)
+            .toList();
+        return new ProductDto(
+            s.getId(),
+            s.getCategoryId(),
+            s.getName(),
+            s.getDescription(),
+            coverImageUrl,
+            defaultDisplayImages
+        );
+    }
+
+    private ProductImageDto toImageDto(ProductImage img) {
+        String imageUrl = img.getImageUrl();
+        if (fileStorageService != null) {
+            imageUrl = fileStorageService.toServeUrlIfMinio(imageUrl);
+        }
+        return new ProductImageDto(
+            img.getId(),
+            img.getSpuId(),
+            img.getSpecOptionId(),
+            imageUrl,
+            img.getSortOrder()
+        );
     }
 }

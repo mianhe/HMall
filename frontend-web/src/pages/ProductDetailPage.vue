@@ -139,7 +139,7 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getProduct, getProductImages, getDimensions, getSkus } from '../shared/api/catalog.js'
+import { getProduct, getDimensions, getSkus } from '../shared/api/catalog.js'
 import { addCartItem } from '../shared/api/cart.js'
 import { useAuth } from '../shared/auth.js'
 
@@ -147,7 +147,6 @@ const route = useRoute()
 const router = useRouter()
 const { isLoggedIn } = useAuth()
 const product = ref(null)
-const productImages = ref([])
 const dimensions = ref([])
 const skus = ref([])
 const loading = ref(true)
@@ -161,7 +160,7 @@ const currentImageIndex = ref(0)
 
 const id = computed(() => Number(route.params.id))
 
-/** 当前应展示的图廊：选中某规格且该选项有展示图时用选项图，否则用产品级图 */
+/** 当前应展示的图廊：选中某规格且该选项有图时用选项图，否则用接口返回的默认图廊 product.defaultDisplayImages */
 const displayImages = computed(() => {
   const dims = dimensions.value
   const selected = selectedOptionIds.value
@@ -173,7 +172,9 @@ const displayImages = computed(() => {
       return opt.images.map((img) => ({ id: img.id, imageUrl: img.imageUrl }))
     }
   }
-  return productImages.value
+  const defaultFromApi = product.value?.defaultDisplayImages
+  if (defaultFromApi?.length) return defaultFromApi.map((img) => ({ id: img.id, imageUrl: img.imageUrl }))
+  return []
 })
 
 const currentImage = computed(() => {
@@ -272,20 +273,17 @@ async function load() {
   loading.value = true
   error.value = ''
   product.value = null
-  productImages.value = []
   dimensions.value = []
   skus.value = []
   selectedOptionIds.value = {}
   currentImageIndex.value = 0
   try {
-    const [p, imgs, dims, skuList] = await Promise.all([
+    const [p, dims, skuList] = await Promise.all([
       getProduct(id.value),
-      getProductImages(id.value).catch(() => []),
       getDimensions(id.value).catch(() => []),
       getSkus(id.value).catch(() => []),
     ])
     product.value = p
-    productImages.value = imgs?.length ? imgs : []
     dimensions.value = dims?.length ? dims : []
     skus.value = skuList?.length ? skuList : []
   } catch (e) {

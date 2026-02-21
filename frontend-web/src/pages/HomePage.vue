@@ -76,8 +76,8 @@
               >
                 <div class="aspect-square bg-vmall-gray-bg flex items-center justify-center">
                   <img
-                    v-if="productImages[p.id]?.length"
-                    :src="productImages[p.id][0].imageUrl"
+                    v-if="p.coverImageUrl"
+                    :src="p.coverImageUrl"
                     :alt="p.name"
                     class="w-full h-full object-contain"
                   />
@@ -100,7 +100,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { useAuth } from '../shared/auth.js'
-import { getCategories, getProducts, getProductImages } from '../shared/api/catalog.js'
+import { getCategories, getProducts } from '../shared/api/catalog.js'
 
 const { isLoggedIn, username } = useAuth()
 
@@ -113,7 +113,6 @@ const subLoading = ref(false)
 const selectedSubId = ref(null)
 const products = ref([])
 const productsLoading = ref(false)
-const productImages = ref({})
 
 async function loadRootCategories() {
   navError.value = ''
@@ -129,7 +128,6 @@ function onRootEnter(cat) {
   subCategories.value = []
   selectedSubId.value = null
   products.value = []
-  productImages.value = {}
   subLoading.value = true
   getCategories(cat.id)
     .then((list) => {
@@ -155,18 +153,10 @@ function onNavLeave() {
 function selectSub(sub) {
   selectedSubId.value = sub.id
   products.value = []
-  productImages.value = {}
   productsLoading.value = true
   getProducts(sub.id)
     .then((list) => {
       products.value = list
-      list.forEach((p) => {
-        getProductImages(p.id).then((imgs) => {
-          if (imgs?.length) {
-            productImages.value = { ...productImages.value, [p.id]: imgs }
-          }
-        }).catch(() => {})
-      })
     })
     .catch(() => {
       products.value = []

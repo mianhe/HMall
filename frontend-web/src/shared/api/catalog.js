@@ -22,7 +22,7 @@ export async function getProduct(id) {
   return data
 }
 
-/** 产品级展示图（用于商品卡片主图、详情图廊） */
+/** 产品级展示图列表（管理后台用；消费者端列表/详情使用 product.coverImageUrl / product.defaultDisplayImages） */
 export async function getProductImages(spuId) {
   const { data } = await client.get(`/products/${spuId}/images`)
   return data
@@ -37,5 +37,13 @@ export async function getDimensions(spuId) {
 /** 某 SPU 下所有 SKU（价格、规格展示值） */
 export async function getSkus(spuId) {
   const { data } = await client.get(`/products/${spuId}/skus`)
+  return data
+}
+
+/** 某规格选项的展示图列表 */
+export async function getOptionImages(spuId, dimensionId, optionId) {
+  const { data } = await client.get(
+    `/products/${spuId}/dimensions/${dimensionId}/options/${optionId}/images`
+  )
   return data
 }

@@ -1,0 +1,14 @@
+hmall:
+  ai:
+    default-provider: qwen
+    providers:
+      qwen:
+        api-key: test-key
+        base-url: http://127.0.0.1:19999
+        model: qwen-plus
+      deepseek:
+        api-key: test-key
+        base-url: http://127.0.0.1:19999
+        model: deepseek-chat
+    mcp:
+      url: http://127.0.0.1:19999/mcp

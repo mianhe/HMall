@@ -1,6 +1,7 @@
 package com.hmall.order.acceptance.config;
 
 import com.hmall.order.acceptance.OrderEventCapture;
+import com.hmall.order.application.port.CancelFulfillmentPort;
 import com.hmall.order.application.port.CreateFulfillmentPort;
 import com.hmall.order.application.port.OccupyInventoryPort;
 import com.hmall.order.application.port.OrderOutboundEventPublisher;
@@ -25,6 +26,12 @@ public class StubPortConfig {
     @Primary
     public CreateFulfillmentPort createFulfillmentStub(EventInvocationRecorder recorder) {
         return recorder::recordCreateFulfillment;
+    }
+
+    @Bean
+    @Primary
+    public CancelFulfillmentPort cancelFulfillmentStub(EventInvocationRecorder recorder) {
+        return recorder::recordCancelFulfillment;
     }
 
     @Bean

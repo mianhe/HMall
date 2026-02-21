@@ -23,6 +23,8 @@
 - **payment-service** — Payment 微服务（端口 8084）
 - **activity-service** — Activity 微服务（端口 8086），消费 Kafka 事件，提供业务活动查询与统计
 - **cart-service** — Cart 微服务（端口 8087），购物车管理
+- **fulfillment-service** — Fulfillment 微服务（端口 8088），履约管理（创建/发货/签收/取消）
+- **smart-interaction-service** — Smart Interaction 微服务（端口 8089），LLM + MCP 智能交互
 - **bff-web** — BFF 微服务（端口 8085），frontend-admin、frontend-web 经此代理调用后端
 - **frontend-admin** — 管理后台（Vite，端口 5173）
 - **frontend-web** — 消费者端（Vite，端口 5174）
@@ -32,17 +34,17 @@
 
 ## 命令与参数详解
 
-### start [db] [catalog-service] [user-service] [order-service] [inventory-service] [payment-service] [activity-service] [cart-service] [bff-web] [frontend-admin] [frontend-web] [mcp]
+### start [db] [catalog-service] [user-service] [order-service] [inventory-service] [payment-service] [activity-service] [cart-service] [fulfillment-service] [smart-interaction-service] [bff-web] [frontend-admin] [frontend-web] [mcp]
 
-- 启动顺序：先 **db**（并等待 PostgreSQL、Kafka 就绪），再起 **catalog-service**、**user-service**、**order-service**、**inventory-service**、**payment-service**、**activity-service**、**cart-service**，然后 **bff-web**，最后 **frontend-admin**、**frontend-web**、**mcp**。若 order-service 启动超时，脚本会打印 `.hmall/logs/order-service.log` 末尾若干行，便于排查（常见原因：Kafka 未就绪或端口被占用）。
+- 启动顺序：先 **db**（并等待 PostgreSQL、Kafka 就绪），再起 **catalog-service**、**user-service**、**order-service**、**inventory-service**、**payment-service**、**activity-service**、**cart-service**、**fulfillment-service**，然后 **bff-web**，最后 **frontend-admin**、**frontend-web**、**mcp**。若 order-service 启动超时，脚本会打印 `.hmall/logs/order-service.log` 末尾若干行，便于排查（常见原因：Kafka 未就绪或端口被占用）。
 - 示例：
   - `./scripts/hmall.sh start` — 启动全部
   - `./scripts/hmall.sh start db catalog-service` — 只起数据库与后端
   - `./scripts/hmall.sh start mcp` — 只起 MCP Server
 
-### stop [db] [catalog-service] [user-service] [order-service] [inventory-service] [payment-service] [activity-service] [cart-service] [bff-web] [frontend-admin] [frontend-web] [mcp]
+### stop [db] [catalog-service] [user-service] [order-service] [inventory-service] [payment-service] [activity-service] [cart-service] [fulfillment-service] [smart-interaction-service] [bff-web] [frontend-admin] [frontend-web] [mcp]
 
-- 停止指定组件；不写组件时停止全部（顺序：mcp → frontend-web → frontend-admin → bff-web → cart-service → activity-service → payment-service → inventory-service → order-service → user-service → catalog-service → db）。
+- 停止指定组件；不写组件时停止全部（顺序：mcp → frontend-web → frontend-admin → bff-web → smart-interaction-service → fulfillment-service → cart-service → activity-service → payment-service → inventory-service → order-service → user-service → catalog-service → db）。
 - 示例：
   - `./scripts/hmall.sh stop` — 停止全部
   - `./scripts/hmall.sh stop catalog-service frontend-admin` — 只停后端与管理后台
@@ -50,9 +52,9 @@
 ### status
 
 - 输出各组件是否在运行及监听端口（或 URL）。
-- 不接组件参数，一次显示 db / catalog-service / user-service / order-service / inventory-service / payment-service / activity-service / cart-service / bff-web / frontend-admin / frontend-web / mcp。
+- 不接组件参数，一次显示 db / catalog-service / user-service / order-service / inventory-service / payment-service / activity-service / cart-service / fulfillment-service / smart-interaction-service / bff-web / frontend-admin / frontend-web / mcp。
 
-### restart [db] [catalog-service] [user-service] [order-service] [inventory-service] [payment-service] [activity-service] [cart-service] [bff-web] [frontend-admin] [frontend-web] [mcp]
+### restart [db] [catalog-service] [user-service] [order-service] [inventory-service] [payment-service] [activity-service] [cart-service] [fulfillment-service] [smart-interaction-service] [bff-web] [frontend-admin] [frontend-web] [mcp]
 
 - 先对指定组件执行 stop，再 start；不写组件时对全部重启。
 - 示例：
@@ -67,15 +69,15 @@
   - `./scripts/hmall.sh seed-inventory` — 为 1～20 设置库存
   - `./scripts/hmall.sh seed-inventory 1 2 3` — 仅为 skuId 1、2、3 设置
 
-### test [--cucumber-only] [--clean] [--bc catalog|user|order|inventory|payment|activity|cart|all]
+### test [--cucumber-only] [--clean] [--bc catalog|user|order|inventory|payment|activity|cart|fulfillment|smart-interaction|bff|all]
 
-- 执行全部微服务测试（catalog-service + user-service + order-service + inventory-service + payment-service + activity-service + cart-service）；执行前会检查数据库是否已启动。
+- 执行全部微服务测试（catalog-service + user-service + order-service + inventory-service + payment-service + activity-service + cart-service + fulfillment-service + smart-interaction-service + bff-web）；执行前会检查数据库是否已启动。
 - **测试与生产数据隔离**：验收测试使用 H2 内存库（`application-test.yml`），与 PostgreSQL 完全隔离，测试结束后不会清空生产/开发库。
 - 参数：
   - 无参数：`mvn test`（单元 + Cucumber 验收）
   - `--cucumber-only`：仅验收测试 `mvn test -Dtest=RunCucumberTest`
   - `--clean`：先清理再测 `mvn clean test`
-  - `--bc <catalog|user|order|inventory|payment|activity|cart|all>`：仅执行指定微服务/BC 的测试
+  - `--bc <catalog|user|order|inventory|payment|activity|cart|fulfillment|smart-interaction|bff|all>`：仅执行指定微服务/BC 的测试
   - 示例：
   - `./scripts/hmall.sh test` — 执行全部微服务测试（含 payment-service）
   - `./scripts/hmall.sh test --cucumber-only`
@@ -86,6 +88,9 @@
   - `./scripts/hmall.sh test --cucumber-only --bc payment` — 仅 payment-service（Payment）
   - `./scripts/hmall.sh test --cucumber-only --bc activity` — 仅 activity-service（Activity）
   - `./scripts/hmall.sh test --cucumber-only --bc cart` — 仅 cart-service（Cart）
+  - `./scripts/hmall.sh test --cucumber-only --bc fulfillment` — 仅 fulfillment-service（Fulfillment）
+  - `./scripts/hmall.sh test --cucumber-only --bc smart-interaction` — 仅 smart-interaction-service（Smart Interaction / AI Chat）
+  - `./scripts/hmall.sh test --cucumber-only --bc bff` — 仅 bff-web（BFF）
   - `./scripts/hmall.sh test --clean`
 
 ## 环境与约定

@@ -20,3 +20,18 @@ bff:
       - http://localhost:5174
     connect-timeout-ms: 5000
     read-timeout-ms: 25000
+
+hmall:
+  ai:
+    default-provider: qwen
+    providers:
+      qwen:
+        api-key: test-key
+        base-url: http://localhost:19999
+        model: qwen-plus
+      deepseek:
+        api-key: test-key
+        base-url: http://localhost:19999
+        model: deepseek-chat
+    mcp:
+      url: http://localhost:19999/mcp

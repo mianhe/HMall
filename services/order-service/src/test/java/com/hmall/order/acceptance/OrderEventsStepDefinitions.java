@@ -67,13 +67,6 @@ public class OrderEventsStepDefinitions {
         orderEventService.onPaymentExpired(orderId);
     }
 
-    @When("发布 FulfillmentOrderCreated 事件 针对该订单 履约单 ID {long} {long}")
-    public void 发布FulfillmentOrderCreated事件针对该订单(long id1, long id2) {
-        Long orderId = lastOrderContext.getLastOrderId();
-        assertThat(orderId).isNotNull();
-        orderEventService.onFulfillmentOrderCreated(orderId, List.of(id1, id2));
-    }
-
     @When("发布 FulfillmentShipped 事件 针对该订单")
     public void 发布FulfillmentShipped事件针对该订单() {
         Long orderId = lastOrderContext.getLastOrderId();
@@ -105,35 +98,13 @@ public class OrderEventsStepDefinitions {
                 .contains(lastOrderContext.getLastOrderId());
     }
 
-    @And("订单 fulfillmentRef 应包含履约单 {long} {long}")
-    public void 订单fulfillmentRef应包含履约单(long id1, long id2) {
-        Long orderId = lastOrderContext.getLastOrderId();
-        assertThat(orderId).isNotNull();
-        ResponseEntity<OrderApiDto.CreateResponse> resp = restTemplate.getForEntity(
-                "/api/orders/" + orderId, OrderApiDto.CreateResponse.class);
-        assertThat(resp.getStatusCode().value()).isEqualTo(200);
-        assertThat(resp.getBody()).isNotNull();
-        assertThat(resp.getBody().status).isEqualTo("FULFILLING");
-    }
-
-    @Then("订单 fulfillmentStatus 应为 {word}")
-    public void 订单fulfillmentStatus应为(String expected) {
-        Long orderId = lastOrderContext.getLastOrderId();
-        assertThat(orderId).isNotNull();
-        ResponseEntity<OrderApiDto.CreateResponse> resp = restTemplate.getForEntity(
-                "/api/orders/" + orderId, OrderApiDto.CreateResponse.class);
-        assertThat(resp.getStatusCode().value()).isEqualTo(200);
-        assertThat(resp.getBody()).isNotNull();
-        assertThat(resp.getBody().status).isEqualTo("SHIPPED");
-    }
-
     @And("应已发布 OrderCompleted")
     public void 应已发布OrderCompleted() {
         assertThat(orderEventCapture.wasOrderCompletedPublished()).isTrue();
     }
 
-    @io.cucumber.java.en.Given("已存在订单状态为 FULFILLING 履约单 {long} {long}")
-    public void 已存在订单状态为FULFILLING履约单(long id1, long id2) {
+    @io.cucumber.java.en.Given("已存在订单状态为 FULFILLING")
+    public void 已存在订单状态为FULFILLING() {
         ShippingAddress addr = new ShippingAddress("收件人", "13800138000", "上海", "上海", "浦东", "测试地址");
         OrderLineItem item = new OrderLineItem(123L, 1, 10000L, "测试商品");
         Order order = new Order(null, 1L, OrderStatus.FULFILLING, 10000L, addr,

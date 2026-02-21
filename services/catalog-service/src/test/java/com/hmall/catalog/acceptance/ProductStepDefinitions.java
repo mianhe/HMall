@@ -238,6 +238,7 @@ public class ProductStepDefinitions {
                 : productNameToId.values().stream().findFirst().orElse(null));
         assertThat(productId).as("应先存在商品").isNotNull();
         lastProductDetailResponse = getProductById(productId);
+        context.setLastStatusCode(lastProductDetailResponse != null ? lastProductDetailResponse.getStatusCode().value() : 0);
     }
 
     @Then("应返回商品名称为 {string}")
@@ -257,6 +258,68 @@ public class ProductStepDefinitions {
         Long expectedCategoryId = categoryNameToId.get(categoryName);
         assertThat(lastProductDetailResponse.getBody()).isNotNull();
         assertThat(lastProductDetailResponse.getBody().categoryId).isEqualTo(expectedCategoryId);
+    }
+
+    // ---------- 默认展示图（coverImageUrl / defaultDisplayImages）----------
+    @Given("商品 {string} 已有产品级展示图 {string}")
+    public void 商品已有产品级展示图(String productName, String imageUrl) {
+        Long spuId = productNameToId.get(productName);
+        assertThat(spuId).as("商品「%s」应先存在", productName).isNotNull();
+        ProductImageCreateRequest body = new ProductImageCreateRequest();
+        body.imageUrl = imageUrl;
+        body.sortOrder = 0;
+        ResponseEntity<ProductApiDto.ProductImageItem> res = postProductImage(spuId, body);
+        assertThat(res.getStatusCode().value()).isEqualTo(201);
+    }
+
+    @And("应返回 coverImageUrl 为空")
+    public void 应返回coverImageUrl为空() {
+        assertThat(lastProductDetailResponse).isNotNull();
+        assertThat(lastProductDetailResponse.getBody()).isNotNull();
+        assertThat(lastProductDetailResponse.getBody().coverImageUrl).isNullOrEmpty();
+    }
+
+    @And("应返回 defaultDisplayImages 为空")
+    public void 应返回defaultDisplayImages为空() {
+        assertThat(lastProductDetailResponse).isNotNull();
+        assertThat(lastProductDetailResponse.getBody()).isNotNull();
+        assertThat(lastProductDetailResponse.getBody().defaultDisplayImages).isNullOrEmpty();
+    }
+
+    @And("应返回 coverImageUrl 非空")
+    public void 应返回coverImageUrl非空() {
+        assertThat(lastProductDetailResponse).isNotNull();
+        assertThat(lastProductDetailResponse.getBody()).isNotNull();
+        assertThat(lastProductDetailResponse.getBody().coverImageUrl).isNotBlank();
+    }
+
+    @And("应返回 defaultDisplayImages 包含 {int} 张图")
+    public void 应返回defaultDisplayImages包含张图(int count) {
+        assertThat(lastProductDetailResponse).isNotNull();
+        assertThat(lastProductDetailResponse.getBody()).isNotNull();
+        assertThat(lastProductDetailResponse.getBody().defaultDisplayImages)
+            .hasSize(count);
+    }
+
+    /** 添加产品级展示图请求体，与 catalog-api ProductImageCreate 一致 */
+    private static class ProductImageCreateRequest {
+        public String imageUrl;
+        public Integer sortOrder;
+    }
+
+    private ResponseEntity<ProductApiDto.ProductImageItem> postProductImage(Long spuId, ProductImageCreateRequest body) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        try {
+            return restTemplate.exchange(
+                baseUrl() + "/api/products/" + spuId + "/images",
+                HttpMethod.POST,
+                new HttpEntity<>(body, headers),
+                ProductApiDto.ProductImageItem.class
+            );
+        } catch (RestClientResponseException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(null);
+        }
     }
 
     // ---------- 修改商品 ----------

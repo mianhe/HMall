@@ -1,8 +1,10 @@
 package com.hmall.order.acceptance;
 
+import com.hmall.order.acceptance.config.EventInvocationRecorder;
 import com.hmall.order.acceptance.config.LastOrderContext;
 import com.hmall.order.acceptance.config.LastResponseContext;
 import com.hmall.order.domain.*;
+import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
@@ -23,18 +25,21 @@ public class OrderCancelStepDefinitions {
     private final LastOrderContext lastOrderContext;
     private final OrderRepository orderRepository;
     private final OrderEventCapture orderEventCapture;
+    private final EventInvocationRecorder eventRecorder;
 
     public OrderCancelStepDefinitions(
             TestRestTemplate restTemplate,
             LastResponseContext lastResponseContext,
             LastOrderContext lastOrderContext,
             OrderRepository orderRepository,
-            OrderEventCapture orderEventCapture) {
+            OrderEventCapture orderEventCapture,
+            EventInvocationRecorder eventRecorder) {
         this.restTemplate = restTemplate;
         this.lastResponseContext = lastResponseContext;
         this.lastOrderContext = lastOrderContext;
         this.orderRepository = orderRepository;
         this.orderEventCapture = orderEventCapture;
+        this.eventRecorder = eventRecorder;
     }
 
     @When("取消订单")
@@ -58,22 +63,22 @@ public class OrderCancelStepDefinitions {
 
     @Given("已存在订单状态为 COMPLETED")
     public void 已存在订单状态为COMPLETED() {
-        ShippingAddress addr = new ShippingAddress("收件人", "13800138000", "上海", "上海", "浦东", "测试地址");
-        OrderLineItem item = new OrderLineItem(123L, 1, 10000L, "测试商品");  // skuId, qty, unitPriceCents, displayName
-        Order order = new Order(null, 1L, OrderStatus.COMPLETED, 10000L, addr,
-                List.of(item), Instant.now(), Instant.now());
-        Order saved = orderRepository.save(order);
-        lastOrderContext.setLastOrderId(saved.getOrderId());
+        saveOrderWithStatus(OrderStatus.COMPLETED);
     }
 
     @Given("已存在订单状态为 PAID")
     public void 已存在订单状态为PAID() {
-        ShippingAddress addr = new ShippingAddress("收件人", "13800138000", "上海", "上海", "浦东", "测试地址");
-        OrderLineItem item = new OrderLineItem(123L, 1, 10000L, "测试商品");
-        Order order = new Order(null, 1L, OrderStatus.PAID, 10000L, addr,
-                List.of(item), Instant.now(), Instant.now());
-        Order saved = orderRepository.save(order);
-        lastOrderContext.setLastOrderId(saved.getOrderId());
+        saveOrderWithStatus(OrderStatus.PAID);
+    }
+
+    @Given("已存在订单状态为 SHIPPED")
+    public void 已存在订单状态为SHIPPED() {
+        saveOrderWithStatus(OrderStatus.SHIPPED);
+    }
+
+    @Given("已存在订单状态为 DELIVERED")
+    public void 已存在订单状态为DELIVERED() {
+        saveOrderWithStatus(OrderStatus.DELIVERED);
     }
 
     @When("取消该订单")
@@ -83,11 +88,26 @@ public class OrderCancelStepDefinitions {
         executeCancel(orderId);
     }
 
+    @And("应已发起取消履约单")
+    public void 应已发起取消履约单() {
+        assertThat(eventRecorder.getCancelFulfillmentOrderIds())
+                .contains(lastOrderContext.getLastOrderId());
+    }
+
+    private void saveOrderWithStatus(OrderStatus status) {
+        ShippingAddress addr = new ShippingAddress("收件人", "13800138000", "上海", "上海", "浦东", "测试地址");
+        OrderLineItem item = new OrderLineItem(123L, 1, 10000L, "测试商品");
+        Order order = new Order(null, 1L, status, 10000L, addr,
+                List.of(item), Instant.now(), Instant.now());
+        Order saved = orderRepository.save(order);
+        lastOrderContext.setLastOrderId(saved.getOrderId());
+    }
+
     private void executeCancel(Long orderId) {
         restTemplate.getRestTemplate().setErrorHandler(new DefaultResponseErrorHandler() {
             @Override
             public boolean hasError(org.springframework.http.client.ClientHttpResponse response) {
-                return false; // 不将 4xx/5xx 视为错误，由我们自行处理 status
+                return false;
             }
         });
         ResponseEntity<Void> resp = restTemplate.exchange(
@@ -110,7 +130,7 @@ public class OrderCancelStepDefinitions {
         assertThat(status).isGreaterThanOrEqualTo(400);
     }
 
-    @io.cucumber.java.en.And("应发布 OrderCancelled")
+    @And("应发布 OrderCancelled")
     public void 应发布OrderCancelled() {
         assertThat(lastResponseContext.getLastStatusCode()).isEqualTo(200);
         assertThat(orderEventCapture.wasOrderCancelledPublished()).isTrue();

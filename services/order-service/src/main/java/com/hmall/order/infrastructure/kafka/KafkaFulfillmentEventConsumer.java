@@ -5,11 +5,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 
-import java.util.List;
 import java.util.Map;
 
 /**
- * 从 Kafka 消费 Fulfillment 领域事件（FulfillmentOrderCreated / Shipped / Delivered）。
+ * 从 Kafka 消费 Fulfillment 领域事件（Shipped / Delivered）。
+ * FulfillmentOrderCreated 不再由 Order 消费——改为同步调用返回值推进状态。
  * 由 OrderKafkaAutoConfiguration 条件注册，测试中排除 KafkaAutoConfiguration 时不创建。
  */
 public class KafkaFulfillmentEventConsumer {
@@ -20,17 +20,6 @@ public class KafkaFulfillmentEventConsumer {
 
     public KafkaFulfillmentEventConsumer(OrderEventService orderEventService) {
         this.orderEventService = orderEventService;
-    }
-
-    @KafkaListener(topics = "${order.kafka.topic.fulfillment-order-created:fulfillment.order.created}",
-                   groupId = "${spring.kafka.consumer.group-id:order-service}")
-    public void onFulfillmentOrderCreated(Map<String, Object> message) {
-        Long orderId = toLong(message.get("orderId"));
-        @SuppressWarnings("unchecked")
-        List<Number> rawIds = (List<Number>) message.get("fulfillmentOrderIds");
-        List<Long> fulfillmentOrderIds = rawIds.stream().map(Number::longValue).toList();
-        log.info("收到 FulfillmentOrderCreated: orderId={}, fulfillmentOrderIds={}", orderId, fulfillmentOrderIds);
-        orderEventService.onFulfillmentOrderCreated(orderId, fulfillmentOrderIds);
     }
 
     @KafkaListener(topics = "${order.kafka.topic.fulfillment-shipped:fulfillment.shipped}",
@@ -56,3 +45,4 @@ public class KafkaFulfillmentEventConsumer {
         return Long.parseLong(String.valueOf(value));
     }
 }
+

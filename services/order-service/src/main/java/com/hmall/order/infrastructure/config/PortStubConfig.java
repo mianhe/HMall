@@ -1,6 +1,7 @@
 package com.hmall.order.infrastructure.config;
 
 import com.hmall.order.application.port.*;
+import com.hmall.order.infrastructure.fulfillment.NoOpCancelFulfillmentAdapter;
 import com.hmall.order.infrastructure.fulfillment.NoOpCreateFulfillmentAdapter;
 import com.hmall.order.infrastructure.inventory.NoOpOccupyInventoryAdapter;
 import com.hmall.order.infrastructure.inventory.NoOpReleaseInventoryAdapter;
@@ -43,8 +44,15 @@ public class PortStubConfig {
     }
 
     @Bean
+    @ConditionalOnMissingBean(CreateFulfillmentPort.class)
     public CreateFulfillmentPort createFulfillmentPort() {
         return new NoOpCreateFulfillmentAdapter();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(CancelFulfillmentPort.class)
+    public CancelFulfillmentPort cancelFulfillmentPort() {
+        return new NoOpCancelFulfillmentAdapter();
     }
 
     @Bean(name = "noOpOrderOutboundEventPublisher")

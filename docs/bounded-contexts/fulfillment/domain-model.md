@@ -1,6 +1,6 @@
 # Fulfillment 限界上下文 - 领域模型
 
-聚合、实体、值对象。事件契约与集成方式见 [event-flow.md](./event-flow.md)，需求列表见 [requirements.md](./requirements.md)。
+聚合、实体、值对象、领域事件。事件流转与集成方式见 [event-flow.md](./event-flow.md)，需求列表见 [requirements.md](./requirements.md)。
 
 ---
 
@@ -67,15 +67,33 @@ enum FulfillmentOrderStatus {
   CANCELLED
 }
 
+class FulfillmentOrderCreated <<领域事件>> {
+  orderId: Long
+  fulfillmentOrderIds: List<Long>
+  occurredAt: Instant
+}
+
+class FulfillmentShipped <<领域事件>> {
+  orderId: Long
+  fulfillmentOrderId: Long
+  occurredAt: Instant
+}
+
+class FulfillmentDelivered <<领域事件>> {
+  orderId: Long
+  fulfillmentOrderId: Long
+  occurredAt: Instant
+}
+
 FulfillmentOrder "1" *-- "1..*" FulfillmentItem : items
 FulfillmentOrder "1" *-- "1" ShippingAddress
 FulfillmentOrder "1" *-- "0..1" ShippingInfo
 FulfillmentOrder ..> FulfillmentOrderStatus : status
+FulfillmentOrder ..> FulfillmentOrderCreated : 创建成功时发布
+FulfillmentOrder ..> FulfillmentShipped : ship 成功时发布
+FulfillmentOrder ..> FulfillmentDelivered : confirmDelivery 成功时发布
 
 note right of FulfillmentOrder
-  发布: FulfillmentOrderCreated,
-        FulfillmentShipped,
-        FulfillmentDelivered
   一笔 orderId 可对应 1~N 个 FulfillmentOrder
   （MVP 阶段 1:1）
 end note
@@ -166,7 +184,19 @@ stateDiagram-v2
 
 ---
 
-## 五、聚合边界
+## 五、领域事件
+
+| 事件 | 时机 | 载荷 |
+|------|------|------|
+| FulfillmentOrderCreated（履约单已创建） | 创建履约单成功 | orderId, fulfillmentOrderIds, occurredAt |
+| FulfillmentShipped（已发货） | ship 成功 | orderId, fulfillmentOrderId, occurredAt |
+| FulfillmentDelivered（已签收） | confirmDelivery 成功 | orderId, fulfillmentOrderId, occurredAt |
+
+事件的订阅方、Topic、传输通道、JSON 消息体等集成细节见 [event-flow.md](./event-flow.md)。
+
+---
+
+## 六、聚合边界
 
 - **FulfillmentOrder** 为聚合根，FulfillmentItem 和 ShippingInfo 为其内部对象。
 - 同一 orderId 可对应多个 FulfillmentOrder（1:N 拆单），但每个 FulfillmentOrder 独立管理生命周期。
@@ -174,7 +204,7 @@ stateDiagram-v2
 
 ---
 
-## 六、实体与表
+## 七、实体与表
 
 | 模型 | 表名 |
 |------|------|

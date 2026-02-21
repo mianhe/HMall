@@ -60,3 +60,19 @@
     当 用户将商品 ID 999999 修改为名称 "某商品"
     那么 应修改失败
     并且 应返回 404
+
+  # 默认展示图（coverImageUrl / defaultDisplayImages）：列表与详情均返回，规则为有产品级图用产品级图，否则用第一个「有图」的规格选项的图
+  场景: 当商品无任何展示图时，按 ID 请求商品详情应返回 coverImageUrl 为空且 defaultDisplayImages 为空
+    假如 已存在商品 "无图商品" 描述 "无图" 属于类别 "手机"
+    当 用户请求该商品的详情
+    那么 应返回商品名称为 "无图商品"
+    并且 应返回 coverImageUrl 为空
+    并且 应返回 defaultDisplayImages 为空
+
+  场景: 当商品有产品级展示图时，按 ID 请求商品详情应返回 coverImageUrl 与 defaultDisplayImages 含该图
+    假如 已存在商品 "有图商品" 描述 "有图" 属于类别 "手机"
+    并且 商品 "有图商品" 已有产品级展示图 "https://example.com/cover.jpg"
+    当 用户请求该商品的详情
+    那么 应返回商品名称为 "有图商品"
+    并且 应返回 coverImageUrl 非空
+    并且 应返回 defaultDisplayImages 包含 1 张图

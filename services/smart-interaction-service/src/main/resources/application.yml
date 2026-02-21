@@ -1,0 +1,17 @@
+server:
+  port: 8089
+
+hmall:
+  ai:
+    default-provider: qwen
+    providers:
+      qwen:
+        api-key: ${QWEN_API_KEY:}
+        base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+        model: qwen-plus
+      deepseek:
+        api-key: ${DEEPSEEK_API_KEY:}
+        base-url: https://api.deepseek.com/v1
+        model: deepseek-chat
+    mcp:
+      url: http://127.0.0.1:3000/mcp

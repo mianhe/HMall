@@ -76,8 +76,10 @@ public class OrderAcceptanceTestConfig {
             LastResponseContext lastResponseContext,
             LastOrderContext lastOrderContext,
             OrderRepository orderRepository,
-            OrderEventCapture orderEventCapture) {
-        return new OrderCancelStepDefinitions(restTemplate, lastResponseContext, lastOrderContext, orderRepository, orderEventCapture);
+            OrderEventCapture orderEventCapture,
+            EventInvocationRecorder eventInvocationRecorder) {
+        return new OrderCancelStepDefinitions(restTemplate, lastResponseContext, lastOrderContext,
+                orderRepository, orderEventCapture, eventInvocationRecorder);
     }
 
     @Bean

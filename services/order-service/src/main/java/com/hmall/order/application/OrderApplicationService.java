@@ -25,12 +25,14 @@ public class OrderApplicationService {
     private final CreatePaymentPort createPaymentPort;
     private final ReleaseInventoryPort releaseInventoryPort;
     private final RefundPaymentPort refundPaymentPort;
+    private final CancelFulfillmentPort cancelFulfillmentPort;
     private final OrderOutboundEventPublisher outboundEventPublisher;
 
     public OrderApplicationService(OrderRepository orderRepository, SkuInfoPort skuInfoPort,
             UserExistsPort userExistsPort,
             OccupyInventoryPort occupyInventoryPort, CreatePaymentPort createPaymentPort,
             ReleaseInventoryPort releaseInventoryPort, RefundPaymentPort refundPaymentPort,
+            CancelFulfillmentPort cancelFulfillmentPort,
             OrderOutboundEventPublisher outboundEventPublisher) {
         this.orderRepository = orderRepository;
         this.skuInfoPort = skuInfoPort;
@@ -39,6 +41,7 @@ public class OrderApplicationService {
         this.createPaymentPort = createPaymentPort;
         this.releaseInventoryPort = releaseInventoryPort;
         this.refundPaymentPort = refundPaymentPort;
+        this.cancelFulfillmentPort = cancelFulfillmentPort;
         this.outboundEventPublisher = outboundEventPublisher;
     }
 
@@ -118,13 +121,16 @@ public class OrderApplicationService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("订单不存在"));
 
-        if (order.getStatus() == OrderStatus.CANCELLED || order.getStatus() == OrderStatus.COMPLETED) {
+        if (!isCancellable(order.getStatus())) {
             throw new OrderBadRequestException("订单状态不允许取消");
         }
 
         releaseInventoryPort.release(orderId);
         if (order.getStatus() != OrderStatus.PENDING_PAYMENT) {
             refundPaymentPort.refund(orderId);
+        }
+        if (order.getStatus() == OrderStatus.FULFILLING) {
+            cancelFulfillmentPort.cancelFulfillment(orderId);
         }
 
         Order cancelled = new Order(
@@ -139,6 +145,12 @@ public class OrderApplicationService {
         );
         orderRepository.save(cancelled);
         outboundEventPublisher.publish(new OrderCancelledEvent(orderId));
+    }
+
+    private static boolean isCancellable(OrderStatus status) {
+        return status == OrderStatus.PENDING_PAYMENT
+                || status == OrderStatus.PAID
+                || status == OrderStatus.FULFILLING;
     }
 
     private OrderDto toDto(Order order) {

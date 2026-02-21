@@ -54,7 +54,8 @@ public class BffProxyFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
-        return !request.getRequestURI().startsWith("/api/");
+        String uri = request.getRequestURI();
+        return !uri.startsWith("/api/");
     }
 
     @Override

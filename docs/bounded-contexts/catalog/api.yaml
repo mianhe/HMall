@@ -796,6 +796,16 @@ components:
         description:
           type: string
           nullable: true
+        coverImageUrl:
+          type: string
+          nullable: true
+          description: 列表/详情默认封面图。有产品级图用第一张，否则用第一个「有图」的规格选项的第一张。
+        defaultDisplayImages:
+          type: array
+          nullable: true
+          description: 详情页未选规格时的默认图廊（多张）。规则同 coverImageUrl，但返回整组图。
+          items:
+            $ref: '#/components/schemas/ProductImage'
     ProductCreate:
       type: object
       required: [categoryId, name]

@@ -15,7 +15,7 @@ HMall 是一个以 DDD + ATDD 驱动的电商系统练习项目，覆盖商品�
 ### 推进顺序
 
 ```
-Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment 🔄 → Activity ✅ → Cart ✅ → Fulfillment 🔄 → [Pricing 按需]
+Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Activity ✅ → Cart ✅ → Fulfillment ✅ → Smart Interaction ✅ → [Pricing 按需]
 ```
 
 ### 各 BC 状态
@@ -24,12 +24,13 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment 🔄 → Ac
 |----|------|------|------|
 | **Catalog** | 类目、商品(SPU)、规格维度、SKU、展示图 | ✅ 已完成 | 4 个 feature，45 个 scenario，全部通过 |
 | **User** | 用户注册、登录(JWT)、收货地址管理 | ✅ 已完成 | 3 个 feature（user、login、address），19 个 scenario，全部通过 |
-| **Order** | 订单创建、取消、查询、事件驱动、状态流转 | ✅ 已完成 | 4 个 feature，23 个 scenario，全部通过 |
-| **BFF** | frontend 统一 API 入口，代理 Catalog/User/Order/Inventory | ✅ POC 完成 | 透传代理、CORS、4xx/5xx 转发，端口 8085 |
+| **Order** | 订单创建、取消、查询、事件驱动、状态流转 | ✅ 已完成 | 4 个 feature，25 个 scenario，全部通过；已与 Fulfillment 集成（同步创建/取消） |
+| **BFF** | frontend 统一 API 入口，代理 Catalog/User/Order/Inventory | ✅ POC | 透传代理、CORS、4xx/5xx 转发，端口 8085 |
+| **Smart Interaction** | LLM + MCP 智能交互（对话式操作） | ✅ 已完成 | 端口 8089；4 个验收场景全绿；从 BFF 拆分为独立 BC |
 | **Inventory** | 同步占用/释放库存、库存管理 | ✅ 已完成 | 3 feature、11 scenario 全绿；已与 Order 集成 |
-| **Payment** | 扣款/退款/超时检测 | 🔄 开发中 | 5 feature、19 scenario 全绿；超时检测定时自动执行；事件通知 Order（Kafka：PaymentCompleted/Failed/Expired） |
+| **Payment** | 扣款/退款/超时检测 | ✅ 已完成 | 5 feature、19 scenario 全绿；超时检测定时自动执行；事件通知 Order（Kafka：PaymentCompleted/Failed/Expired）；已与 Order 集成（同步创建支付单/退款） |
 | **Activity** | 消费 Order/Payment/Inventory 事件，活动记录、查询与统计仪表盘 | ✅ 已完成 | 3 个 feature（consume/query/stats），16 个 scenario，全部通过 |
-| **Fulfillment** | 拆单、发货、配送 | 🔄 需求已完成 | 5 feature、18 scenario 待实现；同步创建/取消 + Kafka 事件（Shipped/Delivered）；需同步调整 Order（取消规则、接口变更） |
+| **Fulfillment** | 拆单、发货、签收、取消、查询 | ✅ 已完成 | 端口 8088；5 feature、18 scenario 全绿；同步创建/取消 + Kafka 事件（Shipped/Delivered）；已与 Order 集成 |
 | **Pricing** | 算价、优惠 | 🔲 规划中 | 创建订单时同步调用 |
 | **Cart** | 购物车增删改查、结算预览 | ✅ 已完成 | 5 feature（+ smoke），17 scenario，全部通过；依赖 Catalog（SkuQueryPort 桩）+ User，结算由前端编排 |
 
@@ -37,13 +38,27 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment 🔄 → Ac
 
 Order 通过 `RestOccupyInventoryAdapter`、`RestReleaseInventoryAdapter` 调用 Inventory 的 `POST /api/inventory/occupy`、`POST /api/inventory/release`。验收测试用 Stub，集成测试用 WireMock 验证 HTTP 调用。详见 `services/order-service/README.md`。
 
+### 已完成：Order 与 Fulfillment 集成
+
+Order 通过 `RestCreateFulfillmentAdapter`、`RestCancelFulfillmentAdapter` 调用 Fulfillment 的 `POST /api/fulfillment/create`、`POST /api/fulfillment/cancel`。验收测试用 Stub，配置 `fulfillment.base-url` 后启用真实适配器。变更要点：
+- `CreateFulfillmentPort` 签名变更：新增 items + shippingAddress 参数，返回 `List<Long>` fulfillmentOrderIds
+- 新增 `CancelFulfillmentPort`：Order 取消 FULFILLING 状态订单时同步调用
+- 移除 `onFulfillmentOrderCreated` 消费：改为 `onPaymentCompleted` 同步创建后直接置 FULFILLING
+- 取消规则收紧：SHIPPED / DELIVERED 状态不可取消（新增 2 个场景）
+
+### 已完成：Order 与 Payment 集成
+
+Order 通过 `RestCreatePaymentAdapter`、`RestRefundPaymentAdapter` 调用 Payment 服务。Payment 通过 Kafka 发布 PaymentCompleted/Failed/Expired 事件，Order 通过 `KafkaPaymentEventConsumer` 消费。
+
+### 已完成：Kafka 事件联通
+
+各 BC 的 Kafka 事件发布/消费已实现。默认不发 Kafka（排除 KafkaAutoConfiguration），加 `--spring.profiles.active=kafka` 启用。已联通链路：Payment → Order（PaymentCompleted/Failed/Expired）、Fulfillment → Order（Shipped/Delivered）、Order/Payment/Inventory → Activity。
+
 ### 下一步
 
-1. **Fulfillment BC 实现**：新建 BC 骨架 → 实现 5 个 feature（创建/发货/签收/取消/查询）
-2. **Order 调整 + Fulfillment 集成**：取消规则收紧、CreateFulfillmentPort 接口变更、新增 CancelFulfillmentPort、移除 onFulfillmentOrderCreated 消费
-3. **Cart → Catalog 集成**：Cart 的 SkuQueryPort 当前用 Stub，待实现 REST 适配器对接 Catalog 的 SKU API。
-4. **Payment 集成**：Order → Payment 同步创建支付单/退款，当前用 NoOp 桩。
-5. **Kafka 事件**：Order、Inventory、Payment 的领域事件默认不发 Kafka（排除了 KafkaAutoConfiguration），加 `--spring.profiles.active=kafka` 可启用。Payment 已实现 Kafka 发布（PaymentCompleted/Failed/Expired），Order 已实现 Kafka 消费。
+1. **端到端联调**：启动全部服务 + Kafka，验证完整交易流程
+2. **Fulfillment 前端**：管理后台增加发货/签收操作页面
+3. **Pricing BC**：创建订单时同步算价（规划中）
 
 ---
 
@@ -51,7 +66,7 @@ Order 通过 `RestOccupyInventoryAdapter`、`RestReleaseInventoryAdapter` 调用
 
 | 前端 | 职责 | 状态 | 已实现页面 |
 |------|------|------|-----------|
-| **frontend-admin** | 管理后台，展示+库存管理 | ✅ 基本完成 | HomePage、CatalogPage、ProductDetailPage、InventoryPage |
+| **frontend-admin** | 管理后台，展示+库存管理+AI 对话 | ✅ 基本完成 | HomePage、CatalogPage、ProductDetailPage、InventoryPage、AI Chat（全局 Drawer） |
 | **frontend-web** | 消费者端 | ✅ 阶段完成 | HomePage、LoginPage、RegisterPage、ProductDetailPage、CheckoutPage、OrderListPage、OrderDetailPage、AddressPage、MyPage |
 
 ### frontend-web 已实现
@@ -92,6 +107,10 @@ Order 通过 `RestOccupyInventoryAdapter`、`RestReleaseInventoryAdapter` 调用
 
 | 日期 | 变更内容 |
 |------|---------|
+| 2026-02-21 | Smart Interaction BC 拆分：AI Chat 模块从 BFF 拆分为独立限界上下文 smart-interaction-service（端口 8089）；代码、测试、配置完整迁移；BFF 清理（移除 ai 包、webflux/Cucumber/WireMock 依赖）；脚本支持 `--bc smart-interaction` |
+| 2026-02-21 | BFF AI Chat 模块完成：LLM + MCP Tool Calling 对话式操作；后端（AiChatService/LlmClient/McpToolBridge）+ frontend-admin 全局 Drawer；验收测试 4 场景（WireMock stub LLM/MCP）全绿 |
+| 2026-02-20 | Order + Fulfillment 集成完成：CreateFulfillmentPort 签名变更（新增 items/addr，返回 fulfillmentOrderIds）、新增 CancelFulfillmentPort、移除 onFulfillmentOrderCreated 消费、取消规则收紧（SHIPPED/DELIVERED 不可取消）；Order 25 scenario 全绿 |
+| 2026-02-20 | Fulfillment BC 全部完成（5 feature、18 scenario 全绿）；DDD 四层架构、同步创建/取消 + 事件发布（FulfillmentOrderCreated/Shipped/Delivered）；领域模型含领域事件定义 |
 | 2026-02-20 | Fulfillment BC 需求分析完成（requirements.md + domain-model.md + event-flow.md）；5 feature、18 scenario 待实现；Order 变更清单已记录（取消规则、接口变更、移除 FulfillmentOrderCreated 消费） |
 | 2026-02-20 | Cart BC 全部完成（5 feature + smoke，17 scenario 全绿）；DDD 四层架构、SkuQueryPort 出站端口（测试用 Stub）、结算预览 API |
 | 2026-02-20 | Cart BC 需求分析与领域建模完成（requirements.md + domain-model.md）；5 feature、17 scenario 待实现 |

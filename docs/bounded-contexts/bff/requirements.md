@@ -87,9 +87,10 @@ bff:
 
 ---
 
-## 六、后续迭代（非 POC）
+## 六、后续迭代
 
 - JWT 校验与透传
 - 结账页聚合接口（如 `GET /api/checkout/preview`）
-- frontend-admin 接入 BFF（可选）
 - 健康检查、监控、链路追踪
+
+> **注**：AI 智能对话模块已拆分为独立限界上下文 **Smart Interaction**，详见 [smart-interaction/requirements.md](../smart-interaction/requirements.md)。

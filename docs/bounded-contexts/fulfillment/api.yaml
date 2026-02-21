@@ -1,0 +1,312 @@
+openapi: 3.0.3
+info:
+  title: Fulfillment Service API
+  description: HMall 履约服务 API
+  version: 0.1.0
+
+servers:
+  - url: http://localhost:8088
+    description: 本地开发
+
+paths:
+  /api/fulfillment/create:
+    post:
+      summary: 创建履约单
+      operationId: createFulfillment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFulfillmentRequest'
+      responses:
+        '200':
+          description: 创建成功（含幂等返回）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateFulfillmentResponse'
+        '400':
+          description: 参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/fulfillment/cancel:
+    post:
+      summary: 取消履约单（按 orderId）
+      operationId: cancelFulfillment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelFulfillmentRequest'
+      responses:
+        '200':
+          description: 取消成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelFulfillmentResponse'
+        '400':
+          description: 参数校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/fulfillment/{fulfillmentOrderId}/ship:
+    post:
+      summary: 发货
+      operationId: shipFulfillmentOrder
+      parameters:
+        - name: fulfillmentOrderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShipRequest'
+      responses:
+        '200':
+          description: 发货成功
+        '400':
+          description: 状态不允许发货
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 履约单不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/fulfillment/{fulfillmentOrderId}/deliver:
+    post:
+      summary: 签收确认
+      operationId: deliverFulfillmentOrder
+      parameters:
+        - name: fulfillmentOrderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 签收成功
+        '400':
+          description: 状态不允许签收
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 履约单不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/fulfillment/{fulfillmentOrderId}:
+    get:
+      summary: 按 fulfillmentOrderId 查询
+      operationId: getFulfillmentOrder
+      parameters:
+        - name: fulfillmentOrderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 返回履约单详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FulfillmentOrderDto'
+        '404':
+          description: 履约单不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/fulfillment:
+    get:
+      summary: 按 orderId 查询履约单列表
+      operationId: listFulfillmentOrders
+      parameters:
+        - name: orderId
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 返回该订单的所有履约单
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FulfillmentOrderDto'
+
+  /api/fulfillment/health:
+    get:
+      summary: 健康检查
+      operationId: health
+      responses:
+        '200':
+          description: 服务正常
+
+components:
+  schemas:
+    CreateFulfillmentRequest:
+      type: object
+      required: [orderId, items, shippingAddress]
+      properties:
+        orderId:
+          type: integer
+          format: int64
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FulfillmentItemRequest'
+        shippingAddress:
+          $ref: '#/components/schemas/ShippingAddressRequest'
+
+    FulfillmentItemRequest:
+      type: object
+      required: [skuId, quantity]
+      properties:
+        skuId:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+
+    ShippingAddressRequest:
+      type: object
+      required: [recipientName, phone, province, city, district, detail]
+      properties:
+        recipientName:
+          type: string
+        phone:
+          type: string
+        province:
+          type: string
+        city:
+          type: string
+        district:
+          type: string
+        detail:
+          type: string
+
+    CreateFulfillmentResponse:
+      type: object
+      properties:
+        orderId:
+          type: integer
+          format: int64
+        fulfillmentOrderIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+
+    CancelFulfillmentRequest:
+      type: object
+      required: [orderId]
+      properties:
+        orderId:
+          type: integer
+          format: int64
+
+    CancelFulfillmentResponse:
+      type: object
+      properties:
+        orderId:
+          type: integer
+          format: int64
+        cancelledCount:
+          type: integer
+
+    ShipRequest:
+      type: object
+      required: [carrier, trackingNumber]
+      properties:
+        carrier:
+          type: string
+        trackingNumber:
+          type: string
+
+    FulfillmentOrderDto:
+      type: object
+      properties:
+        fulfillmentOrderId:
+          type: integer
+          format: int64
+        orderId:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [CREATED, SHIPPED, DELIVERED, CANCELLED]
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FulfillmentItemDto'
+        shippingAddress:
+          $ref: '#/components/schemas/ShippingAddressRequest'
+        shippingInfo:
+          $ref: '#/components/schemas/ShippingInfoDto'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    FulfillmentItemDto:
+      type: object
+      properties:
+        fulfillmentItemId:
+          type: integer
+          format: int64
+        skuId:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+
+    ShippingInfoDto:
+      type: object
+      properties:
+        carrier:
+          type: string
+        trackingNumber:
+          type: string
+        shippedAt:
+          type: string
+          format: date-time
+        deliveredAt:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string

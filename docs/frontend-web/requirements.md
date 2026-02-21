@@ -20,7 +20,7 @@
 | `/` | HomePage | 首页：类目导航 + 商品展示（两层类目，参考 VMALL） | `GET /api/categories`、`GET /api/products` |
 | `/my` | MyPage | 我的：用户信息块、收货地址入口、我的订单块（分块展示，Atomic Design） | — |
 | `/cart` | CartPage | 购物车：列表、改数量、删除、全选、去结算（需登录） | `GET /api/cart`、`POST /api/cart/items`、`PUT /api/cart/items/{id}`、`DELETE /api/cart/items`、`POST /api/cart/checkout-preview` |
-| `/products/:id` | ProductDetailPage | 商品详情（图廊、规格、价格、详情/参数）；「立即购买」与「加入购物车」 | `GET /api/products/{id}`、`/images`、`/dimensions`、`/skus`；`POST /api/cart/items` |
+| `/products/:id` | ProductDetailPage | 商品详情（图廊、规格、价格、详情/参数）；「立即购买」与「加入购物车」 | `GET /api/products/{id}`（含 defaultDisplayImages/coverImageUrl）、`/dimensions`、`/skus`；`POST /api/cart/items` |
 | `/checkout` | CheckoutPage | 结账页：支持立即购买单件或购物车勾选多件；选地址、提交订单；成功后清理已下单项 | `POST /api/orders`、`GET /api/users/{userId}/addresses`；购物车入口时 `POST /api/cart/checkout-preview`、`DELETE /api/cart/items` |
 | `/addresses` | AddressPage | 收货地址管理：列表、新增、编辑、删除 | `GET /api/users/{userId}/addresses`、`POST / PUT / DELETE /api/users/{userId}/addresses/{id}` |
 | `/orders` | OrderListPage | 订单列表：当前用户订单，支持 query 按状态筛选（待付款/待收货/待评价） | `GET /api/orders?userId=xxx` |
@@ -32,7 +32,7 @@
 
 - **结构参考**：华为商城 VMALL 两层类目——顶部一级类目，悬停展开浮层：左侧二级类目列表，右侧该二级下的商品网格。
 - **类目导航**：一级类目为根类目列表（`GET /api/categories` 不传 parentId）；悬停某一级时请求其子类目（`GET /api/categories?parentId=xxx`），在浮层左侧展示；点击/悬停二级类目时，右侧展示该类目下商品。
-- **商品导航**：右侧网格展示当前选中二级类目下的商品（`GET /api/products?categoryId=xxx`），卡片含商品名称、主图（若有）或占位图，点击进入商品详情页。
+- **商品导航**：右侧网格展示当前选中二级类目下的商品（`GET /api/products?categoryId=xxx`），卡片含商品名称、主图使用响应中的 `product.coverImageUrl`（无图时为 null 则展示占位图），点击进入商品详情页。不再依赖 `GET /api/products/{spuId}/images` 做列表主图。
 - **契约**：`docs/bounded-contexts/catalog/api.yaml`（Category、Product）。
 
 ### 2.2 购物车页
@@ -50,7 +50,7 @@
 - **右侧**：商品名称、价格（随规格选择变化）、规格维度（颜色、版本等）按钮选择、已选规格摘要。
 - **下方 Tab**：详情（商品描述）、参数（暂无则占位）。
 - **操作**：「立即购买」跳结账页；「加入购物车」调用 `POST /api/cart/items`，成功后提示并更新顶栏购物车件数。
-- **API**：`GET /api/products/{id}`、`GET /api/products/{spuId}/images`、`GET /api/products/{spuId}/dimensions`、`GET /api/products/{spuId}/skus`。
+- **API**：`GET /api/products/{id}` 返回的 `defaultDisplayImages`、`coverImageUrl` 作为默认图廊（无产品级图时后端会回退为第一个有图的规格选项的图）；选中某规格后优先展示该选项的图；`GET /api/products/{spuId}/dimensions`、`GET /api/products/{spuId}/skus`。不再依赖 `GET /api/products/{spuId}/images` 做默认图廊。
 
 ### 2.4 结账页
 

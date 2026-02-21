@@ -1,5 +1,7 @@
 package com.hmall.catalog.acceptance;
 
+import java.util.List;
+
 /**
  * 验收测试用 DTO，与 catalog-api.yaml 中 Product / ProductCreate / Error 一致。
  */
@@ -24,6 +26,17 @@ public final class ProductApiDto {
         public Long categoryId;
         public String name;
         public String description;
+        public String coverImageUrl;
+        public List<ProductImageItem> defaultDisplayImages;
+    }
+
+    /** 默认展示图项（与 ProductImage 契约一致，测试仅反序列化） */
+    public static class ProductImageItem {
+        public Long id;
+        public Long spuId;
+        public Long specOptionId;
+        public String imageUrl;
+        public Integer sortOrder;
     }
 
     /** 错误响应体（400/404/422） */

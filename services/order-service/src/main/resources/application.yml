@@ -52,3 +52,7 @@ inventory:
 # 配置后 Order 将真实调用 Payment 服务；不配置则使用 NoOp 桩。联调时可设为 http://localhost:8084
 # payment:
 #   base-url: http://localhost:8084
+
+# 配置后 Order 将真实调用 Fulfillment 服务；不配置则使用 NoOp 桩。联调时可设为 http://localhost:8088
+# fulfillment:
+#   base-url: http://localhost:8088

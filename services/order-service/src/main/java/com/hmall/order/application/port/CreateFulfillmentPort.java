@@ -1,7 +1,19 @@
 package com.hmall.order.application.port;
 
-/** 创建履约单。Order 收到 PaymentCompleted 后调用。 */
+import java.util.List;
+
+/**
+ * 同步创建履约单。Order 收到 PaymentCompleted 后调用。
+ * 返回 Fulfillment 分配的 fulfillmentOrderIds。
+ */
 public interface CreateFulfillmentPort {
 
-    void createFulfillment(Long orderId);
+    List<Long> createFulfillment(Long orderId, List<ItemQuantity> items,
+                                  ShippingAddress shippingAddress);
+
+    record ItemQuantity(long skuId, int quantity) {}
+
+    record ShippingAddress(String recipientName, String phone,
+                           String province, String city,
+                           String district, String detail) {}
 }

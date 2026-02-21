@@ -137,6 +137,27 @@ public class SpecDimensionApplicationService {
         return productImageRepository.findBySpuIdAndSpecOptionIdIsNull(spuId);
     }
 
+    /**
+     * 默认展示图：有产品级图用产品级图，否则用第一个「有图」的规格选项的图。
+     * 用于列表封面与详情页未选规格时的图廊。
+     */
+    @Transactional(readOnly = true)
+    public List<ProductImage> getDefaultDisplayImages(Long spuId) {
+        List<ProductImage> productLevel = productImageRepository.findBySpuIdAndSpecOptionIdIsNull(spuId);
+        if (!productLevel.isEmpty()) {
+            return productLevel;
+        }
+        List<DimensionWithOptions> rows = listDimensionsWithOptions(spuId);
+        for (DimensionWithOptions row : rows) {
+            for (OptionWithImages owi : row.optionsWithImages()) {
+                if (!owi.images().isEmpty()) {
+                    return owi.images();
+                }
+            }
+        }
+        return List.of();
+    }
+
     @Transactional
     public void deleteProductImage(Long imageId) {
         productImageRepository.findById(imageId)

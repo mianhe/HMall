@@ -33,8 +33,24 @@ public class OrderEventService {
 
     @Transactional
     public void onPaymentCompleted(Long orderId, Long paymentId) {
-        updateOrderStatus(orderId, OrderStatus.PAID);
-        createFulfillmentPort.createFulfillment(orderId);
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("订单不存在: " + orderId));
+
+        updateOrderStatus(order, OrderStatus.PAID);
+
+        List<CreateFulfillmentPort.ItemQuantity> items = order.getItems().stream()
+                .map(li -> new CreateFulfillmentPort.ItemQuantity(li.getSkuId(), li.getQuantity()))
+                .toList();
+        CreateFulfillmentPort.ShippingAddress addr = new CreateFulfillmentPort.ShippingAddress(
+                order.getShippingAddress().recipientName(),
+                order.getShippingAddress().phone(),
+                order.getShippingAddress().province(),
+                order.getShippingAddress().city(),
+                order.getShippingAddress().district(),
+                order.getShippingAddress().detail());
+
+        createFulfillmentPort.createFulfillment(orderId, items, addr);
+        updateOrderStatus(orderId, OrderStatus.FULFILLING);
     }
 
     /**
@@ -51,11 +67,6 @@ public class OrderEventService {
     }
 
     @Transactional
-    public void onFulfillmentOrderCreated(Long orderId, List<Long> fulfillmentOrderIds) {
-        updateOrderStatus(orderId, OrderStatus.FULFILLING);
-    }
-
-    @Transactional
     public void onFulfillmentShipped(Long orderId) {
         updateOrderStatus(orderId, OrderStatus.SHIPPED);
     }
@@ -69,6 +80,10 @@ public class OrderEventService {
     private void updateOrderStatus(Long orderId, OrderStatus newStatus) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("订单不存在: " + orderId));
+        updateOrderStatus(order, newStatus);
+    }
+
+    private void updateOrderStatus(Order order, OrderStatus newStatus) {
         Order updated = new Order(
                 order.getOrderId(),
                 order.getUserId(),
