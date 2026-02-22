@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { streamChat, getModels } from '../api/ai.js'
+import * as skillApi from '../api/skill.js'
 
 let idCounter = 0
 function genId() {
@@ -12,6 +13,8 @@ export function useAiChat() {
   const isStreaming = ref(false)
   const models = ref([])
   const selectedProvider = ref(null)
+  const skills = ref([])
+  const selectedSkillId = ref(null)
   const route = useRoute()
 
   const toolCallCallbacks = []
@@ -27,6 +30,43 @@ export function useAiChat() {
     } catch (e) {
       console.warn('Failed to load AI models:', e)
     }
+  }
+
+  async function loadSkills() {
+    try {
+      skills.value = await skillApi.getSkills()
+      const defaultSkill = skills.value.find(s => s.isDefault)
+      if (defaultSkill && !selectedSkillId.value) {
+        selectedSkillId.value = defaultSkill.id
+      }
+    } catch (e) {
+      console.warn('Failed to load skills:', e)
+    }
+  }
+
+  async function createSkill(payload) {
+    const skill = await skillApi.createSkill(payload)
+    await loadSkills()
+    return skill
+  }
+
+  async function updateSkill(id, payload) {
+    const skill = await skillApi.updateSkill(id, payload)
+    await loadSkills()
+    return skill
+  }
+
+  async function removeSkill(id) {
+    await skillApi.deleteSkill(id)
+    if (selectedSkillId.value === id) {
+      selectedSkillId.value = null
+    }
+    await loadSkills()
+  }
+
+  async function setDefaultSkill(id) {
+    await skillApi.setDefaultSkill(id)
+    await loadSkills()
   }
 
   async function sendMessage(content) {
@@ -57,11 +97,15 @@ export function useAiChat() {
         .filter(m => m.role === 'user' || (m.role === 'assistant' && !m.loading))
         .map(m => ({ role: m.role, content: m.content }))
 
-      const reader = await streamChat({
+      const payload = {
         messages: chatMessages,
         context: { page: route.path },
         provider: selectedProvider.value,
-      }, abortController.signal)
+      }
+      if (selectedSkillId.value) {
+        payload.skillId = selectedSkillId.value
+      }
+      const reader = await streamChat(payload, abortController.signal)
 
       await parseSseStream(reader, assistantMsg)
     } catch (e) {
@@ -167,7 +211,14 @@ export function useAiChat() {
     isStreaming,
     models,
     selectedProvider,
+    skills,
+    selectedSkillId,
     loadModels,
+    loadSkills,
+    createSkill,
+    updateSkill,
+    removeSkill,
+    setDefaultSkill,
     sendMessage,
     stopStreaming,
     clearMessages,

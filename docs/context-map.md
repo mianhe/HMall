@@ -33,6 +33,8 @@ flowchart TB
     BFF --> Catalog
     BFF --> User
     BFF --> Order
+    BFF --> Cart
+    BFF --> Fulfillment
     SmartInteraction -->|LLM + MCP| Catalog
     User -->|userId/地址| Order
     Catalog -->|SKU/价格| Order
@@ -60,9 +62,9 @@ flowchart TB
 | **Catalog** | 类目、商品(SPU)、规格维度、SKU、展示图 | ✅ 已实现 | 4 feature，45 scenario |
 | **User** | 用户注册、登录(JWT)、收货地址管理 | ✅ 已实现 | 3 feature，19 scenario |
 | **Order** | 订单创建、取消、查询、事件驱动、状态流转 | ✅ 已实现 | 4 feature，25 scenario；已集成 Inventory + Fulfillment |
-| **BFF** | frontend 统一 API 入口，代理 Catalog/User/Order/Inventory | ✅ POC | 透传代理、CORS、4xx/5xx 转发 |
+| **BFF** | frontend 统一 API 入口，代理 Catalog/User/Order/Inventory/Cart/Fulfillment | ✅ POC | 透传代理、CORS、4xx/5xx 转发 |
 | **Smart Interaction** | LLM + MCP 智能交互（对话式操作） | ✅ 已实现 | 4 个验收场景全绿；端口 8089 |
-| **Cart** | 购物车增删改查、结算预览 | ✅ 已实现 | 5 feature（+ smoke），17 scenario，全部通过；依赖 Catalog（CatalogSkuQueryAdapter）+ User，结算由前端编排到 Order |
+| **Cart** | 购物车增删改查、结算预览 | ✅ 已实现 | 5 feature（+ smoke），17 scenario，全部通过；已与 Catalog 集成（CatalogSkuQueryAdapter REST 调用）+ User；结算由前端编排到 Order |
 | **Inventory** | 同步占用/释放库存 | ✅ 已实现并已与 Order 集成 | Order 同步调用 occupy/release |
 | **Payment** | 扣款/退款/超时检测 | ✅ 已实现 | 5 feature、19 scenario 全绿；已与 Order 集成（同步创建/退款 + Kafka 事件） |
 | **Pricing** | 算价、优惠 | 🔲 规划中 | 同步调用 |
@@ -78,6 +80,8 @@ flowchart TB
 | BFF | Catalog | REST | 代理 /api/categories、/api/products 等 |
 | BFF | User | REST | 代理 /api/users、/api/login |
 | BFF | Order | REST | 代理 /api/orders |
+| BFF | Cart | REST | 代理 /api/cart |
+| BFF | Fulfillment | REST | 代理 /api/fulfillment |
 | Smart Interaction | Catalog (via MCP) | LLM + MCP Tool Calling | Smart Interaction 调 LLM API → MCP Server → Catalog REST API |
 | Catalog | Order | REST | Order 创建时按 skuId 拉取 SKU 与价格 |
 | User | Order | REST | userId、收货地址 |
@@ -89,10 +93,11 @@ flowchart TB
 | Order | Pricing | 同步调用 | 创建订单时算价 |
 | Order | Fulfillment | REST/同步 | 创建履约单（PaymentCompleted 后同步调用，返回 fulfillmentOrderIds）；取消履约单（Order 补偿时同步调用） |
 | Payment | Order | Kafka 事件 | PaymentCompleted / Failed / Expired（Order 通过 KafkaPaymentEventConsumer 消费）；PaymentFailed 不影响订单状态（用户可重试），仅 PaymentExpired 触发取消 |
-| Fulfillment | Order | Kafka 事件 | FulfillmentShipped / Delivered（Order 消费后推进状态）；FulfillmentOrderCreated 仅 Activity 消费 |
+| Fulfillment | Order | Kafka 事件 | FulfillmentOrderAllocated / Shipped / Delivered（Order 消费后推进状态）；FulfillmentOrderCreated 仅 Activity 消费 |
 | Order | Activity | Kafka 事件 | OrderCreated / Cancelled / Completed |
 | Payment | Activity | Kafka 事件 | PaymentCompleted / Failed / Expired |
 | Inventory | Activity | Kafka 事件 | StockReserved / StockReleased |
+| Fulfillment | Activity | Kafka 事件 | FulfillmentOrderCreated / Allocated / Shipped / Delivered |
 
 ---
 
@@ -198,7 +203,7 @@ Activity BC 订阅全部事件，以 orderId 为维度提供事件时间线查�
 | Order | `order.created` / `cancelled` / `completed` | ✅ |
 | Payment | `payment.completed` / `failed` / `expired` | ✅ |
 | Inventory | `inventory.stock.reserved` / `stock.released` | ✅ |
-| Fulfillment | `fulfillment.order.created` / `shipped` / `delivered` | 🔲 待上线 |
+| Fulfillment | `fulfillment.order.created` / `order.allocated` / `shipped` / `delivered` | ✅ |
 
 ---
 

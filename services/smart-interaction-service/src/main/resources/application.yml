@@ -1,6 +1,17 @@
 server:
   port: 8089
 
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/hmall
+    username: hmall
+    password: hmall_dev
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
 hmall:
   ai:
     default-provider: qwen

@@ -1,9 +1,14 @@
 package com.hmall.smartinteraction.acceptance;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
+import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import com.hmall.smartinteraction.acceptance.config.SseEvent;
+import com.hmall.smartinteraction.application.SkillApplicationService;
+import com.hmall.smartinteraction.domain.Skill;
+import com.hmall.smartinteraction.domain.SkillRepository;
 import com.hmall.smartinteraction.infrastructure.McpToolBridge;
 import io.cucumber.java.Before;
 import io.cucumber.java.zh_cn.假如;
@@ -19,6 +24,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +46,12 @@ public class AiChatStepDefinitions {
     @Autowired
     private McpToolBridge mcpToolBridge;
 
+    @Autowired
+    private SkillApplicationService skillService;
+
+    @Autowired
+    private SkillRepository skillRepository;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newHttpClient();
 
@@ -47,20 +59,27 @@ public class AiChatStepDefinitions {
     private final Map<String, String> mcpToolResults = new LinkedHashMap<>();
 
     private final List<LlmRoundSetup> llmRounds = new ArrayList<>();
+    private boolean llmAlwaysToolCall = false;
 
     private List<SseEvent> receivedEvents;
     private HttpResponse<String> lastResponse;
+    private Long currentSkillId;
+    private int overrideMaxRounds = -1;
 
-    @Before
+    @Before("not @skill")
     public void reset() {
         llmWireMock.resetAll();
         mcpWireMock.resetAll();
         registeredTools.clear();
         mcpToolResults.clear();
         llmRounds.clear();
+        llmAlwaysToolCall = false;
         receivedEvents = null;
         lastResponse = null;
+        currentSkillId = null;
+        overrideMaxRounds = -1;
         mcpToolBridge.invalidateCache();
+        skillRepository.findAllOrderByCreatedAtDesc().forEach(s -> skillRepository.deleteById(s.getId()));
     }
 
     // ─── Given: LLM setup ───
@@ -90,6 +109,41 @@ public class AiChatStepDefinitions {
         llmRounds.add(LlmRoundSetup.textReply(text));
     }
 
+    @假如("LLM 每轮都会返回 tool call {string} 参数 {string}")
+    public void llm每轮都会返回toolCall(String toolName, String args) {
+        llmAlwaysToolCall = true;
+        llmRounds.add(LlmRoundSetup.toolCall(toolName, args));
+    }
+
+    // ─── Given: Skill setup ───
+
+    @假如("已创建 Skill {string} systemPrompt {string} allowedTools {string}")
+    public void 已创建Skill(String name, String systemPrompt, String allowedTools) {
+        Skill skill = new Skill(name, name, systemPrompt,
+                Arrays.asList(allowedTools.split("\\s*,\\s*")));
+        skill = skillRepository.save(skill);
+        currentSkillId = skill.getId();
+    }
+
+    @假如("已创建默认 Skill {string} systemPrompt {string}")
+    public void 已创建默认Skill(String name, String systemPrompt) {
+        Skill skill = new Skill(name, name, systemPrompt, List.of("*"));
+        skill = skillRepository.save(skill);
+        skill.setAsDefault();
+        skillRepository.save(skill);
+        currentSkillId = skill.getId();
+    }
+
+    @假如("系统中无任何 Skill")
+    public void 系统中无任何Skill() {
+        skillRepository.findAllOrderByCreatedAtDesc().forEach(s -> skillRepository.deleteById(s.getId()));
+    }
+
+    @假如("已设置 maxToolCallRounds 为 {int}")
+    public void 已设置maxToolCallRounds为(int rounds) {
+        overrideMaxRounds = rounds;
+    }
+
     // ─── Given: MCP setup ───
 
     @假如("MCP 已注册工具 {string}")
@@ -106,13 +160,26 @@ public class AiChatStepDefinitions {
 
     @当("用户发送消息 {string}")
     public void 用户发送消息(String content) throws Exception {
+        sendChat(content, null);
+    }
+
+    @当("用户使用 Skill {string} 发送消息 {string}")
+    public void 用户使用Skill发送消息(String skillName, String content) throws Exception {
+        sendChat(content, currentSkillId);
+    }
+
+    private void sendChat(String content, Long skillId) throws Exception {
         setupMcpStubs();
         setupLlmStubs();
+        llmWireMock.resetRequests();
 
-        String body = objectMapper.writeValueAsString(Map.of(
-            "messages", List.of(Map.of("role", "user", "content", content)),
-            "provider", "qwen"
-        ));
+        Map<String, Object> bodyMap = new LinkedHashMap<>();
+        bodyMap.put("messages", List.of(Map.of("role", "user", "content", content)));
+        bodyMap.put("provider", "qwen");
+        if (skillId != null) bodyMap.put("skillId", skillId);
+        if (overrideMaxRounds > 0) bodyMap.put("maxToolCallRounds", overrideMaxRounds);
+
+        String body = objectMapper.writeValueAsString(bodyMap);
 
         HttpRequest request = HttpRequest.newBuilder()
             .uri(URI.create("http://127.0.0.1:" + port + "/api/ai/chat"))
@@ -196,6 +263,54 @@ public class AiChatStepDefinitions {
         assertThat(found).as("Expected model " + modelId + " in response").isTrue();
     }
 
+    @那么("发送给 LLM 的 system prompt 应包含 {string}")
+    public void 发送给LLM的systemPrompt应包含(String expected) throws Exception {
+        String systemPrompt = extractSystemPromptFromLlmRequests();
+        assertThat(systemPrompt).as("system prompt should contain: " + expected).contains(expected);
+    }
+
+    @并且("发送给 LLM 的 tools 应包含 {string}")
+    public void 发送给LLM的tools应包含(String toolName) throws Exception {
+        List<String> toolNames = extractToolNamesFromLlmRequests();
+        assertThat(toolNames).as("tools sent to LLM should contain: " + toolName).contains(toolName);
+    }
+
+    @并且("发送给 LLM 的 tools 不应包含 {string}")
+    public void 发送给LLM的tools不应包含(String toolName) throws Exception {
+        List<String> toolNames = extractToolNamesFromLlmRequests();
+        assertThat(toolNames).as("tools sent to LLM should NOT contain: " + toolName).doesNotContain(toolName);
+    }
+
+    @那么("SSE 流应包含 error 事件")
+    public void sse流应包含error事件() {
+        assertThat(receivedEvents).anyMatch(e -> "error".equals(e.event()));
+    }
+
+    private String extractSystemPromptFromLlmRequests() throws Exception {
+        List<LoggedRequest> requests = llmWireMock.findAll(
+                WireMock.postRequestedFor(WireMock.urlPathEqualTo("/chat/completions")));
+        assertThat(requests).isNotEmpty();
+        JsonNode body = objectMapper.readTree(requests.get(0).getBodyAsString());
+        for (JsonNode msg : body.path("messages")) {
+            if ("system".equals(msg.path("role").asText())) {
+                return msg.path("content").asText("");
+            }
+        }
+        return "";
+    }
+
+    private List<String> extractToolNamesFromLlmRequests() throws Exception {
+        List<LoggedRequest> requests = llmWireMock.findAll(
+                WireMock.postRequestedFor(WireMock.urlPathEqualTo("/chat/completions")));
+        assertThat(requests).isNotEmpty();
+        JsonNode body = objectMapper.readTree(requests.get(0).getBodyAsString());
+        List<String> names = new ArrayList<>();
+        for (JsonNode tool : body.path("tools")) {
+            names.add(tool.path("function").path("name").asText());
+        }
+        return names;
+    }
+
     // ─── Stub helpers ───
 
     private void setupMcpStubs() throws Exception {
@@ -248,6 +363,17 @@ public class AiChatStepDefinitions {
     }
 
     private void setupLlmStubs() {
+        if (llmAlwaysToolCall && !llmRounds.isEmpty()) {
+            LlmRoundSetup round = llmRounds.get(0);
+            String sseBody = buildToolCallSseResponse(round.toolName, round.toolArgs, "call_repeat");
+            llmWireMock.stubFor(WireMock.post(WireMock.urlPathEqualTo("/chat/completions"))
+                .willReturn(WireMock.aResponse()
+                    .withStatus(200)
+                    .withHeader("Content-Type", "text/event-stream")
+                    .withBody(sseBody)));
+            return;
+        }
+
         String scenarioName = "llm-conversation";
         String currentState = "Started";
 

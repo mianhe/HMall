@@ -20,6 +20,7 @@ provide('aiChat', chat)
 
 onMounted(() => {
   chat.loadModels()
+  chat.loadSkills()
   window.addEventListener('keydown', handleShortcut)
 })
 

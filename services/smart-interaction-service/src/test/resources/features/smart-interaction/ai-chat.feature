@@ -38,3 +38,36 @@
   场景: 查询可用模型列表
     当 用户请求可用模型列表
     那么 应返回模型列表包含 "qwen"
+
+  场景: 指定 skillId 时应加载 Skill 的 systemPrompt 并过滤工具
+    假如 已创建 Skill "库存助手" systemPrompt "你是库存管理专家" allowedTools "inventory_*"
+    并且 MCP 已注册工具 "catalog_list_categories"
+    并且 MCP 已注册工具 "inventory_query_stock"
+    并且 LLM 会返回 tool call "inventory_query_stock" 参数 "{\"skuId\":1}"
+    并且 MCP 执行 "inventory_query_stock" 将返回 "库存: 100"
+    并且 LLM 收到工具结果后会回复 "SKU 1 的库存为 100"
+    当 用户使用 Skill "库存助手" 发送消息 "查一下 SKU 1 的库存"
+    那么 发送给 LLM 的 system prompt 应包含 "你是库存管理专家"
+    并且 发送给 LLM 的 tools 应包含 "inventory_query_stock"
+    并且 发送给 LLM 的 tools 不应包含 "catalog_list_categories"
+    并且 拼接所有 delta 内容为 "SKU 1 的库存为 100"
+
+  场景: 未指定 skillId 时应使用默认 Skill
+    假如 已创建默认 Skill "通用助手" systemPrompt "你是 HMall 通用助手"
+    并且 LLM 会流式返回文本 "我是通用助手"
+    当 用户发送消息 "你好"
+    那么 发送给 LLM 的 system prompt 应包含 "你是 HMall 通用助手"
+
+  场景: 无默认 Skill 时应使用基础 system prompt
+    假如 系统中无任何 Skill
+    并且 LLM 会流式返回文本 "你好"
+    当 用户发送消息 "你好"
+    那么 发送给 LLM 的 system prompt 应包含 "HMall"
+
+  场景: Tool Call 轮次超过限制时应终止并提示
+    假如 已设置 maxToolCallRounds 为 2
+    并且 MCP 已注册工具 "catalog_list_categories"
+    并且 LLM 每轮都会返回 tool call "catalog_list_categories" 参数 "{}"
+    并且 MCP 执行 "catalog_list_categories" 将返回 "数据"
+    当 用户发送消息 "不断查询"
+    那么 SSE 流应包含 error 事件

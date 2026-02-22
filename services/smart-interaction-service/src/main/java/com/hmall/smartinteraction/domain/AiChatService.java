@@ -22,25 +22,30 @@ import java.util.TreeMap;
 public class AiChatService {
 
     private static final Logger log = LoggerFactory.getLogger(AiChatService.class);
-    private static final int MAX_TOOL_CALL_ROUNDS = 100;
+    private static final int DEFAULT_MAX_TOOL_CALL_ROUNDS = 100;
 
     private final LlmClient llmClient;
     private final McpToolBridge mcpToolBridge;
     private final LlmProviderConfig config;
+    private final SkillRepository skillRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public AiChatService(LlmClient llmClient, McpToolBridge mcpToolBridge, LlmProviderConfig config) {
+    public AiChatService(LlmClient llmClient, McpToolBridge mcpToolBridge,
+                         LlmProviderConfig config, SkillRepository skillRepository) {
         this.llmClient = llmClient;
         this.mcpToolBridge = mcpToolBridge;
         this.config = config;
+        this.skillRepository = skillRepository;
     }
 
     public void chat(ChatRequest request, SseEmitter emitter) {
         try {
             var provider = config.resolveProvider(request.provider());
-            var messages = buildMessages(request);
-            var tools = mcpToolBridge.getTools();
-            streamWithToolCallLoop(provider, messages, tools, emitter);
+            Skill skill = resolveSkill(request.skillId());
+            var messages = buildMessages(request, skill);
+            var tools = resolveTools(skill);
+            int maxRounds = resolveMaxRounds(request.maxToolCallRounds());
+            streamWithToolCallLoop(provider, messages, tools, maxRounds, emitter);
         } catch (Exception e) {
             log.error("Chat error", e);
             sendEvent(emitter, "error", ChatEvent.error(e.getMessage()));
@@ -48,11 +53,42 @@ public class AiChatService {
         }
     }
 
+    private Skill resolveSkill(Long skillId) {
+        if (skillId != null) {
+            return skillRepository.findById(skillId).orElse(null);
+        }
+        return skillRepository.findDefault().orElse(null);
+    }
+
+    private List<Map<String, Object>> resolveTools(Skill skill) {
+        var allTools = mcpToolBridge.getTools();
+        if (skill == null) return allTools;
+
+        List<String> allToolNames = mcpToolBridge.getToolNames();
+        List<String> allowedNames = skill.matchTools(allToolNames);
+
+        return allTools.stream()
+                .filter(tool -> {
+                    @SuppressWarnings("unchecked")
+                    var fn = (Map<String, Object>) tool.get("function");
+                    return fn != null && allowedNames.contains(fn.get("name"));
+                })
+                .toList();
+    }
+
+    private int resolveMaxRounds(Integer requestMaxRounds) {
+        if (requestMaxRounds != null && requestMaxRounds > 0) {
+            return requestMaxRounds;
+        }
+        return DEFAULT_MAX_TOOL_CALL_ROUNDS;
+    }
+
     private void streamWithToolCallLoop(LlmProviderConfig.Provider provider,
                                         List<Map<String, Object>> messages,
                                         List<Map<String, Object>> tools,
+                                        int maxRounds,
                                         SseEmitter emitter) {
-        for (int round = 0; round < MAX_TOOL_CALL_ROUNDS; round++) {
+        for (int round = 0; round < maxRounds; round++) {
             var result = streamOnce(provider, messages, tools, emitter);
             if (result.toolCalls.isEmpty()) {
                 sendEvent(emitter, "done", ChatEvent.done());
@@ -150,11 +186,11 @@ public class AiChatService {
         }
     }
 
-    private List<Map<String, Object>> buildMessages(ChatRequest request) {
+    private List<Map<String, Object>> buildMessages(ChatRequest request, Skill skill) {
         List<Map<String, Object>> messages = new ArrayList<>();
 
-        String currentPage = request.context() != null ? request.context().page() : "/";
-        messages.add(Map.of("role", "system", "content", buildSystemPrompt(currentPage)));
+        String systemPrompt = buildSystemPrompt(request, skill);
+        messages.add(Map.of("role", "system", "content", systemPrompt));
 
         for (ChatRequest.Message msg : request.messages()) {
             messages.add(Map.of("role", msg.role(), "content", msg.content()));
@@ -162,7 +198,15 @@ public class AiChatService {
         return messages;
     }
 
-    private String buildSystemPrompt(String currentPage) {
+    private String buildSystemPrompt(ChatRequest request, Skill skill) {
+        if (skill != null && skill.getSystemPrompt() != null && !skill.getSystemPrompt().isBlank()) {
+            return skill.getSystemPrompt();
+        }
+        return buildDefaultSystemPrompt(request);
+    }
+
+    private String buildDefaultSystemPrompt(ChatRequest request) {
+        String currentPage = request.context() != null ? request.context().page() : "/";
         return """
             你是 HMall 智能助手，帮助管理员通过对话管理电商系统。
             

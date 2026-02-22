@@ -25,14 +25,14 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 | **Catalog** | 类目、商品(SPU)、规格维度、SKU、展示图 | ✅ 已完成 | 4 个 feature，45 个 scenario，全部通过 |
 | **User** | 用户注册、登录(JWT)、收货地址管理 | ✅ 已完成 | 3 个 feature（user、login、address），19 个 scenario，全部通过 |
 | **Order** | 订单创建、取消、查询、事件驱动、状态流转 | ✅ 已完成 | 4 个 feature，25 个 scenario，全部通过；已与 Fulfillment 集成（同步创建/取消） |
-| **BFF** | frontend 统一 API 入口，代理 Catalog/User/Order/Inventory | ✅ POC | 透传代理、CORS、4xx/5xx 转发，端口 8085 |
-| **Smart Interaction** | LLM + MCP 智能交互（对话式操作） | ✅ 已完成 | 端口 8089；4 个验收场景全绿；从 BFF 拆分为独立 BC |
+| **BFF** | frontend 统一 API 入口，代理 Catalog/User/Order/Inventory/Cart/Fulfillment | ✅ POC | 透传代理、CORS、4xx/5xx 转发，端口 8085 |
+| **Smart Interaction** | LLM + MCP 智能交互（对话式操作）+ Skill 管理 | 🔄 演进中 | 端口 8089；2 feature（ai-chat + skill-management）、16 scenario 全绿；后端：Skill CRUD + 默认设置 + 通配符工具过滤 + 对话集成 Skill（systemPrompt 动态加载、allowedTools 过滤、maxToolCallRounds 限制）；前端：Skill 选择器 + Skill 管理面板（Drawer 内 CRUD + 设默认）；待完成：对话历史持久化、系统设置、MCP 工具扩展 |
 | **Inventory** | 同步占用/释放库存、库存管理 | ✅ 已完成 | 3 feature、11 scenario 全绿；已与 Order 集成 |
 | **Payment** | 扣款/退款/超时检测 | ✅ 已完成 | 5 feature、19 scenario 全绿；超时检测定时自动执行；事件通知 Order（Kafka：PaymentCompleted/Failed/Expired）；已与 Order 集成（同步创建支付单/退款） |
 | **Activity** | 消费 Order/Payment/Inventory/Fulfillment 事件，活动记录、查询与统计仪表盘 | ✅ 已完成 | 3 个 feature（consume/query/stats），16 个 scenario，全部通过；已订阅 Fulfillment 全部 4 个事件 |
 | **Fulfillment** | 拆单、开始配货、发货、签收、取消、查询 | ✅ 已完成 | 端口 8088；6 feature、24 scenario 全绿；ALLOCATING 状态与「开始配货」API；同步创建/取消 + Kafka 事件发布（Created/Allocated/Shipped/Delivered）；已与 Order、Activity 集成 |
 | **Pricing** | 算价、优惠 | 🔲 规划中 | 创建订单时同步调用 |
-| **Cart** | 购物车增删改查、结算预览 | ✅ 已完成 | 5 feature（+ smoke），17 scenario，全部通过；依赖 Catalog（SkuQueryPort 桩）+ User，结算由前端编排 |
+| **Cart** | 购物车增删改查、结算预览 | ✅ 已完成 | 5 feature（+ smoke），17 scenario，全部通过；已与 Catalog 集成（CatalogSkuQueryAdapter 实时查询 SKU）+ User；结算由前端编排 |
 
 ### 已完成：Order 与 Inventory 集成
 
@@ -55,11 +55,14 @@ Order 通过 `RestCreatePaymentAdapter`、`RestRefundPaymentAdapter` 调用 Paym
 
 各 BC 的 Kafka 事件发布/消费已实现。测试中排除 KafkaAutoConfiguration（使用桩替身），生产环境有 Kafka 时自动启用 `@Primary` 的 Kafka 实现。已联通链路：Payment → Order（PaymentCompleted/Failed/Expired）、Fulfillment → Order（OrderAllocated/Shipped/Delivered）、Order/Payment/Inventory/Fulfillment → Activity。
 
+### 已完成：Cart 与 Catalog 集成
+
+Cart 通过 `CatalogSkuQueryAdapter`（`@Component`，REST 调用 `catalog.base-url`，默认 `http://localhost:8080`）实时查询 SKU 信息（名称、价格、库存）。验收测试用 `StubSkuQueryPort`（`@Primary`），生产环境自动使用真实适配器。前端购物车页面 → BFF → Cart → Catalog 链路完整。
+
 ### 下一步
 
-1. **端到端联调**：启动全部服务 + Kafka，验证完整交易流程
-2. **Fulfillment 前端**：管理后台增加发货/签收操作页面
-3. **Pricing BC**：创建订单时同步算价（规划中）
+1. **Smart Interaction V2**：对话历史持久化、系统设置、MCP 工具扩展（Inventory/Order/Fulfillment/Activity）、前端对话历史/设置面板
+2. **Pricing BC**：创建订单时同步算价（规划中）
 
 ---
 
@@ -67,8 +70,8 @@ Order 通过 `RestCreatePaymentAdapter`、`RestRefundPaymentAdapter` 调用 Paym
 
 | 前端 | 职责 | 状态 | 已实现页面 |
 |------|------|------|-----------|
-| **frontend-admin** | 管理后台，展示+库存管理+AI 对话 | ✅ 基本完成 | HomePage、CatalogPage、ProductDetailPage、InventoryPage、AI Chat（全局 Drawer） |
-| **frontend-web** | 消费者端 | ✅ 阶段完成 | HomePage、LoginPage、RegisterPage、ProductDetailPage、CheckoutPage、OrderListPage、OrderDetailPage、AddressPage、MyPage |
+| **frontend-admin** | 管理后台，展示+库存管理+履约管理+监控仪表盘+AI 对话 | ✅ 基本完成 | HomePage、CatalogPage、ProductDetailPage、InventoryPage、FulfillmentPage、ActivityPage、AI Chat（全局 Drawer） |
+| **frontend-web** | 消费者端 | ✅ 阶段完成 | HomePage、LoginPage、RegisterPage、ProductDetailPage、CartPage、CheckoutPage、OrderListPage、OrderDetailPage、AddressPage、MyPage |
 
 ### frontend-web 已实现
 
@@ -108,6 +111,8 @@ Order 通过 `RestCreatePaymentAdapter`、`RestRefundPaymentAdapter` 调用 Paym
 
 | 日期 | 变更内容 |
 |------|---------|
+| 2026-02-22 | Smart Interaction 前端 Skill UI：SkillSelector（下拉选择/切换 Skill）+ SkillManager（Drawer 内 CRUD + 设默认）；skill.js API 封装；useAiChat composable 集成 Skill 状态管理（loadSkills/createSkill/updateSkill/removeSkill/setDefaultSkill）；sendMessage 自动附带 skillId；Vite proxy 新增 /api/ai → 8089 路由 |
+| 2026-02-22 | Smart Interaction 对话集成 Skill：ChatRequest 新增 skillId/maxToolCallRounds；AiChatService 加载 Skill systemPrompt、按 allowedTools 过滤工具、可配置 tool call 轮次限制；新增 4 个验收场景（16 scenario 全绿） |
 | 2026-02-21 | Fulfillment Kafka 事件发布实现：新增 KafkaDomainEventPublisher（@Primary 覆盖 LoggingDomainEventPublisher），发布 Created/Allocated/Shipped/Delivered 到 Kafka；Activity 订阅 Fulfillment 全部 4 个 topic；端到端链路打通（Fulfillment → Kafka → Order + Activity） |
 | 2026-02-21 | Smart Interaction BC 拆分：AI Chat 模块从 BFF 拆分为独立限界上下文 smart-interaction-service（端口 8089）；代码、测试、配置完整迁移；BFF 清理（移除 ai 包、webflux/Cucumber/WireMock 依赖）；脚本支持 `--bc smart-interaction` |
 | 2026-02-21 | BFF AI Chat 模块完成：LLM + MCP Tool Calling 对话式操作；后端（AiChatService/LlmClient/McpToolBridge）+ frontend-admin 全局 Drawer；验收测试 4 场景（WireMock stub LLM/MCP）全绿 |

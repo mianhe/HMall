@@ -42,6 +42,13 @@ public class McpToolBridge {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    public List<String> getToolNames() {
+        return getTools().stream()
+                .map(tool -> ((Map<String, Object>) tool.get("function")).get("name").toString())
+                .toList();
+    }
+
     public String executeTool(String toolName, Object arguments) {
         try {
             ObjectNode params = objectMapper.createObjectNode();

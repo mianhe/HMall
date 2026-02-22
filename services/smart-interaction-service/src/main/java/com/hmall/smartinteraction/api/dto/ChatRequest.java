@@ -5,7 +5,9 @@ import java.util.List;
 public record ChatRequest(
     List<Message> messages,
     Context context,
-    String provider
+    String provider,
+    Long skillId,
+    Integer maxToolCallRounds
 ) {
     public record Message(String role, String content) {}
 
