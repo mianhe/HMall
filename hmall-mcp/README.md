@@ -74,62 +74,30 @@ npm run start:http
 }
 ```
 
-## 可用 Tools
+## 文档
 
-tool 的 description 和参数 schema 定义在 `tools/catalog.js` 的 `server.tool()` 调用中，MCP SDK 会自动暴露给 AI。
+| 文档 | 说明 |
+|------|------|
+| [docs/TOOLS.md](docs/TOOLS.md) | **Catalog MCP Tools 说明**：8 个 tool 的用途、参数与示例（收敛后的设计，供用户与 Agent 查阅） |
+| 本 README | 安装、运行方式、配置、环境变量 |
 
-### 类目
+tool 的 description 和参数 schema 定义在 `tools/catalog.js` 的 `server.tool()` 调用中，MCP SDK 会自动暴露给 AI。**当前已实现为收敛的 7 个 tools**，与 [docs/TOOLS.md](docs/TOOLS.md) 一致。
 
-| Tool | 说明 | 参数 |
-|------|------|------|
-| `catalog_list_categories` | 查类目列表 | `parentId?`: number — 父类目 ID，不传查根类目 |
-| `catalog_get_category_tree` | 查完整类目树（所有层级） | 无 |
-| `catalog_create_category` | 创建类目 | `name`: string, `description?`: string, `parentId?`: number |
-| `catalog_get_category` | 查类目详情 | `categoryId`: number |
-| `catalog_update_category` | 修改类目（名称、描述） | `categoryId`: number, `name`: string, `description?`: string |
-| `catalog_delete_category` | 删除类目 | `categoryId`: number |
+## 可用 Tools（7 个）
 
-### 商品（SPU）
+| Tool | 说明 |
+|------|------|
+| `catalog_categories` | 类目：action=list \| tree \| get \| create \| update \| delete |
+| `catalog_products` | 商品(SPU)：action=list \| get \| create \| update \| delete；list 支持 categoryId 或 keyword |
+| `catalog_dimensions` | 规格维度与选项：action=list \| add_dimension \| add_option \| delete_option |
+| `catalog_skus` | SKU：action=list \| create \| update \| delete |
+| `catalog_upload_image` | 上传本地图片，返回 URL |
+| `catalog_product_images` | 产品级展示图：action=list \| add \| delete；add 支持 imageUrl 或 localPath |
+| `catalog_option_images` | 选项级展示图：action=list \| add \| delete；add 支持 imageUrl 或 localPath |
 
-| Tool | 说明 | 参数 |
-|------|------|------|
-| `catalog_list_products` | 按类目查商品列表 | `categoryId`: number |
-| `catalog_search_products` | 按关键词搜索商品（跨类目） | `keyword?`: string |
-| `catalog_get_product` | 查商品基础信息 | `productId`: number |
-| `catalog_get_product_full` | 查商品完整信息（基础+维度选项+SKU） | `productId`: number |
-| `catalog_create_product` | 创建商品 | `categoryId`: number, `name`: string, `description?`: string |
+各 tool 的详细参数见 [docs/TOOLS.md](docs/TOOLS.md)。参数后带 `?` 表示可选。
 
-### 规格维度与选项
-
-| Tool | 说明 | 参数 |
-|------|------|------|
-| `catalog_list_dimensions` | 查某 SPU 的维度及选项（含选项 ID） | `spuId`: number |
-| `catalog_add_dimension` | 为 SPU 添加维度 | `spuId`: number, `name`: string, `required`: boolean |
-| `catalog_add_option` | 为维度添加选项 | `spuId`: number, `dimensionId`: number, `optionValue`: string, `sortOrder?`: number |
-
-### SKU
-
-| Tool | 说明 | 参数 |
-|------|------|------|
-| `catalog_list_skus` | 查某 SPU 下 SKU 列表 | `spuId`: number |
-| `catalog_create_sku` | 创建 SKU | `spuId`: number, `specOptionIds`: number[], `priceCents`: number (>=0), `displayName?`: string |
-| `catalog_update_sku` | 修改 SKU（价格、展示名） | `spuId`: number, `skuId`: number, `priceCents?`: number (>=0), `displayName?`: string |
-| `catalog_delete_sku` | 删除 SKU | `spuId`: number, `skuId`: number |
-
-### 展示图（产品级 + 选项级）
-
-| Tool | 说明 | 参数 |
-|------|------|------|
-| `catalog_add_product_image` | 为产品添加产品级展示图 | `spuId`: number, `imageUrl`: string, `sortOrder?`: number |
-| `catalog_list_product_images` | 查某产品的产品级展示图列表 | `spuId`: number |
-| `catalog_delete_product_image` | 删除产品级展示图 | `spuId`: number, `imageId`: number |
-| `catalog_upload_and_add_product_image` | 上传本地图片并添加为产品级展示图 | `spuId`: number, `localPath`: string, `sortOrder?`: number |
-| `catalog_add_option_image` | 为选项添加展示图 | `spuId`: number, `dimensionId`: number, `optionId`: number, `imageUrl`: string, `sortOrder?`: number |
-| `catalog_upload_and_add_option_image` | 上传本地图片并关联到选项展示图 | `spuId`: number, `dimensionId`: number, `optionId`: number, `localPath`: string, `sortOrder?`: number |
-| `catalog_list_option_images` | 查某选项的展示图列表 | `spuId`: number, `dimensionId`: number, `optionId`: number |
-| `catalog_delete_option_image` | 删除选项的展示图 | `spuId`: number, `dimensionId`: number, `optionId`: number, `imageId`: number |
-
-> 参数后带 `?` 表示可选，不带则必填。
+**上传图像**：`catalog_upload_image` 与展示图 add 的 `localPath` 依赖后端 **MinIO**（catalog-service 配置 `minio.enabled=true` 且 MinIO 服务已启动），否则会 404 或连接失败。
 
 ## 代码结构
 
@@ -139,6 +107,8 @@ hmall-mcp/
 ├── index-http.js      ← HTTP 入口：独立进程，监听端口，供任意 Client 通过 URL 连接
 ├── tools/
 │   └── catalog.js     ← Catalog 模块 tools（description + schema + 调 API）
+├── docs/
+│   └── TOOLS.md       ← Catalog MCP Tools 说明（8 个 tool 设计）
 └── README.md
 ```
 
