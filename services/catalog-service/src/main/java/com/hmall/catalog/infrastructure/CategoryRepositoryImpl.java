@@ -39,6 +39,11 @@ public class CategoryRepositoryImpl implements CategoryRepository {
     }
 
     @Override
+    public List<Category> findAll() {
+        return jpaRepository.findAll().stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public boolean existsByParentId(Long parentId) {
         return jpaRepository.existsByParentId(parentId);
     }

@@ -218,6 +218,76 @@ public class CategoryStepDefinitions {
         lastListResponse = getCategories(parentId);
     }
 
+    // ---------- 类目下有子类别（单个子类别，用于树构建） ----------
+    @Given("类别 {string} 下有子类别 {string}")
+    public void 类别下有子类别(String parentName, String childName) {
+        Long parentId = categoryNameToId.get(parentName);
+        assertThat(parentId).as("类别「%s」应先存在", parentName).isNotNull();
+        CategoryApiDto.Create body = new CategoryApiDto.Create();
+        body.name = childName;
+        body.parentId = parentId;
+        ResponseEntity<CategoryApiDto.Response> res = postCategory(body);
+        assertThat(res.getStatusCode().value()).isEqualTo(201);
+        if (res.getBody() != null) {
+            categoryNameToId.put(childName, res.getBody().id);
+        }
+    }
+
+    // ---------- 查询完整类目树 ----------
+    private ResponseEntity<List<CategoryApiDto.TreeNode>> lastTreeResponse;
+
+    @When("用户请求完整类目树")
+    public void 用户请求完整类目树() {
+        lastTreeResponse = getCategoryTree();
+    }
+
+    @Then("应返回类目树包含 {int} 个根节点")
+    public void 应返回类目树包含个根节点(int count) {
+        assertThat(lastTreeResponse).isNotNull();
+        assertThat(lastTreeResponse.getStatusCode().value()).isEqualTo(200);
+        assertThat(lastTreeResponse.getBody()).hasSize(count);
+    }
+
+    @And("根节点 {string} 下有子节点 {string}")
+    public void 根节点下有子节点(String rootName, String childName) {
+        CategoryApiDto.TreeNode root = findNodeByName(lastTreeResponse.getBody(), rootName);
+        assertThat(root).as("根节点「%s」应存在", rootName).isNotNull();
+        assertThat(root.children).isNotEmpty();
+        boolean found = root.children.stream().anyMatch(c -> c.name.equals(childName));
+        assertThat(found).as("根节点「%s」下应有子节点「%s」", rootName, childName).isTrue();
+    }
+
+    @And("子节点 {string} 下有子节点 {string}")
+    public void 子节点下有子节点(String parentName, String childName) {
+        CategoryApiDto.TreeNode parent = findNodeDeep(lastTreeResponse.getBody(), parentName);
+        assertThat(parent).as("节点「%s」应存在", parentName).isNotNull();
+        assertThat(parent.children).isNotEmpty();
+        boolean found = parent.children.stream().anyMatch(c -> c.name.equals(childName));
+        assertThat(found).as("节点「%s」下应有子节点「%s」", parentName, childName).isTrue();
+    }
+
+    @And("根节点 {string} 下无子节点")
+    public void 根节点下无子节点(String rootName) {
+        CategoryApiDto.TreeNode root = findNodeByName(lastTreeResponse.getBody(), rootName);
+        assertThat(root).as("根节点「%s」应存在", rootName).isNotNull();
+        assertThat(root.children).isNullOrEmpty();
+    }
+
+    private CategoryApiDto.TreeNode findNodeByName(List<CategoryApiDto.TreeNode> nodes, String name) {
+        if (nodes == null) return null;
+        return nodes.stream().filter(n -> n.name.equals(name)).findFirst().orElse(null);
+    }
+
+    private CategoryApiDto.TreeNode findNodeDeep(List<CategoryApiDto.TreeNode> nodes, String name) {
+        if (nodes == null) return null;
+        for (CategoryApiDto.TreeNode node : nodes) {
+            if (node.name.equals(name)) return node;
+            CategoryApiDto.TreeNode found = findNodeDeep(node.children, name);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
     // ---------- API 调用封装 ----------
     private ResponseEntity<CategoryApiDto.Response> postCategory(CategoryApiDto.Create body) {
         return CategoryApiDto.postCategory(restTemplate, body);
@@ -270,6 +340,18 @@ public class CategoryStepDefinitions {
                 null,
                 Void.class
             );
+        } catch (RestClientResponseException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(null);
+        }
+    }
+
+    private static final ParameterizedTypeReference<List<CategoryApiDto.TreeNode>> LIST_OF_TREE_NODE =
+        new ParameterizedTypeReference<>() {};
+
+    private ResponseEntity<List<CategoryApiDto.TreeNode>> getCategoryTree() {
+        String url = baseUrl() + "/api/categories/tree";
+        try {
+            return restTemplate.exchange(url, HttpMethod.GET, null, LIST_OF_TREE_NODE);
         } catch (RestClientResponseException e) {
             return ResponseEntity.status(e.getStatusCode()).body(null);
         }

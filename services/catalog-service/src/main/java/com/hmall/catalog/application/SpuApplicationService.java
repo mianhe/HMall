@@ -39,6 +39,11 @@ public class SpuApplicationService {
     }
 
     @Transactional(readOnly = true)
+    public List<Spu> searchByName(String keyword) {
+        return spuRepository.searchByName(keyword);
+    }
+
+    @Transactional(readOnly = true)
     public Spu getById(Long id) {
         return spuRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("商品不存在"));

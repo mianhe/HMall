@@ -60,6 +60,13 @@ public class ProductController {
             .toList();
     }
 
+    @GetMapping("/search")
+    public List<ProductDto> search(@RequestParam(required = false, defaultValue = "") String keyword) {
+        return applicationService.searchByName(keyword).stream()
+            .map(this::toDto)
+            .toList();
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ProductDto> getById(@PathVariable Long id) {
         Spu spu = applicationService.getById(id);

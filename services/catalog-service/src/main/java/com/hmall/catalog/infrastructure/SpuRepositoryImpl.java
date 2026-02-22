@@ -39,6 +39,14 @@ public class SpuRepositoryImpl implements SpuRepository {
     }
 
     @Override
+    public List<Spu> searchByName(String keyword) {
+        List<SpuEntity> entities = (keyword == null || keyword.isBlank())
+            ? jpaRepository.findAll()
+            : jpaRepository.searchByNameContaining(keyword);
+        return entities.stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public void deleteById(Long id) {
         jpaRepository.deleteById(id);
     }

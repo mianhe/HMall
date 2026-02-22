@@ -70,9 +70,29 @@ export function registerCatalogTools(server) {
         const qs = parentId != null ? `?parentId=${parentId}` : ''
         const list = await api('GET', `/categories${qs}`)
         if (!list.length) return ok('暂无类目。')
-        const header = '| ID | 名称 | 父类目ID | 描述 |\n|---|---|---|---|'
-        const rows = list.map(c => `| ${c.id} | ${c.name} | ${c.parentId ?? '—'} | ${c.description || '—'} |`)
-        return ok(`${header}\n${rows.join('\n')}`)
+        const lines = list.map(c => `[${c.id}] ${c.name}${c.description ? ' - ' + c.description : ''}${c.parentId ? ' (父:' + c.parentId + ')' : ''}`)
+        return ok(lines.join('\n'))
+      } catch (e) { return err(e) }
+    }
+  )
+
+  server.tool(
+    'catalog_get_category_tree',
+    '查询完整类目树（所有层级：根→子→叶子），一次获取全部类目结构',
+    {},
+    async () => {
+      try {
+        const tree = await api('GET', '/categories/tree')
+        if (!tree.length) return ok('暂无类目。')
+        const lines = []
+        function walk(nodes, indent) {
+          for (const n of nodes) {
+            lines.push(`${'  '.repeat(indent)}[${n.id}] ${n.name}${n.description ? ' - ' + n.description : ''}`)
+            if (n.children && n.children.length) walk(n.children, indent + 1)
+          }
+        }
+        walk(tree, 0)
+        return ok(lines.join('\n'))
       } catch (e) { return err(e) }
     }
   )
@@ -143,21 +163,69 @@ export function registerCatalogTools(server) {
       try {
         const list = await api('GET', `/products?categoryId=${categoryId}`)
         if (!list.length) return ok('该类目下暂无商品。')
-        const header = '| ID | 名称 | 描述 |\n|---|---|---|'
-        const rows = list.map(p => `| ${p.id} | ${p.name} | ${p.description || '—'} |`)
-        return ok(`${header}\n${rows.join('\n')}`)
+        const lines = list.map(p => `[${p.id}] ${p.name}${p.description ? ' - ' + p.description : ''}`)
+        return ok(lines.join('\n'))
+      } catch (e) { return err(e) }
+    }
+  )
+
+  server.tool(
+    'catalog_search_products',
+    '按关键词搜索商品（跨类目模糊匹配名称），不传关键词则返回全部商品',
+    { keyword: z.string().optional().describe('搜索关键词，模糊匹配商品名称') },
+    async ({ keyword }) => {
+      try {
+        const qs = keyword ? `?keyword=${encodeURIComponent(keyword)}` : ''
+        const list = await api('GET', `/products/search${qs}`)
+        if (!list.length) return ok(keyword ? `未找到包含"${keyword}"的商品。` : '暂无商品。')
+        const lines = list.map(p => `[${p.id}] ${p.name}${p.description ? ' - ' + p.description : ''} (类目:${p.categoryId})`)
+        return ok(`共 ${list.length} 个商品：\n${lines.join('\n')}`)
       } catch (e) { return err(e) }
     }
   )
 
   server.tool(
     'catalog_get_product',
-    '查询商品详情（含基础信息）',
+    '查询商品基础信息',
     { productId: z.number().describe('商品 ID') },
     async ({ productId }) => {
       try {
         const p = await api('GET', `/products/${productId}`)
-        return ok(`商品详情：\n- ID: ${p.id}\n- 名称: ${p.name}\n- 描述: ${p.description || '—'}\n- 类目ID: ${p.categoryId}`)
+        return ok(`[${p.id}] ${p.name}${p.description ? ' - ' + p.description : ''} (类目:${p.categoryId})`)
+      } catch (e) { return err(e) }
+    }
+  )
+
+  server.tool(
+    'catalog_get_product_full',
+    '一次获取商品完整信息：基础信息 + 规格维度/选项(含ID) + 所有SKU(含价格)',
+    { productId: z.number().describe('商品 ID') },
+    async ({ productId }) => {
+      try {
+        const [p, dims, skus] = await Promise.all([
+          api('GET', `/products/${productId}`),
+          api('GET', `/products/${productId}/dimensions`),
+          api('GET', `/products/${productId}/skus`),
+        ])
+        const lines = [`商品 [${p.id}] ${p.name}${p.description ? ' - ' + p.description : ''} (类目:${p.categoryId})`]
+
+        if (dims.length) {
+          lines.push('\n规格维度：')
+          for (const d of dims) {
+            const opts = (d.options || []).map(o => `${o.optionValue}(id:${o.id})`).join(', ')
+            lines.push(`  [${d.id}] ${d.name}${d.required ? '(必填)' : '(可选)'}：${opts || '无选项'}`)
+          }
+        }
+
+        if (skus.length) {
+          lines.push('\nSKU列表：')
+          for (const s of skus) {
+            const spec = (s.specValues || []).map(v => `${v.dimensionName}:${v.optionValue}`).join(', ')
+            lines.push(`  [${s.id}] ${spec} ¥${(s.priceCents / 100).toFixed(2)}${s.displayName ? ' ' + s.displayName : ''}`)
+          }
+        }
+
+        return ok(lines.join('\n'))
       } catch (e) { return err(e) }
     }
   )
@@ -210,18 +278,17 @@ export function registerCatalogTools(server) {
 
   server.tool(
     'catalog_list_dimensions',
-    '查询某 SPU 的规格维度及选项列表',
+    '查询某 SPU 的规格维度及选项列表（含选项 ID，创建 SKU 时需要）',
     { spuId: z.number().describe('商品(SPU) ID') },
     async ({ spuId }) => {
       try {
         const dims = await api('GET', `/products/${spuId}/dimensions`)
         if (!dims.length) return ok('该商品暂无规格维度。')
         const lines = dims.map(d => {
-          const opts = (d.options || []).map(o => o.optionValue).join('、') || '无'
-          const tags = d.required ? '必填' : '可选'
-          return `- **${d.name}**（${tags}）：${opts}`
+          const opts = (d.options || []).map(o => `${o.optionValue}(id:${o.id})`).join(', ') || '无'
+          return `[${d.id}] ${d.name}${d.required ? '(必填)' : '(可选)'}：${opts}`
         })
-        return ok(`SPU ${spuId} 的规格维度：\n${lines.join('\n')}`)
+        return ok(lines.join('\n'))
       } catch (e) { return err(e) }
     }
   )
@@ -288,13 +355,11 @@ export function registerCatalogTools(server) {
       try {
         const list = await api('GET', `/products/${spuId}/skus`)
         if (!list.length) return ok('该商品暂无 SKU。')
-        const header = '| ID | 规格 | 价格(元) | 展示名 |\n|---|---|---|---|'
-        const rows = list.map(s => {
-          const spec = (s.specValues || []).map(v => `${v.dimensionName}:${v.optionValue}`).join(' · ') || '—'
-          const price = (s.priceCents / 100).toFixed(2)
-          return `| ${s.id} | ${spec} | ${price} | ${s.displayName || '—'} |`
+        const lines = list.map(s => {
+          const spec = (s.specValues || []).map(v => `${v.dimensionName}:${v.optionValue}`).join(', ') || '—'
+          return `[${s.id}] ${spec} ¥${(s.priceCents / 100).toFixed(2)}${s.displayName ? ' ' + s.displayName : ''}`
         })
-        return ok(`${header}\n${rows.join('\n')}`)
+        return ok(lines.join('\n'))
       } catch (e) { return err(e) }
     }
   )
@@ -399,9 +464,8 @@ export function registerCatalogTools(server) {
       try {
         const images = await api('GET', `/products/${spuId}/images`)
         if (!images.length) return ok('该产品暂无产品级展示图。')
-        const header = '| ID | URL | 排序 |\n|---|---|---|'
-        const rows = images.map(i => `| ${i.id} | ${i.imageUrl} | ${i.sortOrder ?? '—'} |`)
-        return ok(`${header}\n${rows.join('\n')}`)
+        const lines = images.map(i => `[${i.id}] ${i.imageUrl} (排序:${i.sortOrder ?? '—'})`)
+        return ok(lines.join('\n'))
       } catch (e) { return err(e) }
     }
   )
@@ -494,9 +558,8 @@ export function registerCatalogTools(server) {
         const images = await api('GET',
           `/products/${spuId}/dimensions/${dimensionId}/options/${optionId}/images`)
         if (!images.length) return ok('该选项暂无展示图。')
-        const header = '| ID | URL | 排序 |\n|---|---|---|'
-        const rows = images.map(i => `| ${i.id} | ${i.imageUrl} | ${i.sortOrder ?? '—'} |`)
-        return ok(`${header}\n${rows.join('\n')}`)
+        const lines = images.map(i => `[${i.id}] ${i.imageUrl} (排序:${i.sortOrder ?? '—'})`)
+        return ok(lines.join('\n'))
       } catch (e) { return err(e) }
     }
   )

@@ -83,6 +83,7 @@ tool 的 description 和参数 schema 定义在 `tools/catalog.js` 的 `server.t
 | Tool | 说明 | 参数 |
 |------|------|------|
 | `catalog_list_categories` | 查类目列表 | `parentId?`: number — 父类目 ID，不传查根类目 |
+| `catalog_get_category_tree` | 查完整类目树（所有层级） | 无 |
 | `catalog_create_category` | 创建类目 | `name`: string, `description?`: string, `parentId?`: number |
 | `catalog_get_category` | 查类目详情 | `categoryId`: number |
 | `catalog_update_category` | 修改类目（名称、描述） | `categoryId`: number, `name`: string, `description?`: string |
@@ -93,14 +94,16 @@ tool 的 description 和参数 schema 定义在 `tools/catalog.js` 的 `server.t
 | Tool | 说明 | 参数 |
 |------|------|------|
 | `catalog_list_products` | 按类目查商品列表 | `categoryId`: number |
-| `catalog_get_product` | 查商品详情 | `productId`: number |
+| `catalog_search_products` | 按关键词搜索商品（跨类目） | `keyword?`: string |
+| `catalog_get_product` | 查商品基础信息 | `productId`: number |
+| `catalog_get_product_full` | 查商品完整信息（基础+维度选项+SKU） | `productId`: number |
 | `catalog_create_product` | 创建商品 | `categoryId`: number, `name`: string, `description?`: string |
 
 ### 规格维度与选项
 
 | Tool | 说明 | 参数 |
 |------|------|------|
-| `catalog_list_dimensions` | 查某 SPU 的维度及选项 | `spuId`: number |
+| `catalog_list_dimensions` | 查某 SPU 的维度及选项（含选项 ID） | `spuId`: number |
 | `catalog_add_dimension` | 为 SPU 添加维度 | `spuId`: number, `name`: string, `required`: boolean |
 | `catalog_add_option` | 为维度添加选项 | `spuId`: number, `dimensionId`: number, `optionValue`: string, `sortOrder?`: number |
 

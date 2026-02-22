@@ -50,6 +50,20 @@ paths:
                 items:
                   $ref: '#/components/schemas/Category'
 
+  /api/categories/tree:
+    get:
+      summary: 查询完整类目树
+      description: 返回所有类目的树形结构（根→子→叶子），每个节点包含 id、name、description 及 children。
+      responses:
+        '200':
+          description: 类目树
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryTreeNode'
+
   /api/categories/{id}:
     get:
       summary: 按 ID 查类别详情
@@ -167,6 +181,27 @@ paths:
       responses:
         '200':
           description: 商品列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+
+  /api/products/search:
+    get:
+      summary: 按关键词搜索商品
+      description: 跨类目搜索商品，名称模糊匹配。关键词为空时返回全部商品。
+      parameters:
+        - name: keyword
+          in: query
+          required: false
+          schema:
+            type: string
+          description: 搜索关键词，模糊匹配商品名称
+      responses:
+        '200':
+          description: 匹配的商品列表
           content:
             application/json:
               schema:
@@ -758,6 +793,22 @@ components:
         description:
           type: string
           nullable: true
+    CategoryTreeNode:
+      type: object
+      required: [id, name, children]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryTreeNode'
     CategoryCreate:
       type: object
       required: [name]

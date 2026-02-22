@@ -22,7 +22,7 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 
 | BC | 职责 | 状态 | 说明 |
 |----|------|------|------|
-| **Catalog** | 类目、商品(SPU)、规格维度、SKU、展示图 | ✅ 已完成 | 4 个 feature，45 个 scenario，全部通过 |
+| **Catalog** | 类目、商品(SPU)、规格维度、SKU、展示图 | ✅ 已完成 | 4 个 feature，50 个 scenario，全部通过；新增类目树查询 + 商品搜索 API |
 | **User** | 用户注册、登录(JWT)、收货地址管理 | ✅ 已完成 | 3 个 feature（user、login、address），19 个 scenario，全部通过 |
 | **Order** | 订单创建、取消、查询、事件驱动、状态流转 | ✅ 已完成 | 4 个 feature，25 个 scenario，全部通过；已与 Fulfillment 集成（同步创建/取消） |
 | **BFF** | frontend 统一 API 入口，代理 Catalog/User/Order/Inventory/Cart/Fulfillment | ✅ POC | 透传代理、CORS、4xx/5xx 转发，端口 8085 |
@@ -86,7 +86,7 @@ Cart 通过 `CatalogSkuQueryAdapter`（`@Component`，REST 调用 `catalog.base-
 
 | 模块 | 状态 | 说明 |
 |------|------|------|
-| Catalog MCP tools | ✅ 已完成 | 类目/商品/规格/SKU/展示图（ProductImage、OptionImage）CRUD 及图片上传 |
+| Catalog MCP tools | ✅ 已完成 | 类目/商品/规格/SKU/展示图 CRUD 及图片上传；新增 catalog_get_category_tree、catalog_search_products、catalog_get_product_full；dimensions 返回选项 ID；输出格式精简（减少 token） |
 | User MCP tools | 🔲 待实现 | — |
 
 ---
@@ -111,6 +111,7 @@ Cart 通过 `CatalogSkuQueryAdapter`（`@Component`，REST 调用 `catalog.base-
 
 | 日期 | 变更内容 |
 |------|---------|
+| 2026-02-22 | Catalog BC 新增类目树查询（GET /api/categories/tree）和商品搜索（GET /api/products/search）API；MCP tools 优化：新增 catalog_get_category_tree/catalog_search_products/catalog_get_product_full 三个聚合查询工具，catalog_list_dimensions 返回选项 ID，所有列表输出精简为紧凑格式（减少 LLM token 消耗） |
 | 2026-02-22 | Smart Interaction 前端 Skill UI：SkillSelector（下拉选择/切换 Skill）+ SkillManager（Drawer 内 CRUD + 设默认）；skill.js API 封装；useAiChat composable 集成 Skill 状态管理（loadSkills/createSkill/updateSkill/removeSkill/setDefaultSkill）；sendMessage 自动附带 skillId；Vite proxy 新增 /api/ai → 8089 路由 |
 | 2026-02-22 | Smart Interaction 对话集成 Skill：ChatRequest 新增 skillId/maxToolCallRounds；AiChatService 加载 Skill systemPrompt、按 allowedTools 过滤工具、可配置 tool call 轮次限制；新增 4 个验收场景（16 scenario 全绿） |
 | 2026-02-21 | Fulfillment Kafka 事件发布实现：新增 KafkaDomainEventPublisher（@Primary 覆盖 LoggingDomainEventPublisher），发布 Created/Allocated/Shipped/Delivered 到 Kafka；Activity 订阅 Fulfillment 全部 4 个 topic；端到端链路打通（Fulfillment → Kafka → Order + Activity） |

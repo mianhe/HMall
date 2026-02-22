@@ -8,6 +8,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.util.List;
+
 /**
  * 验收测试用 DTO 与工具方法，与 catalog-api.yaml 中 Category / CategoryCreate / CategoryUpdate 一致。
  */
@@ -32,6 +34,14 @@ public final class CategoryApiDto {
         public Long parentId;
         public String name;
         public String description;
+    }
+
+    /** 类目树节点（GET /api/categories/tree 返回） */
+    public static class TreeNode {
+        public Long id;
+        public String name;
+        public String description;
+        public List<TreeNode> children;
     }
 
     /** 通过 API 创建类别（供多个 StepDefinitions 复用） */

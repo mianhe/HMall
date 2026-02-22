@@ -14,5 +14,7 @@ public interface SpuRepository {
 
     List<Spu> findByCategoryId(Long categoryId);
 
+    List<Spu> searchByName(String keyword);
+
     void deleteById(Long id);
 }

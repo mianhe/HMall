@@ -7,7 +7,7 @@ const client = axios.create({
 })
 
 export async function getSkills() {
-  const { data } = await client.get('/')
+  const { data } = await client.get('')
   return data
 }
 
@@ -17,7 +17,7 @@ export async function getSkill(id) {
 }
 
 export async function createSkill(payload) {
-  const { data } = await client.post('/', payload)
+  const { data } = await client.post('', payload)
   return data
 }
 

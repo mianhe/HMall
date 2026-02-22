@@ -5,7 +5,10 @@ import com.hmall.catalog.domain.CategoryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 管理类别应用服务：创建、查询、修改、删除类别；按父类别查询列表。
@@ -51,6 +54,30 @@ public class CategoryApplicationService {
         findOrThrow(id);
         categoryRepository.deleteById(id);
     }
+
+    @Transactional(readOnly = true)
+    public List<CategoryTreeNode> getCategoryTree() {
+        List<Category> all = categoryRepository.findAll();
+        Map<Long, CategoryTreeNode> nodeMap = new LinkedHashMap<>();
+        for (Category c : all) {
+            nodeMap.put(c.getId(), new CategoryTreeNode(c.getId(), c.getName(), c.getDescription(), new ArrayList<>()));
+        }
+        List<CategoryTreeNode> roots = new ArrayList<>();
+        for (Category c : all) {
+            CategoryTreeNode node = nodeMap.get(c.getId());
+            if (c.getParentId() == null) {
+                roots.add(node);
+            } else {
+                CategoryTreeNode parent = nodeMap.get(c.getParentId());
+                if (parent != null) {
+                    parent.children().add(node);
+                }
+            }
+        }
+        return roots;
+    }
+
+    public record CategoryTreeNode(Long id, String name, String description, List<CategoryTreeNode> children) {}
 
     private Category findOrThrow(Long id) {
         return categoryRepository.findById(id)

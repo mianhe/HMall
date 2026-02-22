@@ -385,6 +385,32 @@ public class ProductStepDefinitions {
         }
     }
 
+    // ---------- 搜索商品 ----------
+    @Given("类别 {string} 下有商品 {string} 描述 {string}")
+    public void 类别下有商品描述(String categoryName, String productName, String description) {
+        Long categoryId = categoryNameToId.get(categoryName);
+        assertThat(categoryId).as("类别「%s」应先存在", categoryName).isNotNull();
+        postProductAndStore(categoryId, productName, description);
+    }
+
+    @When("用户按关键词 {string} 搜索商品")
+    public void 用户按关键词搜索商品(String keyword) {
+        lastProductListResponse = searchProducts(keyword);
+        context.setLastStatusCode(lastProductListResponse.getStatusCode().value());
+    }
+
+    private ResponseEntity<List<ProductApiDto.Response>> searchProducts(String keyword) {
+        String url = baseUrl() + "/api/products/search";
+        if (keyword != null && !keyword.isEmpty()) {
+            url += "?keyword=" + keyword;
+        }
+        try {
+            return restTemplate.exchange(url, HttpMethod.GET, null, LIST_OF_PRODUCT);
+        } catch (RestClientResponseException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(null);
+        }
+    }
+
     // ---------- 辅助：创建商品并存入 productNameToId ----------
     private void postProductAndStore(Long categoryId, String name, String description) {
         ProductApiDto.Create body = new ProductApiDto.Create();

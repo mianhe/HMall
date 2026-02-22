@@ -48,6 +48,11 @@ public class CategoryController {
             .toList();
     }
 
+    @GetMapping("/tree")
+    public List<CategoryApplicationService.CategoryTreeNode> tree() {
+        return applicationService.getCategoryTree();
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<CategoryDto> getById(@PathVariable Long id) {
         Category category = applicationService.getById(id);
