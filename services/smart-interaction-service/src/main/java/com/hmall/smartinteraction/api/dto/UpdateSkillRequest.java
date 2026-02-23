@@ -6,5 +6,6 @@ public record UpdateSkillRequest(
     String name,
     String description,
     String systemPrompt,
-    List<String> allowedTools
+    List<String> allowedTools,
+    String audience
 ) {}

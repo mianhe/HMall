@@ -24,28 +24,98 @@ public class AiChatService {
     private static final Logger log = LoggerFactory.getLogger(AiChatService.class);
     private static final int DEFAULT_MAX_TOOL_CALL_ROUNDS = 100;
 
+    static final String NO_TOOLS_DIRECTIVE = """
+            ## 重要：当前没有可用工具
+
+            你当前没有被授予任何数据查询工具。这意味着你无法获取任何真实的商品、价格、库存、订单等数据。
+
+            你必须严格遵守以下规则：
+            - 绝对不要编造、猜测或从记忆中回忆任何具体的商品名称、价格、型号、库存数量、订单信息
+            - 绝对不要列举任何具体的产品列表，即使用户直接要求
+            - 对于任何需要查询数据才能回答的问题，请回复："抱歉，我目前无法查询相关信息。请通过页面直接浏览，或稍后再试。"
+            - 你可以回答不需要数据查询的一般性问题（如网站使用指引、购物流程说明等）
+            """;
+
     private final LlmClient llmClient;
     private final McpToolBridge mcpToolBridge;
     private final LlmProviderConfig config;
     private final SkillRepository skillRepository;
+    private final SettingsRepository settingsRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    public static final String DEFAULT_ADMIN_BASE_PROMPT = """
+            你是 HMall 智能助手，帮助管理员通过自然语言管理电商系统。
+            当前页面：%s
+
+            规则：
+            - 必须通过工具获取数据，严禁编造
+            - 工具返回的价格已是人民币元，直接展示即可（如 ¥5199.00），无需再做转换
+            - 删除操作前向用户确认
+            - 用中文回复
+            """;
+
+    public static final String DEFAULT_CONSUMER_BASE_PROMPT = """
+            你是 HMall 购物助手，帮用户找商品、管购物车、下单。语气友好自然。
+            当前页面：%s
+
+            规则：
+            - 必须通过工具获取数据，严禁编造商品名、价格、skuId、orderId
+            - 没有工具时回复："抱歉，我目前无法查询。请通过页面浏览或稍后再试。"
+            - 工具返回的价格已是人民币元，直接展示即可（如 ¥5199.00），无需再做转换
+            - 加购和下单前确认用户选择的 SKU 和数量
+            - 不执行管理操作（不创建/修改/删除商品和类目）
+            - 用中文回复
+            """;
+
     public AiChatService(LlmClient llmClient, McpToolBridge mcpToolBridge,
-                         LlmProviderConfig config, SkillRepository skillRepository) {
+                         LlmProviderConfig config, SkillRepository skillRepository,
+                         SettingsRepository settingsRepository) {
         this.llmClient = llmClient;
         this.mcpToolBridge = mcpToolBridge;
         this.config = config;
         this.skillRepository = skillRepository;
+        this.settingsRepository = settingsRepository;
     }
 
-    public void chat(ChatRequest request, SseEmitter emitter) {
+    public void chat(ChatRequest request, Long userId, SseEmitter emitter) {
         try {
             var provider = config.resolveProvider(request.provider());
-            Skill skill = resolveSkill(request.skillId());
-            var messages = buildMessages(request, skill);
-            var tools = resolveTools(skill);
+            List<Skill> matchedSkills;
+            boolean manualSelection;
+
+            if (request.skillId() != null) {
+                Skill skill = skillRepository.findById(request.skillId()).orElse(null);
+                matchedSkills = skill != null ? List.of(skill) : List.of();
+                manualSelection = true;
+            } else if ("none".equals(request.skillMode())) {
+                matchedSkills = List.of();
+                manualSelection = false;
+            } else {
+                Skill defaultSkill = skillRepository.findDefault().orElse(null);
+                if (defaultSkill != null) {
+                    matchedSkills = List.of(defaultSkill);
+                    manualSelection = true;
+                } else {
+                    matchedSkills = resolveAutoMatchedSkills(provider, request);
+                    manualSelection = false;
+                    if (!matchedSkills.isEmpty()) {
+                        String skillsJson = serializeMatchedSkills(matchedSkills);
+                        sendEvent(emitter, "skill_matched", ChatEvent.skillMatched(skillsJson));
+                    }
+                }
+            }
+
+            List<Map<String, Object>> tools;
+            if (manualSelection) {
+                tools = resolveFilteredTools(matchedSkills);
+            } else if (request.clientType() != null && !request.clientType().isBlank()) {
+                tools = matchedSkills.isEmpty() ? List.of() : resolveUnionFilteredTools(matchedSkills);
+            } else {
+                tools = mcpToolBridge.getTools();
+            }
+            var messages = buildMessages(request, matchedSkills, !tools.isEmpty());
             int maxRounds = resolveMaxRounds(request.maxToolCallRounds());
-            streamWithToolCallLoop(provider, messages, tools, maxRounds, emitter);
+            streamWithToolCallLoop(provider, messages, tools, maxRounds, userId, emitter);
         } catch (Exception e) {
             log.error("Chat error", e);
             sendEvent(emitter, "error", ChatEvent.error(e.getMessage()));
@@ -53,17 +123,102 @@ public class AiChatService {
         }
     }
 
-    private Skill resolveSkill(Long skillId) {
-        if (skillId != null) {
-            return skillRepository.findById(skillId).orElse(null);
+    static final int ROUTING_TOOL_THRESHOLD = 15;
+
+    private List<Skill> resolveAutoMatchedSkills(LlmProviderConfig.Provider provider, ChatRequest request) {
+        String clientType = request.clientType();
+        List<Skill> candidateSkills = skillRepository.findAllOrderByCreatedAtDesc().stream()
+                .filter(s -> s.matchesAudience(clientType))
+                .toList();
+
+        int toolCount = mcpToolBridge.getTools().size();
+        if (toolCount <= ROUTING_TOOL_THRESHOLD) {
+            log.info("Tool count ({}) <= threshold ({}), skipping LLM routing, using all {} audience-matching Skills",
+                    toolCount, ROUTING_TOOL_THRESHOLD, candidateSkills.size());
+            return candidateSkills;
         }
-        return skillRepository.findDefault().orElse(null);
+
+        return autoMatchSkills(provider, request, clientType);
     }
 
-    private List<Map<String, Object>> resolveTools(Skill skill) {
-        var allTools = mcpToolBridge.getTools();
-        if (skill == null) return allTools;
+    private List<Skill> autoMatchSkills(LlmProviderConfig.Provider provider, ChatRequest request, String clientType) {
+        List<Skill> allSkills = skillRepository.findAllOrderByCreatedAtDesc();
+        List<Skill> candidateSkills = allSkills.stream()
+                .filter(s -> s.matchesAudience(clientType))
+                .toList();
+        if (candidateSkills.isEmpty()) {
+            return List.of();
+        }
 
+        String routingPrompt = buildRoutingPrompt(candidateSkills);
+        String userMessage = request.messages().get(request.messages().size() - 1).content();
+
+        List<Map<String, Object>> messages = List.of(
+                Map.of("role", "system", "content", routingPrompt),
+                Map.of("role", "user", "content", userMessage));
+
+        var responseBuffer = new StringBuilder();
+        llmClient.streamChat(provider, messages, null)
+                .doOnNext(chunk -> {
+                    JsonNode choices = chunk.path("choices");
+                    if (choices.isArray() && !choices.isEmpty()) {
+                        String content = choices.get(0).path("delta").path("content").asText(null);
+                        if (content != null) responseBuffer.append(content);
+                    }
+                })
+                .blockLast();
+
+        List<String> matchedNames = parseMatchedSkillNames(responseBuffer.toString().trim());
+        return candidateSkills.stream()
+                .filter(s -> matchedNames.contains(s.getName()))
+                .toList();
+    }
+
+    private String buildRoutingPrompt(List<Skill> skills) {
+        var sb = new StringBuilder("你是 Skill 路由器。根据用户消息判断需要哪些领域知识。\n\n可选 Skill：\n");
+        for (Skill s : skills) {
+            sb.append("- ").append(s.getName());
+            if (s.getDescription() != null && !s.getDescription().isBlank()) {
+                sb.append("：").append(s.getDescription());
+            }
+            sb.append("\n");
+        }
+        sb.append("\n仅返回匹配的 Skill 名称，JSON 数组格式。无匹配返回 []。不要解释。");
+        return sb.toString();
+    }
+
+    private List<String> parseMatchedSkillNames(String response) {
+        try {
+            JsonNode arr = objectMapper.readTree(response);
+            if (arr.isArray()) {
+                List<String> names = new ArrayList<>();
+                for (JsonNode n : arr) {
+                    names.add(n.asText());
+                }
+                return names;
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse routing response: {}", response);
+        }
+        return List.of();
+    }
+
+    private String serializeMatchedSkills(List<Skill> skills) {
+        try {
+            List<Map<String, Object>> list = skills.stream()
+                    .map(s -> Map.<String, Object>of("id", s.getId(), "name", s.getName()))
+                    .toList();
+            return objectMapper.writeValueAsString(list);
+        } catch (Exception e) {
+            return "[]";
+        }
+    }
+
+    private List<Map<String, Object>> resolveFilteredTools(List<Skill> skills) {
+        var allTools = mcpToolBridge.getTools();
+        if (skills.isEmpty()) return allTools;
+
+        Skill skill = skills.get(0);
         List<String> allToolNames = mcpToolBridge.getToolNames();
         List<String> allowedNames = skill.matchTools(allToolNames);
 
@@ -72,6 +227,25 @@ public class AiChatService {
                     @SuppressWarnings("unchecked")
                     var fn = (Map<String, Object>) tool.get("function");
                     return fn != null && allowedNames.contains(fn.get("name"));
+                })
+                .toList();
+    }
+
+    private List<Map<String, Object>> resolveUnionFilteredTools(List<Skill> skills) {
+        if (skills.isEmpty()) return List.of();
+        var allTools = mcpToolBridge.getTools();
+        List<String> allToolNames = mcpToolBridge.getToolNames();
+
+        var unionAllowed = new java.util.HashSet<String>();
+        for (Skill skill : skills) {
+            unionAllowed.addAll(skill.matchTools(allToolNames));
+        }
+
+        return allTools.stream()
+                .filter(tool -> {
+                    @SuppressWarnings("unchecked")
+                    var fn = (Map<String, Object>) tool.get("function");
+                    return fn != null && unionAllowed.contains(fn.get("name"));
                 })
                 .toList();
     }
@@ -87,16 +261,22 @@ public class AiChatService {
                                         List<Map<String, Object>> messages,
                                         List<Map<String, Object>> tools,
                                         int maxRounds,
+                                        Long userId,
                                         SseEmitter emitter) {
         for (int round = 0; round < maxRounds; round++) {
+            log.info("LLM call round {} starting (provider={}, model={})", round, provider.baseUrl(), provider.model());
+            if (round == 0) {
+                logMessages(messages, tools);
+            }
             var result = streamOnce(provider, messages, tools, emitter);
+            log.info("LLM call round {} finished, toolCalls={}", round, result.toolCalls.size());
             if (result.toolCalls.isEmpty()) {
                 sendEvent(emitter, "done", ChatEvent.done());
                 completeEmitter(emitter);
                 return;
             }
             appendAssistantToolCallMessage(messages, result);
-            executeToolCalls(messages, result.toolCalls, emitter);
+            executeToolCalls(messages, result.toolCalls, userId, emitter);
         }
         sendEvent(emitter, "error", ChatEvent.error("Too many tool call rounds"));
         sendEvent(emitter, "done", ChatEvent.done());
@@ -121,16 +301,31 @@ public class AiChatService {
 
     private void executeToolCalls(List<Map<String, Object>> messages,
                                   List<ToolCall> toolCalls,
+                                  Long userId,
                                   SseEmitter emitter) {
         for (var tc : toolCalls) {
             Object args = parseArguments(tc.arguments());
+            log.info("Tool call: {} | args: {}", tc.name(), tc.arguments());
             sendEvent(emitter, "tool_call", ChatEvent.toolCall(tc.id(), tc.name(), args));
 
-            String toolResult = mcpToolBridge.executeTool(tc.name(), args);
+            Object argsForMcp = injectUserId(args, userId);
+            String toolResult = mcpToolBridge.executeTool(tc.name(), argsForMcp);
+            log.info("Tool result: {} | {}", tc.name(), toolResult);
             sendEvent(emitter, "tool_result", ChatEvent.toolResult(tc.id(), tc.name(), toolResult));
 
             messages.add(Map.of("role", "tool", "tool_call_id", tc.id(), "content", toolResult));
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object injectUserId(Object args, Long userId) {
+        if (userId == null) return args;
+        if (args instanceof Map) {
+            var map = new HashMap<String, Object>((Map<String, Object>) args);
+            map.put("userId", userId);
+            return map;
+        }
+        return args;
     }
 
     private StreamResult streamOnce(LlmProviderConfig.Provider provider,
@@ -178,6 +373,27 @@ public class AiChatService {
         }
     }
 
+    @SuppressWarnings("unchecked")
+    private void logMessages(List<Map<String, Object>> messages, List<Map<String, Object>> tools) {
+        var sb = new StringBuilder("\n========== MESSAGES SENT TO LLM ==========\n");
+        for (int i = 0; i < messages.size(); i++) {
+            var msg = messages.get(i);
+            String role = String.valueOf(msg.get("role"));
+            String content = String.valueOf(msg.get("content"));
+            sb.append(String.format("[%d] role=%s\n%s\n---\n", i, role, content));
+        }
+        sb.append(String.format("tools count: %d", tools.size()));
+        if (!tools.isEmpty()) {
+            sb.append(" → ");
+            for (var tool : tools) {
+                var fn = (Map<String, Object>) tool.get("function");
+                if (fn != null) sb.append(fn.get("name")).append(", ");
+            }
+        }
+        sb.append("\n==========================================");
+        log.info(sb.toString());
+    }
+
     private Object parseArguments(String argsStr) {
         try {
             return objectMapper.readValue(argsStr, Map.class);
@@ -186,10 +402,12 @@ public class AiChatService {
         }
     }
 
-    private List<Map<String, Object>> buildMessages(ChatRequest request, Skill skill) {
+    private List<Map<String, Object>> buildMessages(ChatRequest request,
+                                                     List<Skill> skills,
+                                                     boolean hasTools) {
         List<Map<String, Object>> messages = new ArrayList<>();
 
-        String systemPrompt = buildSystemPrompt(request, skill);
+        String systemPrompt = buildSystemPrompt(request, skills, hasTools);
         messages.add(Map.of("role", "system", "content", systemPrompt));
 
         for (ChatRequest.Message msg : request.messages()) {
@@ -198,55 +416,51 @@ public class AiChatService {
         return messages;
     }
 
-    private String buildSystemPrompt(ChatRequest request, Skill skill) {
-        if (skill != null && skill.getSystemPrompt() != null && !skill.getSystemPrompt().isBlank()) {
-            return skill.getSystemPrompt();
+    private String buildSystemPrompt(ChatRequest request, List<Skill> skills,
+                                     boolean hasTools) {
+        String basePrompt = buildDefaultSystemPrompt(request);
+
+        var sb = new StringBuilder(basePrompt);
+
+        if (!hasTools) {
+            sb.append("\n\n").append(NO_TOOLS_DIRECTIVE);
         }
-        return buildDefaultSystemPrompt(request);
+
+        List<String> supplements = skills.stream()
+                .map(Skill::getSystemPrompt)
+                .filter(p -> p != null && !p.isBlank())
+                .toList();
+
+        if (!supplements.isEmpty()) {
+            sb.append("\n\n---\n以下是当前对话匹配到的领域知识：\n");
+            for (String supplement : supplements) {
+                sb.append("\n").append(supplement).append("\n");
+            }
+        }
+
+        return sb.toString();
     }
 
     private String buildDefaultSystemPrompt(ChatRequest request) {
         String currentPage = request.context() != null ? request.context().page() : "/";
-        return """
-            你是 HMall 智能助手，帮助管理员通过对话管理电商系统。
-            
-            当前上下文：
-            - 用户正在浏览：%s
-            
-            你的能力：
-            - 通过工具操作商品目录（类目、商品、规格、SKU、图片）
-            - 回答关于系统操作的问题
-            - 引导用户完成复杂的多步操作
-            
-            数据模型（查询路径）：
-            - 类目（Category）是树形结构：根类目 → 子类目 → 叶子类目
-            - 商品（SPU）挂在叶子类目下：先 catalog_list_categories 获取类目，再 catalog_list_products(categoryId) 获取商品
-            - SKU 挂在商品下：先获取商品 ID，再 catalog_list_skus(spuId) 获取 SKU
-            - 要统计所有 SKU，需遍历：所有类目 → 所有子类目 → 所有商品 → 每个商品的 SKU
-            - catalog_list_products 需要传 categoryId，必须传叶子类目的 ID（没有子类目的类目）
-            - catalog_list_categories 不传 parentId 返回根类目；传 parentId 返回其子类目
-            
-            回复格式（严格遵守）：
-            - 推理过程（分析思路、调用计划、中间推导）放在 <think>...</think> 标签内
-            - 正式结论（查询结果、操作结果、数据汇总）直接写，不加标签
-            - 后续建议（可选）用"---"分隔后写在末尾
-            - 示例：
-              <think>用户想查手机类目下的子类目，我需要先找到手机的类目 ID，再查子类目。</think>
-              手机类目下有 3 个子系列：
-              - Mate 系列
-              - Pura 系列
-              - 折叠屏系列
-              ---
-              需要我进一步查看某个系列下的商品吗？
-            
-            规则：
-            - **必须通过工具获取真实数据，严禁编造数据或猜测数字**
-            - 如果工具返回空列表，如实告知用户，不要虚构内容
-            - 执行破坏性操作（删除）前，向用户确认
-            - 操作成功后简要说明结果
-            - 不确定时请求用户提供更多信息
-            - 用中文回复
-            """.formatted(currentPage);
+        String clientType = request.clientType();
+        boolean isConsumer = "consumer".equals(clientType);
+
+        String template = resolveBasePromptTemplate(isConsumer);
+        return template.formatted(currentPage);
+    }
+
+    private String resolveBasePromptTemplate(boolean isConsumer) {
+        Settings settings = getOrCreateSettings();
+        String prompt = isConsumer ? settings.getConsumerBasePrompt() : settings.getAdminBasePrompt();
+        return (prompt != null && !prompt.isBlank()) ? prompt
+                : (isConsumer ? DEFAULT_CONSUMER_BASE_PROMPT : DEFAULT_ADMIN_BASE_PROMPT);
+    }
+
+    private Settings getOrCreateSettings() {
+        return settingsRepository.find().orElseGet(() ->
+                settingsRepository.save(Settings.createDefault(
+                        DEFAULT_ADMIN_BASE_PROMPT, DEFAULT_CONSUMER_BASE_PROMPT)));
     }
 
     private void sendEvent(SseEmitter emitter, String eventName, ChatEvent event) {

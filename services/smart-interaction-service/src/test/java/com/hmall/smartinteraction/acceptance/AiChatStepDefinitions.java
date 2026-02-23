@@ -25,6 +25,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,6 +67,13 @@ public class AiChatStepDefinitions {
     private Long currentSkillId;
     private int overrideMaxRounds = -1;
 
+    private final Map<String, Long> skillNameToId = new HashMap<>();
+    private List<String> routingMatchedSkillNames = null;
+    private String overrideSkillMode = null;
+    private String overrideClientType = null;
+    private Long overrideUserId = null;
+    private boolean explicitlyNoUserId = false;
+
     @Before("not @skill")
     public void reset() {
         llmWireMock.resetAll();
@@ -78,6 +86,12 @@ public class AiChatStepDefinitions {
         lastResponse = null;
         currentSkillId = null;
         overrideMaxRounds = -1;
+        skillNameToId.clear();
+        routingMatchedSkillNames = null;
+        overrideSkillMode = null;
+        overrideClientType = null;
+        overrideUserId = null;
+        explicitlyNoUserId = false;
         mcpToolBridge.invalidateCache();
         skillRepository.findAllOrderByCreatedAtDesc().forEach(s -> skillRepository.deleteById(s.getId()));
     }
@@ -134,9 +148,40 @@ public class AiChatStepDefinitions {
         currentSkillId = skill.getId();
     }
 
+    @假如("已创建 Skill {string} 描述 {string} systemPrompt {string} allowedTools {string}")
+    public void 已创建SkillWithDesc(String name, String description, String systemPrompt, String allowedTools) {
+        已创建SkillWithDescAndAudience(name, description, systemPrompt, allowedTools, "all");
+    }
+
+    @假如("已创建 Skill {string} 描述 {string} systemPrompt {string} allowedTools {string} audience {string}")
+    public void 已创建SkillWithDescAndAudience(String name, String description, String systemPrompt, String allowedTools, String audience) {
+        Skill skill = new Skill(name, description, systemPrompt,
+                Arrays.asList(allowedTools.split("\\s*,\\s*")), audience);
+        skill = skillRepository.save(skill);
+        skillNameToId.put(name, skill.getId());
+        currentSkillId = skill.getId();
+    }
+
     @假如("系统中无任何 Skill")
     public void 系统中无任何Skill() {
         skillRepository.findAllOrderByCreatedAtDesc().forEach(s -> skillRepository.deleteById(s.getId()));
+    }
+
+    // ─── Given: LLM routing setup ───
+
+    @假如("LLM 路由会将消息匹配到 Skill {string}")
+    public void llm路由匹配单个Skill(String skillName) {
+        routingMatchedSkillNames = List.of(skillName);
+    }
+
+    @假如("LLM 路由会将消息匹配到 Skill {string} 和 {string}")
+    public void llm路由匹配多个Skill(String skillName1, String skillName2) {
+        routingMatchedSkillNames = List.of(skillName1, skillName2);
+    }
+
+    @假如("LLM 路由未匹配到任何 Skill")
+    public void llm路由未匹配() {
+        routingMatchedSkillNames = List.of();
     }
 
     @假如("已设置 maxToolCallRounds 为 {int}")
@@ -165,7 +210,8 @@ public class AiChatStepDefinitions {
 
     @当("用户使用 Skill {string} 发送消息 {string}")
     public void 用户使用Skill发送消息(String skillName, String content) throws Exception {
-        sendChat(content, currentSkillId);
+        Long skillId = skillNameToId.getOrDefault(skillName, currentSkillId);
+        sendChat(content, skillId);
     }
 
     private void sendChat(String content, Long skillId) throws Exception {
@@ -177,18 +223,62 @@ public class AiChatStepDefinitions {
         bodyMap.put("messages", List.of(Map.of("role", "user", "content", content)));
         bodyMap.put("provider", "qwen");
         if (skillId != null) bodyMap.put("skillId", skillId);
+        if (overrideSkillMode != null) bodyMap.put("skillMode", overrideSkillMode);
+        if (overrideClientType != null) bodyMap.put("clientType", overrideClientType);
         if (overrideMaxRounds > 0) bodyMap.put("maxToolCallRounds", overrideMaxRounds);
 
         String body = objectMapper.writeValueAsString(bodyMap);
 
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
             .uri(URI.create("http://127.0.0.1:" + port + "/api/ai/chat"))
-            .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(body))
-            .build();
+            .header("Content-Type", "application/json");
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        receivedEvents = parseSseEvents(response.body());
+        if (overrideUserId != null) {
+            requestBuilder.header("X-User-Id", String.valueOf(overrideUserId));
+        } else if ("consumer".equals(overrideClientType) && !explicitlyNoUserId) {
+            requestBuilder.header("X-User-Id", "1");
+        }
+
+        requestBuilder.POST(HttpRequest.BodyPublishers.ofString(body));
+
+        HttpResponse<String> response = httpClient.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
+        lastResponse = response;
+        if (response.statusCode() == 200) {
+            receivedEvents = parseSseEvents(response.body());
+        } else {
+            receivedEvents = List.of();
+        }
+    }
+
+    @当("用户不指定 Skill 发送消息 {string}")
+    public void 用户不指定Skill发送消息(String content) throws Exception {
+        sendChat(content, null);
+    }
+
+    @当("用户以无 Skill 模式发送消息 {string}")
+    public void 用户以无Skill模式发送消息(String content) throws Exception {
+        overrideSkillMode = "none";
+        sendChat(content, null);
+    }
+
+    @当("消费者端用户发送消息 {string}")
+    public void 消费者端用户发送消息(String content) throws Exception {
+        overrideClientType = "consumer";
+        sendChat(content, null);
+    }
+
+    @当("消费者端用户 {long} 发送消息 {string}")
+    public void 消费者端用户n发送消息(long userId, String content) throws Exception {
+        overrideClientType = "consumer";
+        overrideUserId = userId;
+        sendChat(content, null);
+    }
+
+    @当("未认证消费者端用户发送消息 {string}")
+    public void 未认证消费者端用户发送消息(String content) throws Exception {
+        overrideClientType = "consumer";
+        explicitlyNoUserId = true;
+        sendChat(content, null);
     }
 
     @当("用户请求可用模型列表")
@@ -265,7 +355,7 @@ public class AiChatStepDefinitions {
 
     @那么("发送给 LLM 的 system prompt 应包含 {string}")
     public void 发送给LLM的systemPrompt应包含(String expected) throws Exception {
-        String systemPrompt = extractSystemPromptFromLlmRequests();
+        String systemPrompt = extractSystemPromptFromMainChat();
         assertThat(systemPrompt).as("system prompt should contain: " + expected).contains(expected);
     }
 
@@ -286,11 +376,81 @@ public class AiChatStepDefinitions {
         assertThat(receivedEvents).anyMatch(e -> "error".equals(e.event()));
     }
 
+    @那么("SSE 流应包含 skill_matched 事件")
+    public void sse流应包含skillMatched事件() {
+        assertThat(receivedEvents).anyMatch(e -> "skill_matched".equals(e.event()));
+    }
+
+    @并且("SSE 流不应包含 skill_matched 事件")
+    public void sse流不应包含skillMatched事件() {
+        assertThat(receivedEvents).noneMatch(e -> "skill_matched".equals(e.event()));
+    }
+
+    @那么("LLM 路由的候选 Skill 应包含 {string}")
+    public void llm路由候选Skill应包含(String skillName) throws Exception {
+        String routingPrompt = extractSystemPromptFromLlmRequests();
+        assertThat(routingPrompt).as("routing prompt should contain candidate: " + skillName).contains(skillName);
+    }
+
+    @并且("LLM 路由的候选 Skill 不应包含 {string}")
+    public void llm路由候选Skill不应包含(String skillName) throws Exception {
+        String routingPrompt = extractSystemPromptFromLlmRequests();
+        assertThat(routingPrompt).as("routing prompt should NOT contain candidate: " + skillName).doesNotContain(skillName);
+    }
+
+    @并且("发送给 LLM 的 system prompt 不应包含 {string}")
+    public void 发送给LLM的systemPrompt不应包含(String expected) throws Exception {
+        String systemPrompt = extractSystemPromptFromMainChat();
+        assertThat(systemPrompt).as("system prompt should NOT contain: " + expected).doesNotContain(expected);
+    }
+
+    @那么("MCP 收到的 {string} 调用参数应包含 userId {long}")
+    public void mcp收到的调用参数应包含userId(String toolName, long userId) throws Exception {
+        List<LoggedRequest> requests = mcpWireMock.findAll(
+                WireMock.postRequestedFor(WireMock.urlEqualTo("/mcp"))
+                        .withRequestBody(WireMock.containing("\"method\":\"tools/call\""))
+                        .withRequestBody(WireMock.containing("\"name\":\"" + toolName + "\"")));
+        assertThat(requests).as("Expected MCP tools/call for " + toolName).isNotEmpty();
+        JsonNode body = objectMapper.readTree(requests.get(0).getBodyAsString());
+        JsonNode args = body.path("params").path("arguments");
+        assertThat(args.path("userId").asLong()).as("userId in MCP args").isEqualTo(userId);
+    }
+
+    @那么("MCP 收到的 {string} 调用参数不应包含 userId")
+    public void mcp收到的调用参数不应包含userId(String toolName) throws Exception {
+        List<LoggedRequest> requests = mcpWireMock.findAll(
+                WireMock.postRequestedFor(WireMock.urlEqualTo("/mcp"))
+                        .withRequestBody(WireMock.containing("\"method\":\"tools/call\""))
+                        .withRequestBody(WireMock.containing("\"name\":\"" + toolName + "\"")));
+        assertThat(requests).as("Expected MCP tools/call for " + toolName).isNotEmpty();
+        JsonNode body = objectMapper.readTree(requests.get(0).getBodyAsString());
+        JsonNode args = body.path("params").path("arguments");
+        assertThat(args.has("userId")).as("MCP args should not contain userId").isFalse();
+    }
+
+    @那么("响应状态码应为 {int}")
+    public void 响应状态码应为(int statusCode) {
+        assertThat(lastResponse).as("lastResponse should not be null").isNotNull();
+        assertThat(lastResponse.statusCode()).isEqualTo(statusCode);
+    }
+
+    private int mainChatRequestIndex() {
+        return routingMatchedSkillNames != null ? 1 : 0;
+    }
+
     private String extractSystemPromptFromLlmRequests() throws Exception {
+        return extractSystemPromptAtIndex(0);
+    }
+
+    private String extractSystemPromptFromMainChat() throws Exception {
+        return extractSystemPromptAtIndex(mainChatRequestIndex());
+    }
+
+    private String extractSystemPromptAtIndex(int index) throws Exception {
         List<LoggedRequest> requests = llmWireMock.findAll(
                 WireMock.postRequestedFor(WireMock.urlPathEqualTo("/chat/completions")));
-        assertThat(requests).isNotEmpty();
-        JsonNode body = objectMapper.readTree(requests.get(0).getBodyAsString());
+        assertThat(requests).hasSizeGreaterThan(index);
+        JsonNode body = objectMapper.readTree(requests.get(index).getBodyAsString());
         for (JsonNode msg : body.path("messages")) {
             if ("system".equals(msg.path("role").asText())) {
                 return msg.path("content").asText("");
@@ -300,10 +460,11 @@ public class AiChatStepDefinitions {
     }
 
     private List<String> extractToolNamesFromLlmRequests() throws Exception {
+        int index = mainChatRequestIndex();
         List<LoggedRequest> requests = llmWireMock.findAll(
                 WireMock.postRequestedFor(WireMock.urlPathEqualTo("/chat/completions")));
-        assertThat(requests).isNotEmpty();
-        JsonNode body = objectMapper.readTree(requests.get(0).getBodyAsString());
+        assertThat(requests).hasSizeGreaterThan(index);
+        JsonNode body = objectMapper.readTree(requests.get(index).getBodyAsString());
         List<String> names = new ArrayList<>();
         for (JsonNode tool : body.path("tools")) {
             names.add(tool.path("function").path("name").asText());
@@ -375,7 +536,27 @@ public class AiChatStepDefinitions {
         }
 
         String scenarioName = "llm-conversation";
-        String currentState = "Started";
+        String currentState = com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED;
+
+        if (routingMatchedSkillNames != null) {
+            try {
+                String routingJson = objectMapper.writeValueAsString(routingMatchedSkillNames);
+                String routingResponse = buildTextSseResponse(routingJson);
+                String nextState = "routing-done";
+
+                llmWireMock.stubFor(WireMock.post(WireMock.urlPathEqualTo("/chat/completions"))
+                    .inScenario(scenarioName)
+                    .whenScenarioStateIs(currentState)
+                    .willSetStateTo(nextState)
+                    .willReturn(WireMock.aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "text/event-stream")
+                        .withBody(routingResponse)));
+                currentState = nextState;
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
 
         for (int i = 0; i < llmRounds.size(); i++) {
             LlmRoundSetup round = llmRounds.get(i);
@@ -384,16 +565,14 @@ public class AiChatStepDefinitions {
                 ? buildToolCallSseResponse(round.toolName, round.toolArgs, "call_" + i)
                 : buildTextSseResponse(round.text);
 
-            var stub = WireMock.post(WireMock.urlPathEqualTo("/chat/completions"))
+            llmWireMock.stubFor(WireMock.post(WireMock.urlPathEqualTo("/chat/completions"))
                 .inScenario(scenarioName)
-                .whenScenarioStateIs(i == 0 ? com.github.tomakehurst.wiremock.stubbing.Scenario.STARTED : currentState)
+                .whenScenarioStateIs(currentState)
                 .willSetStateTo(nextState)
                 .willReturn(WireMock.aResponse()
                     .withStatus(200)
                     .withHeader("Content-Type", "text/event-stream")
-                    .withBody(sseBody));
-
-            llmWireMock.stubFor(stub);
+                    .withBody(sseBody)));
             currentState = nextState;
         }
     }

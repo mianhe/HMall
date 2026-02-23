@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col h-full bg-gray-50">
-    <!-- Header -->
-    <div class="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
+    <!-- Standalone Header (hidden when embedded in ConfigPanel) -->
+    <div v-if="!embedded" class="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
       <div class="flex items-center gap-2">
         <button
           @click="editingSkill ? cancelEdit() : $emit('back')"
@@ -15,6 +15,31 @@
       </div>
       <button
         v-if="!editingSkill"
+        @click="startCreate()"
+        class="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-vmall-red hover:bg-vmall-red-dark rounded-lg transition-colors"
+      >
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
+        新建
+      </button>
+    </div>
+
+    <!-- Embedded Sub-header: only when editing inside ConfigPanel -->
+    <div v-if="embedded && editingSkill" class="flex items-center justify-between px-4 py-2 bg-white border-b border-gray-100">
+      <div class="flex items-center gap-2">
+        <button @click="cancelEdit()" class="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <h3 class="text-sm font-medium text-gray-700">{{ editingSkill.id ? '编辑 Skill' : '新建 Skill' }}</h3>
+      </div>
+    </div>
+
+    <!-- Embedded List Toolbar: "新建" button when in list mode inside ConfigPanel -->
+    <div v-if="embedded && !editingSkill" class="flex items-center justify-end px-4 py-2">
+      <button
         @click="startCreate()"
         class="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-vmall-red hover:bg-vmall-red-dark rounded-lg transition-colors"
       >
@@ -55,6 +80,18 @@
           placeholder="定义 AI 助手的角色、能力和行为规范……"
           class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-vmall-red/30 focus:border-vmall-red/50"
         />
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">适用端</label>
+        <select
+          v-model="editingSkill.audience"
+          class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-vmall-red/30 focus:border-vmall-red/50 bg-white"
+        >
+          <option value="all">全部（admin + consumer）</option>
+          <option value="admin">仅管理后台</option>
+          <option value="consumer">仅消费者前台</option>
+        </select>
       </div>
 
       <div>
@@ -112,6 +149,7 @@
               <div class="flex items-center gap-2">
                 <h3 class="text-sm font-medium text-gray-800 truncate">{{ skill.name }}</h3>
                 <span v-if="skill.isDefault" class="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-vmall-red/10 text-vmall-red font-medium">默认</span>
+                <span v-if="skill.audience && skill.audience !== 'all'" class="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 font-medium">{{ skill.audience === 'admin' ? '管理端' : '消费端' }}</span>
               </div>
               <p v-if="skill.description" class="text-xs text-gray-400 mt-0.5 truncate">{{ skill.description }}</p>
               <div v-if="skill.allowedTools && skill.allowedTools.length > 0" class="flex flex-wrap gap-1 mt-1.5">
@@ -165,6 +203,7 @@
 <script setup>
 import { ref, inject } from 'vue'
 
+defineProps({ embedded: { type: Boolean, default: false } })
 defineEmits(['back'])
 
 const chat = inject('aiChat')
@@ -180,6 +219,7 @@ function startCreate() {
     description: '',
     systemPrompt: '',
     allowedToolsStr: '',
+    audience: 'all',
   }
   formError.value = ''
 }
@@ -191,6 +231,7 @@ function startEdit(skill) {
     description: skill.description || '',
     systemPrompt: skill.systemPrompt || '',
     allowedToolsStr: (skill.allowedTools || []).join(', '),
+    audience: skill.audience || 'all',
   }
   formError.value = ''
 }
@@ -221,6 +262,7 @@ async function saveSkill() {
       description: skill.description.trim() || null,
       systemPrompt: skill.systemPrompt.trim() || null,
       allowedTools: parseAllowedTools(skill.allowedToolsStr),
+      audience: skill.audience || 'all',
     }
 
     if (skill.id) {

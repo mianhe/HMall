@@ -11,6 +11,7 @@ public record SkillDto(
     String description,
     String systemPrompt,
     List<String> allowedTools,
+    String audience,
     boolean isDefault,
     Instant createdAt,
     Instant updatedAt
@@ -22,6 +23,7 @@ public record SkillDto(
             skill.getDescription(),
             skill.getSystemPrompt(),
             skill.getAllowedTools(),
+            skill.getAudience(),
             skill.isDefault(),
             skill.getCreatedAt(),
             skill.getUpdatedAt()

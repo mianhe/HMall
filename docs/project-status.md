@@ -26,8 +26,8 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 | **User** | 用户注册、登录(JWT)、收货地址管理 | ✅ 已完成 | 3 个 feature（user、login、address），19 个 scenario，全部通过 |
 | **Order** | 订单创建、取消、查询、事件驱动、状态流转 | ✅ 已完成 | 4 个 feature，25 个 scenario，全部通过；已与 Fulfillment 集成（同步创建/取消） |
 | **BFF** | frontend 统一 API 入口，代理 Catalog/User/Order/Inventory/Cart/Fulfillment | ✅ POC | 透传代理、CORS、4xx/5xx 转发，端口 8085 |
-| **Smart Interaction** | LLM + MCP 智能交互（对话式操作）+ Skill 管理 | 🔄 演进中 | 端口 8089；2 feature（ai-chat + skill-management）、16 scenario 全绿；后端：Skill CRUD + 默认设置 + 通配符工具过滤 + 对话集成 Skill（systemPrompt 动态加载、allowedTools 过滤、maxToolCallRounds 限制）；前端：Skill 选择器 + Skill 管理面板（Drawer 内 CRUD + 设默认）；待完成：对话历史持久化、系统设置、MCP 工具扩展 |
-| **Inventory** | 同步占用/释放库存、库存管理 | ✅ 已完成 | 3 feature、11 scenario 全绿；已与 Order 集成 |
+| **Smart Interaction** | LLM + MCP 智能交互（对话式操作）+ Skill 管理 + 自动匹配 | 🔄 演进中 | 端口 8089；4 feature（ai-chat + skill-management + skill-auto-matching + user-context）、24 scenario 全绿；后端：Skill CRUD + 默认设置 + 通配符工具过滤 + 对话集成 Skill + **Skill 自动匹配** + **userId 自动注入**（消费者端从 X-User-Id 提取，注入 MCP tool 参数）；前端：Skill 选择器三态 + Skill 管理面板；待完成：对话历史持久化、MCP 工具扩展（Fulfillment/Activity/Address） |
+| **Inventory** | 同步占用/释放库存、库存管理 | ✅ 已完成 | 3 feature、12 scenario 全绿；已与 Order 集成 |
 | **Payment** | 扣款/退款/超时检测 | ✅ 已完成 | 5 feature、19 scenario 全绿；超时检测定时自动执行；事件通知 Order（Kafka：PaymentCompleted/Failed/Expired）；已与 Order 集成（同步创建支付单/退款） |
 | **Activity** | 消费 Order/Payment/Inventory/Fulfillment 事件，活动记录、查询与统计仪表盘 | ✅ 已完成 | 3 个 feature（consume/query/stats），16 个 scenario，全部通过；已订阅 Fulfillment 全部 4 个事件 |
 | **Fulfillment** | 拆单、开始配货、发货、签收、取消、查询 | ✅ 已完成 | 端口 8088；6 feature、24 scenario 全绿；ALLOCATING 状态与「开始配货」API；同步创建/取消 + Kafka 事件发布（Created/Allocated/Shipped/Delivered）；已与 Order、Activity 集成 |
@@ -61,7 +61,7 @@ Cart 通过 `CatalogSkuQueryAdapter`（`@Component`，REST 调用 `catalog.base-
 
 ### 下一步
 
-1. **Smart Interaction V2**：对话历史持久化、系统设置、MCP 工具扩展（Inventory/Order/Fulfillment/Activity）、前端对话历史/设置面板
+1. **Smart Interaction 后续**：对话历史持久化、MCP 工具扩展（Fulfillment/Activity/Address）、消费者端订单助手（I-2）和账户助手（I-4）
 2. **Pricing BC**：创建订单时同步算价（规划中）
 
 ---
@@ -71,13 +71,14 @@ Cart 通过 `CatalogSkuQueryAdapter`（`@Component`，REST 调用 `catalog.base-
 | 前端 | 职责 | 状态 | 已实现页面 |
 |------|------|------|-----------|
 | **frontend-admin** | 管理后台，展示+库存管理+履约管理+监控仪表盘+AI 对话 | ✅ 基本完成 | HomePage、CatalogPage、ProductDetailPage、InventoryPage、FulfillmentPage、ActivityPage、AI Chat（全局 Drawer） |
-| **frontend-web** | 消费者端 | ✅ 阶段完成 | HomePage、LoginPage、RegisterPage、ProductDetailPage、CartPage、CheckoutPage、OrderListPage、OrderDetailPage、AddressPage、MyPage |
+| **frontend-web** | 消费者端 | ✅ 阶段完成 | HomePage、LoginPage、RegisterPage、ProductDetailPage、CartPage、CheckoutPage、OrderListPage、OrderDetailPage、AddressPage、MyPage、AI Chat（全局浮动按钮） |
 
 ### frontend-web 已实现
 
 - **Order 交易流程**：立即购买 → 结账页（选地址/新增地址、订单确认）→ 提交订单 → 模拟支付 → 订单列表/详情（支持按状态筛选）
 - **收货地址管理**：地址列表、新增、编辑、删除；结账页可选已保存地址
 - **「我的」聚合页**：用户信息块、收货地址入口、我的订单块（待付款/待收货/待评价）；Atomic Design（atoms/molecules/organisms）
+- **AI 智能助手**：右下角浮动按钮 + 对话面板；SSE 流式 + Markdown 渲染 + Tool Call 可视化；自动匹配模式（无 Skill 选择器）；Vite 代理 `/api/ai` → smart-interaction-service
 - **文档**：`docs/frontend-web/design-input.md`、`docs/design-principles.md` 前端节、frontend-development Skill 与 Design Input 定位已整理
 
 ---
@@ -87,6 +88,9 @@ Cart 通过 `CatalogSkuQueryAdapter`（`@Component`，REST 调用 `catalog.base-
 | 模块 | 状态 | 说明 |
 |------|------|------|
 | Catalog MCP tools | ✅ 已完成 | 类目/商品/规格/SKU/展示图 CRUD 及图片上传；新增 catalog_get_category_tree、catalog_search_products、catalog_get_product_full；dimensions 返回选项 ID；输出格式精简（减少 token） |
+| Inventory MCP tools | ✅ 已完成 | inventory_stock（list/get/update），库存列表查询（含 SKU 名称拼接与汇总）、单个查询与管理，不暴露占用/释放（系统协调 API） |
+| Cart MCP tools | ✅ 已完成 | cart_manage（list/add/update_quantity/remove/checkout_preview），userId 由 Smart Interaction 自动注入 |
+| Order MCP tools | ✅ 已完成 | order_query（get/list）+ order_create，userId 自动注入；不暴露 cancel（I-4 再加） |
 | User MCP tools | 🔲 待实现 | — |
 
 ---
@@ -111,6 +115,11 @@ Cart 通过 `CatalogSkuQueryAdapter`（`@Component`，REST 调用 `catalog.base-
 
 | 日期 | 变更内容 |
 |------|---------|
+| 2026-02-23 | Smart Interaction 购物助手 V2（I-3 购物闭环）：userId 注入链路打通（前端 X-User-Id header → AiChatController 提取 → AiChatService 自动注入 MCP tool 参数，消费者未认证返回 401，管理端不注入）；新增 Cart MCP tool（cart_manage：list/add/update_quantity/remove/checkout_preview）和 Order MCP tools（order_query：get/list + order_create）；购物助手 Skill 升级为 v2（allowedTools 加入 cart_manage/order_create，systemPrompt 补充购物车和下单操作指引）；消费端 Base Prompt 更新能力范围；user-context.feature 3 scenario 全绿；MCP 工具总数 8→11 |
+| 2026-02-22 | Smart Interaction 消费者端迭代 I-1（基础打通 + 商品发现）：frontend-web 接入 AI Chat（浮动按钮 + 对话面板 + SSE 流式 + Markdown + Tool Call 可视化）；消费者版 useAiChat composable（自动匹配模式，无 Skill 管理）；购物助手 v1 Skill 配置（catalog 只读 4 工具）；Vite 代理 /api/ai → 8089；需求文档更新（消费者端扩展 §二 + 迭代规划 I-1～I-4） |
+| 2026-02-22 | Inventory 新增库存列表查询 API（GET /api/inventory/stock）：返回所有已初始化 SkuStock；MCP inventory_stock 新增 list action（含 Catalog SKU 名称拼接与合计汇总）；库存管理助手 Skill Prompt 更新；12 scenario 全绿 |
+| 2026-02-22 | Skill 选择器三态 + skillMode=none：ChatRequest 新增 skillMode 字段，`"none"` 跳过自动匹配和默认 Skill；前端 SkillSelector 改为「自动匹配/无 Skill/指定 Skill」三种模式，自动匹配为默认；useAiChat 新增 skillMode/lastMatchedSkills 状态，处理 skill_matched SSE 事件；AiChatPanel 显示自动匹配结果通知；21 scenario 全绿 |
+| 2026-02-22 | Smart Interaction Skill 自动匹配：无 skillId 且无默认 Skill 时，AiChatService 通过轻量 LLM 路由调用匹配 0-N 个 Skill，合并 systemPrompt 注入领域知识，工具不过滤；手动指定 skillId 时保留 allowedTools 过滤；新增 skill-auto-matching.feature（4 scenario），全量 20 scenario 绿；Inventory MCP tool（inventory_stock get/update）实现 |
 | 2026-02-22 | Catalog BC 新增类目树查询（GET /api/categories/tree）和商品搜索（GET /api/products/search）API；MCP tools 优化：新增 catalog_get_category_tree/catalog_search_products/catalog_get_product_full 三个聚合查询工具，catalog_list_dimensions 返回选项 ID，所有列表输出精简为紧凑格式（减少 LLM token 消耗） |
 | 2026-02-22 | Smart Interaction 前端 Skill UI：SkillSelector（下拉选择/切换 Skill）+ SkillManager（Drawer 内 CRUD + 设默认）；skill.js API 封装；useAiChat composable 集成 Skill 状态管理（loadSkills/createSkill/updateSkill/removeSkill/setDefaultSkill）；sendMessage 自动附带 skillId；Vite proxy 新增 /api/ai → 8089 路由 |
 | 2026-02-22 | Smart Interaction 对话集成 Skill：ChatRequest 新增 skillId/maxToolCallRounds；AiChatService 加载 Skill systemPrompt、按 allowedTools 过滤工具、可配置 tool call 轮次限制；新增 4 个验收场景（16 scenario 全绿） |

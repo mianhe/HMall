@@ -15,6 +15,13 @@ ALL_COMPONENTS="db catalog-service user-service order-service inventory-service 
 # 确保目录存在
 mkdir -p "$PID_DIR" "$LOG_DIR"
 
+# 若存在 .env 则加载，使 ZHIPU_API_KEY 等对通过本脚本启动的服务生效（避免 401）
+if [ -f "${ROOT}/.env" ]; then
+  set -a
+  source "${ROOT}/.env"
+  set +a
+fi
+
 # ---------- 状态检测 ----------
 is_port_listen() {
   local port=$1

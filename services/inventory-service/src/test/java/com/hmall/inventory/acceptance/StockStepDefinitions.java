@@ -10,6 +10,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -64,5 +65,27 @@ public class StockStepDefinitions {
         assertThat(((Number) body.get("skuId")).longValue()).isEqualTo(skuId);
         assertThat(((Number) body.get("available")).intValue()).isEqualTo(expectedAvailable);
         assertThat(((Number) body.get("reserved")).intValue()).isEqualTo(expectedReserved);
+    }
+
+    @When("管理端 查询全部库存列表")
+    public void 管理端查询全部库存列表() {
+        ResponseEntity<List<Map<String, Object>>> res = restTemplate.exchange(
+            baseUrl() + "/api/inventory/stock",
+            HttpMethod.GET,
+            null,
+            new ParameterizedTypeReference<List<Map<String, Object>>>() {}
+        );
+        responseContext.setLastStatusCode(res.getStatusCode().value());
+        responseContext.setLastStockListBody(res.getBody());
+    }
+
+    @And("返回的库存列表应包含 skuId {long} 且 available {int}")
+    public void 库存列表应包含(long skuId, int expectedAvailable) {
+        List<Map<String, Object>> list = responseContext.getLastStockListBody();
+        assertThat(list).isNotNull();
+        assertThat(list).anySatisfy(item -> {
+            assertThat(((Number) item.get("skuId")).longValue()).isEqualTo(skuId);
+            assertThat(((Number) item.get("available")).intValue()).isEqualTo(expectedAvailable);
+        });
     }
 }

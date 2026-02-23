@@ -8,6 +8,11 @@ export default defineConfig({
     host: true,
     port: 5174,
     proxy: {
+      '/api/ai': {
+        target: 'http://127.0.0.1:8089',
+        changeOrigin: true,
+        timeout: 600000,
+      },
       '/api': { target: 'http://localhost:8085', changeOrigin: true },
     },
   },

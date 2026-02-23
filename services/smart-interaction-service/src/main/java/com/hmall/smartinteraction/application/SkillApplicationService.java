@@ -18,8 +18,8 @@ public class SkillApplicationService {
     }
 
     @Transactional
-    public Skill create(String name, String description, String systemPrompt, List<String> allowedTools) {
-        Skill skill = new Skill(name, description, systemPrompt, allowedTools);
+    public Skill create(String name, String description, String systemPrompt, List<String> allowedTools, String audience) {
+        Skill skill = new Skill(name, description, systemPrompt, allowedTools, audience);
         return repository.save(skill);
     }
 
@@ -32,9 +32,9 @@ public class SkillApplicationService {
     }
 
     @Transactional
-    public Optional<Skill> update(Long id, String name, String description, String systemPrompt, List<String> allowedTools) {
+    public Optional<Skill> update(Long id, String name, String description, String systemPrompt, List<String> allowedTools, String audience) {
         return repository.findById(id).map(skill -> {
-            skill.update(name, description, systemPrompt, allowedTools);
+            skill.update(name, description, systemPrompt, allowedTools, audience);
             return repository.save(skill);
         });
     }

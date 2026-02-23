@@ -14,8 +14,8 @@
       v-if="open"
       class="fixed top-0 right-0 bottom-0 w-[420px] max-w-full z-50 flex flex-col bg-gray-50 shadow-2xl"
     >
-      <!-- Skill Manager View -->
-      <SkillManager v-if="showSkillManager" @back="showSkillManager = false" />
+      <!-- Config Panel (Skills + Settings) -->
+      <ConfigPanel v-if="showConfig" @back="showConfig = false" />
 
       <!-- Chat View -->
       <template v-else>
@@ -31,9 +31,19 @@
             >
               <option v-for="m in chat.models.value" :key="m.id" :value="m.id">{{ m.name }}</option>
             </select>
-            <SkillSelector @manage="showSkillManager = true" />
+            <SkillSelector />
           </div>
           <div class="flex items-center gap-1">
+            <button
+              @click="showConfig = true"
+              class="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+              title="AI 配置"
+            >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </button>
             <button
               @click="chat.clearMessages()"
               class="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
@@ -56,6 +66,19 @@
           </div>
         </div>
 
+        <!-- Skill auto-match notification -->
+        <Transition name="fade">
+          <div
+            v-if="chat.lastMatchedSkills.value.length > 0"
+            class="px-4 py-1.5 bg-blue-50 border-b border-blue-100 text-xs text-blue-600 flex items-center gap-1.5"
+          >
+            <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span>已自动匹配：{{ chat.lastMatchedSkills.value.map(s => s.name).join('、') }}</span>
+          </div>
+        </Transition>
+
         <!-- Messages -->
         <AiMessageList :messages="chat.messages.value" />
 
@@ -75,14 +98,14 @@ import { ref, watch, nextTick, inject } from 'vue'
 import AiMessageList from './AiMessageList.vue'
 import AiChatInput from './AiChatInput.vue'
 import SkillSelector from './SkillSelector.vue'
-import SkillManager from './SkillManager.vue'
+import ConfigPanel from './ConfigPanel.vue'
 
 const props = defineProps({ open: Boolean })
 defineEmits(['close'])
 
 const chat = inject('aiChat')
 const chatInputRef = ref(null)
-const showSkillManager = ref(false)
+const showConfig = ref(false)
 
 watch(() => props.open, (isOpen) => {
   if (isOpen) {

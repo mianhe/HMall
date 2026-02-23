@@ -127,6 +127,64 @@ ChatOrchestrator
   8. 持久化对话记录
 ```
 
+### 3.5 Skill 自动匹配
+
+用户未手动指定 Skill 时，系统自动根据用户消息匹配相关 Skill。
+
+#### 设计决策
+
+| 决策点 | 选择 | 理由 |
+|--------|------|------|
+| 匹配数量 | 0-N 个 Skill | 一条消息可能跨多个领域（如「创建商品并设置库存」需要 Catalog + Inventory 的知识） |
+| 匹配作用 | 仅注入 systemPrompt | 自动匹配的核心价值是注入领域知识（数据模型、操作指引），而非限制工具范围 |
+| 工具过滤 | 自动匹配时**不过滤**（全量工具可用） | 避免工具被意外屏蔽；LLM 自身擅长选择工具；tool 数量可控时无需限制 |
+| 手动选择 | 继续按 allowedTools 过滤 | 手动选择是有意识的限制行为，保留原有语义 |
+| 路由方式 | 工具数 ≤ 15 时直接匹配全部 audience 兼容 Skill，> 15 时 LLM 路由 | 工具少时 LLM 路由的代价（额外调用+路由错误）大于收益；工具多时路由有价值 |
+
+#### 为什么自动匹配时不过滤工具？
+
+Skill 有两个职责：**注入领域知识**（systemPrompt）和**限制工具范围**（allowedTools）。
+
+在手动选择场景下，两个职责配合良好——用户明确说"我要管库存"，系统只给库存工具。
+
+但在自动匹配场景下，工具过滤会带来问题：
+- **跨领域问题被截断**：用户说"帮我看看 SKU 100 的商品信息和库存"，如果只匹配了 inventory Skill，catalog 工具就被挡住了
+- **动态发现受限**：AI 在回答过程中发现需要额外工具（如先查 catalog 的 SKU 列表再查 inventory），但工具已被过滤
+- **多 Skill 工具合并的复杂性**：如果匹配 N 个 Skill 并取 allowedTools 并集，逻辑复杂且容易遗漏
+
+因此，自动匹配时只合并 systemPrompt（注入知识），工具全量开放，让 LLM 自由选择。
+
+#### 编排流程（含自动匹配）
+
+```
+用户发送消息（未指定 Skill）
+    │
+    ▼
+ChatOrchestrator
+  1. 无 skillId → 进入自动匹配
+  2. 工具数 ≤ 15 → 直接收集所有 audience 匹配的 Skill（跳过 LLM 路由）
+     工具数 > 15 → LLM 路由：用户消息 + Skill name/description → 返回匹配的 Skill
+  3. 合并匹配到的 Skill 的 systemPrompt（拼接，各 Skill 用分隔标记）
+  4. 从 MCP 获取全量 tools → 不过滤（clientType 无时）或按 Skill allowedTools 并集过滤（clientType 有时）
+  5. 推 SSE skill_matched 事件 → 前端更新 Skill 选择器
+  6. 后续流程与手动选择一致（LLM 流式调用 → tool call 循环 → 最终回复）
+```
+
+对比手动选择时的流程：
+
+```
+用户选择 Skill → 发送消息
+    │
+    ▼
+ChatOrchestrator
+  1. 有 skillId → 加载该 Skill
+  2. 使用该 Skill 的 systemPrompt
+  3. 从 MCP 获取全量 tools → 按 Skill.allowedTools 过滤
+  4. 后续流程不变
+```
+
+---
+
 ### 3.4 持久化数据
 
 | 数据 | 说明 |

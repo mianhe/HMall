@@ -5,6 +5,20 @@ info:
   version: 0.1.0
 
 paths:
+  /api/inventory/stock:
+    get:
+      summary: 查询全部库存列表
+      description: 返回所有已初始化的 SkuStock 列表。无记录时返回空数组。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StockResponse'
+
   /api/inventory/stock/{skuId}:
     get:
       summary: 查询库存

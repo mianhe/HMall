@@ -1,5 +1,6 @@
 package com.hmall.inventory.acceptance;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -9,6 +10,7 @@ public class LastResponseContext {
 
     private volatile int lastStatusCode = -1;
     private volatile Map<String, Object> lastStockBody;
+    private volatile List<Map<String, Object>> lastStockListBody;
 
     public int getLastStatusCode() {
         return lastStatusCode;
@@ -24,5 +26,13 @@ public class LastResponseContext {
 
     public void setLastStockBody(Map<String, Object> lastStockBody) {
         this.lastStockBody = lastStockBody;
+    }
+
+    public List<Map<String, Object>> getLastStockListBody() {
+        return lastStockListBody;
+    }
+
+    public void setLastStockListBody(List<Map<String, Object>> lastStockListBody) {
+        this.lastStockListBody = lastStockListBody;
     }
 }

@@ -132,7 +132,36 @@
 
 ---
 
-## 五、相关文档
+## 五、AI 智能助手
+
+消费者端接入 Smart Interaction，提供对话式购物体验。技术架构与需求详见 `docs/bounded-contexts/smart-interaction/requirements.md` §二。
+
+### 已实现（I-1）
+
+- ✅ AI Chat 入口：页面右下角浮动按钮，点击打开对话面板（Ctrl+K / Cmd+K 快捷键）
+- ✅ 对话面板：SSE 流式接收，Markdown 渲染，Tool Call 可视化
+- ✅ 自动匹配模式：消费者端默认使用自动匹配，不显示 Skill 选择器
+- ✅ Vite 代理：`/api/ai` → smart-interaction-service (8089)
+
+### 组件结构
+
+```
+src/shared/
+├── api/ai.js                           # AI Chat API（SSE 流式）
+├── composables/useAiChat.js            # 消费者版 composable（无 Skill 管理）
+└── ui/ai-chat/
+    ├── AiChatButton.vue                # 浮动按钮
+    ├── AiChatPanel.vue                 # 对话面板（简化版）
+    ├── AiChatInput.vue                 # 输入框
+    ├── AiMessageList.vue               # 消息列表
+    ├── AiMessageBubble.vue             # 消息气泡（Markdown + 思考过程）
+    ├── AiToolCallGroup.vue             # 工具调用组（可折叠）
+    └── AiToolCallCard.vue              # 单个工具调用卡片
+```
+
+---
+
+## 六、相关文档
 
 | 文档 | 用途 |
 |------|------|
@@ -141,4 +170,6 @@
 | `docs/bounded-contexts/catalog/api.yaml` | Catalog BC API 契约（类目、商品） |
 | `docs/bounded-contexts/order/api.yaml` | Order BC API 契约（订单创建、查询、取消） |
 | `docs/bounded-contexts/cart/api.yaml` | Cart BC API 契约（购物车、结算预览） |
+| `docs/bounded-contexts/smart-interaction/requirements.md` | Smart Interaction 需求（含消费者端扩展） |
+| `docs/bounded-contexts/smart-interaction/skills-reference.md` | Skill 配置参考（含购物助手） |
 | `docs/frontend-admin/requirements.md` | 管理后台需求 |

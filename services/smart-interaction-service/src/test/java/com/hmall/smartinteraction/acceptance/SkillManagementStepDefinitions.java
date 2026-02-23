@@ -49,6 +49,11 @@ public class SkillManagementStepDefinitions {
 
     @当("创建 Skill 名称 {string} 描述 {string} systemPrompt {string} allowedTools {string}")
     public void 创建Skill(String name, String description, String systemPrompt, String allowedToolsStr) {
+        创建SkillWithAudience(name, description, systemPrompt, allowedToolsStr, null);
+    }
+
+    @当("创建 Skill 名称 {string} 描述 {string} systemPrompt {string} allowedTools {string} audience {string}")
+    public void 创建SkillWithAudience(String name, String description, String systemPrompt, String allowedToolsStr, String audience) {
         Map<String, Object> body = new HashMap<>();
         body.put("name", name);
         body.put("description", description);
@@ -58,12 +63,20 @@ public class SkillManagementStepDefinitions {
         } else {
             body.put("allowedTools", List.of());
         }
+        if (audience != null) {
+            body.put("audience", audience);
+        }
         post("/api/ai/skills", body);
     }
 
     @那么("返回的 Skill 名称为 {string}")
     public void 返回的Skill名称为(String expected) {
         assertThat(ctx.getLastResponseBody().get("name")).isEqualTo(expected);
+    }
+
+    @并且("返回的 Skill audience 为 {string}")
+    public void 返回的SkillAudience为(String expected) {
+        assertThat(ctx.getLastResponseBody().get("audience")).isEqualTo(expected);
     }
 
     @并且("返回的 Skill 包含 allowedTools {string} 和 {string}")

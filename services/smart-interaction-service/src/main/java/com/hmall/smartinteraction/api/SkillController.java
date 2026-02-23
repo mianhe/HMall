@@ -34,7 +34,8 @@ public class SkillController {
             request.name(),
             request.description(),
             request.systemPrompt(),
-            request.allowedTools() != null ? request.allowedTools() : List.of()
+            request.allowedTools() != null ? request.allowedTools() : List.of(),
+            request.audience()
         );
         return ResponseEntity.ok(SkillDto.from(skill));
     }
@@ -56,7 +57,8 @@ public class SkillController {
             request.name(),
             request.description(),
             request.systemPrompt(),
-            request.allowedTools() != null ? request.allowedTools() : List.of()
+            request.allowedTools() != null ? request.allowedTools() : List.of(),
+            request.audience()
         )
             .map(skill -> ResponseEntity.ok(SkillDto.from(skill)))
             .orElse(ResponseEntity.notFound().build());

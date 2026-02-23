@@ -10,6 +10,12 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js'
 import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js'
 import { registerCatalogTools } from './tools/catalog.js'
+import { registerInventoryTools } from './tools/inventory.js'
+import { registerCartTools } from './tools/cart.js'
+import { registerOrderTools } from './tools/order.js'
+import { registerFulfillmentTools } from './tools/fulfillment.js'
+import { registerUserTools } from './tools/user.js'
+import { registerActivityTools } from './tools/activity.js'
 
 function createServer() {
   const server = new McpServer({
@@ -17,6 +23,12 @@ function createServer() {
     version: '0.1.0',
   })
   registerCatalogTools(server)
+  registerInventoryTools(server)
+  registerCartTools(server)
+  registerOrderTools(server)
+  registerFulfillmentTools(server)
+  registerUserTools(server)
+  registerActivityTools(server)
   return server
 }
 

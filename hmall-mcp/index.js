@@ -6,6 +6,12 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { registerCatalogTools } from './tools/catalog.js'
+import { registerInventoryTools } from './tools/inventory.js'
+import { registerCartTools } from './tools/cart.js'
+import { registerOrderTools } from './tools/order.js'
+import { registerFulfillmentTools } from './tools/fulfillment.js'
+import { registerUserTools } from './tools/user.js'
+import { registerActivityTools } from './tools/activity.js'
 
 const server = new McpServer({
   name: 'hmall-mcp',
@@ -14,7 +20,12 @@ const server = new McpServer({
 
 // 注册各模块 tools
 registerCatalogTools(server)
-// 将来加新模块：registerStoreTools(server) 等
+registerInventoryTools(server)
+registerCartTools(server)
+registerOrderTools(server)
+registerFulfillmentTools(server)
+registerUserTools(server)
+registerActivityTools(server)
 
 // 启动
 async function main() {

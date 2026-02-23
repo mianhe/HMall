@@ -28,6 +28,9 @@ public class CucumberSpringConfiguration {
         registry.add("hmall.ai.providers.deepseek.api-key", () -> "test-key");
         registry.add("hmall.ai.providers.deepseek.base-url", () -> "http://127.0.0.1:19999");
         registry.add("hmall.ai.providers.deepseek.model", () -> "deepseek-chat");
+        registry.add("hmall.ai.providers.zhipu.api-key", () -> "test-key");
+        registry.add("hmall.ai.providers.zhipu.base-url", () -> "http://127.0.0.1:19999");
+        registry.add("hmall.ai.providers.zhipu.model", () -> "glm-4.7");
         registry.add("hmall.ai.mcp.url",
             () -> "http://127.0.0.1:" + McpWireMockConfig.getPort() + "/mcp");
     }

@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/inventory")
 public class InventoryController {
@@ -47,6 +49,12 @@ public class InventoryController {
     @PostMapping("/release")
     public ResponseEntity<ReleaseResponseDto> release(@Valid @RequestBody ReleaseRequestDto dto) {
         ReleaseResponseDto result = releaseApplicationService.release(dto.orderId());
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/stock")
+    public ResponseEntity<List<StockResponseDto>> listStock() {
+        List<StockResponseDto> result = stockApplicationService.listAll();
         return ResponseEntity.ok(result);
     }
 

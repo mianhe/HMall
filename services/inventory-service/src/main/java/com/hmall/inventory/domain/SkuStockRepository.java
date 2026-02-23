@@ -1,5 +1,6 @@
 package com.hmall.inventory.domain;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -8,6 +9,8 @@ import java.util.Optional;
 public interface SkuStockRepository {
 
     Optional<SkuStock> findBySkuId(Long skuId);
+
+    List<SkuStock> findAll();
 
     SkuStock save(SkuStock stock);
 }

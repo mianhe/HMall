@@ -14,15 +14,19 @@ spring:
 
 hmall:
   ai:
-    default-provider: qwen
+    default-provider: zhipu
     providers:
       qwen:
         api-key: ${QWEN_API_KEY:}
         base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
-        model: qwen-plus
+        model: qwen-max
       deepseek:
         api-key: ${DEEPSEEK_API_KEY:}
         base-url: https://api.deepseek.com/v1
         model: deepseek-chat
+      zhipu:
+        api-key: ${ZHIPU_API_KEY:}
+        base-url: https://open.bigmodel.cn/api/paas/v4
+        model: glm-4.7
     mcp:
       url: http://127.0.0.1:3000/mcp

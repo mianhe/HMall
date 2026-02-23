@@ -6,6 +6,7 @@ import com.hmall.inventory.infrastructure.persistence.SkuStockEntity;
 import com.hmall.inventory.infrastructure.persistence.SkuStockJpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -20,6 +21,11 @@ public class SkuStockRepositoryImpl implements SkuStockRepository {
     @Override
     public Optional<SkuStock> findBySkuId(Long skuId) {
         return jpaRepository.findById(skuId).map(this::toDomain);
+    }
+
+    @Override
+    public List<SkuStock> findAll() {
+        return jpaRepository.findAll().stream().map(this::toDomain).toList();
     }
 
     @Override

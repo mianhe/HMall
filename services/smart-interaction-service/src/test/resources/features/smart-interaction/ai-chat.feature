@@ -64,6 +64,15 @@
     当 用户发送消息 "你好"
     那么 发送给 LLM 的 system prompt 应包含 "HMall"
 
+  场景: 手动指定 Skill 时 system prompt 应同时包含 base prompt 和 Skill 领域知识
+    假如 已创建 Skill "库存助手" systemPrompt "库存以 SKU 为粒度" allowedTools "inventory_*"
+    并且 MCP 已注册工具 "inventory_query_stock"
+    并且 LLM 会流式返回文本 "好的"
+    当 用户使用 Skill "库存助手" 发送消息 "查一下库存"
+    那么 发送给 LLM 的 system prompt 应包含 "HMall"
+    并且 发送给 LLM 的 system prompt 应包含 "以下是当前对话匹配到的领域知识"
+    并且 发送给 LLM 的 system prompt 应包含 "库存以 SKU 为粒度"
+
   场景: Tool Call 轮次超过限制时应终止并提示
     假如 已设置 maxToolCallRounds 为 2
     并且 MCP 已注册工具 "catalog_list_categories"

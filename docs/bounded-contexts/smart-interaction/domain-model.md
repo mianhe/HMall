@@ -6,7 +6,7 @@
 
 ## 一、职责说明
 
-Smart Interaction 提供智能交互能力：管理员通过自然语言与系统对话，借助 Skill 定义的上下文和工具范围，由 LLM + MCP Tool Calling 编排执行业务操作。
+Smart Interaction 提供智能交互能力：管理员和消费者通过自然语言与系统对话，借助 Skill 定义的上下文和工具范围，由 LLM + MCP Tool Calling 编排执行业务操作。
 
 核心领域概念：
 - **Skill**：定义 AI 助手在特定场景下的行为（角色、知识、可用工具）
@@ -31,12 +31,14 @@ class Skill <<聚合根>> {
   - description: String
   - systemPrompt: Text
   - allowedTools: List<String>
+  - audience: String {"admin"|"consumer"|"all"}
   - isDefault: Boolean
   - createdAt: Instant
   - updatedAt: Instant
   --
   + setAsDefault()
   + matchesTools(toolNames: List<String>): List<String>
+  + matchesAudience(clientType: String): Boolean
 }
 
 class Conversation <<聚合根>> {
@@ -68,9 +70,11 @@ class ToolCallRecord <<值对象>> {
 
 class Settings <<聚合根>> {
   - id: Long {固定=1}
-  - defaultProvider: String
-  - maxToolCallRounds: Integer
+  - adminBasePrompt: Text {nullable}
+  - consumerBasePrompt: Text {nullable}
   - updatedAt: Instant
+  --
+  + update(adminBasePrompt, consumerBasePrompt)
 }
 
 enum MessageRole {
@@ -105,6 +109,7 @@ Skill 定义了 AI 助手在特定场景下的行为，是 Smart Interaction 的
 | description | String | Skill 描述，帮助用户理解其用途 |
 | systemPrompt | Text | 注入给 LLM 的系统提示词（角色定义、领域知识、行为规则） |
 | allowedTools | List\<String\> | 限定可用工具范围，支持通配符（如 `inventory_*`）；空列表或 `["*"]` 表示不过滤 |
+| audience | String | 适用端：`"admin"`（仅管理后台）、`"consumer"`（仅消费者前台）、`"all"`（两端均可，默认） |
 | isDefault | Boolean | 是否为默认 Skill，全局最多一个 |
 | createdAt | Instant | 创建时间 |
 | updatedAt | Instant | 最后修改时间 |
@@ -112,10 +117,12 @@ Skill 定义了 AI 助手在特定场景下的行为，是 Smart Interaction 的
 **不变式**：
 - `name` 不能为空
 - `isDefault = true` 的 Skill 全局最多一个；设置新的默认时自动取消旧的
+- `audience` 必须是 `"admin"`、`"consumer"` 或 `"all"` 之一
 
 **行为**：
 - `setAsDefault()`：将此 Skill 标记为默认
 - `matchesTools(toolNames)`：根据 `allowedTools`（含通配符匹配）过滤传入的工具名列表，返回匹配的子集
+- `matchesAudience(clientType)`：判断此 Skill 是否适用于给定的客户端类型。`audience = "all"` 匹配任何 clientType；clientType 为 null 时不过滤（向后兼容）
 
 **allowedTools 通配符规则**：
 - `inventory_*`：匹配所有以 `inventory_` 开头的工具
@@ -166,13 +173,15 @@ Skill 定义了 AI 助手在特定场景下的行为，是 Smart Interaction 的
 | 属性 | 类型 | 说明 |
 |------|------|------|
 | id | Long | 固定为 1 |
-| defaultProvider | String | 默认模型提供商 ID |
-| maxToolCallRounds | Integer | 单次对话 tool call 最大循环轮次 |
+| adminBasePrompt | Text (nullable) | 管理端基础 system prompt 模板；null 时使用代码内默认值。支持 `%s` 占位符（当前页面路径） |
+| consumerBasePrompt | Text (nullable) | 消费端基础 system prompt 模板；null 时使用代码内默认值。支持 `%s` 占位符 |
 | updatedAt | Instant | 最后修改时间 |
 
 **不变式**：
 - 全局仅一条记录（id = 1）
-- `maxToolCallRounds` > 0
+
+**行为**：
+- `update(adminBasePrompt, consumerBasePrompt)`：更新 base prompt 配置，空白字符串视为 null（使用默认值）
 
 ---
 
@@ -187,6 +196,7 @@ Skill 定义了 AI 助手在特定场景下的行为，是 Smart Interaction 的
 | description | VARCHAR(500) | |
 | system_prompt | TEXT | |
 | allowed_tools | TEXT | JSON 数组，如 `["inventory_*"]` |
+| audience | VARCHAR(20) | NOT NULL, DEFAULT 'all' |
 | is_default | BOOLEAN | NOT NULL, DEFAULT FALSE |
 | created_at | TIMESTAMPTZ | NOT NULL |
 | updated_at | TIMESTAMPTZ | NOT NULL |
@@ -218,6 +228,6 @@ Skill 定义了 AI 助手在特定场景下的行为，是 Smart Interaction 的
 | 列 | 类型 | 约束 |
 |----|------|------|
 | id | BIGINT | PK, DEFAULT 1, CHECK (id = 1) |
-| default_provider | VARCHAR(50) | NOT NULL |
-| max_tool_call_rounds | INTEGER | NOT NULL, CHECK (> 0) |
+| admin_base_prompt | TEXT | NULLABLE |
+| consumer_base_prompt | TEXT | NULLABLE |
 | updated_at | TIMESTAMPTZ | NOT NULL |

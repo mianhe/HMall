@@ -55,3 +55,14 @@
     那么 应返回 204
     当 查询 Skill 列表
     那么 列表中无 isDefault 为 true 的 Skill
+
+  场景: 创建 Skill 时指定 audience 应成功
+    当 创建 Skill 名称 "购物助手" 描述 "帮用户搜商品" systemPrompt "你是购物助手" allowedTools "catalog_*" audience "consumer"
+    那么 应返回 200
+    并且 返回的 Skill 名称为 "购物助手"
+    并且 返回的 Skill audience 为 "consumer"
+
+  场景: 创建 Skill 不指定 audience 时默认为 all
+    当 创建 Skill 名称 "通用助手" 描述 "通用" systemPrompt "" allowedTools ""
+    那么 应返回 200
+    并且 返回的 Skill audience 为 "all"

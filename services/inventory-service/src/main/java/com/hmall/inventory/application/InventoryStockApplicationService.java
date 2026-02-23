@@ -6,6 +6,8 @@ import com.hmall.inventory.domain.SkuStockRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 public class InventoryStockApplicationService {
 
@@ -13,6 +15,13 @@ public class InventoryStockApplicationService {
 
     public InventoryStockApplicationService(SkuStockRepository skuStockRepository) {
         this.skuStockRepository = skuStockRepository;
+    }
+
+    @Transactional(readOnly = true)
+    public List<StockResponseDto> listAll() {
+        return skuStockRepository.findAll().stream()
+            .map(s -> new StockResponseDto(s.getSkuId(), s.getAvailable(), s.getReserved()))
+            .toList();
     }
 
     @Transactional(readOnly = true)

@@ -7,6 +7,8 @@ public record ChatRequest(
     Context context,
     String provider,
     Long skillId,
+    String skillMode,
+    String clientType,
     Integer maxToolCallRounds
 ) {
     public record Message(String role, String content) {}

@@ -61,7 +61,7 @@ export function registerCatalogTools(server) {
   // ── 1. catalog_categories ──
   server.tool(
     'catalog_categories',
-    '类目：action=list(可选parentId) | tree | get(categoryId) | create(name,parentId?) | update(categoryId,name) | delete(categoryId)',
+    '类目（分类）查询与管理。树形结构：根类目 → 子类目 → 叶子类目，商品只能挂在叶子类目下。action=list 查类目列表（传 parentId 查子类目，不传查根类目）；tree 返回完整类目树；get/create/update/delete 按 categoryId 操作。',
     {
       action: actionList.describe('list|tree|get|create|update|delete'),
       parentId: z.number().optional().describe('list 时：不传查根类目，传则查子类目'),
@@ -115,7 +115,7 @@ export function registerCatalogTools(server) {
   // ── 2. catalog_products ──
   server.tool(
     'catalog_products',
-    '商品(SPU)：action=list(categoryId?或keyword?) | get(productId,detail?basic|full) | create(categoryId,name) | update(productId,name) | delete(productId)',
+    '商品(SPU)查询与管理。action=list：按 categoryId 过滤类目下商品，或按 keyword 模糊搜索商品名称（仅名称匹配，不支持语义搜索；搜不到时建议换同义词或改用类目浏览）。get + detail=full：返回完整信息含规格维度、选项和全部 SKU 列表（含价格，单位：分，如 599900=¥5999）。create/update/delete：管理操作。',
     {
       action: actionProducts,
       categoryId: z.number().optional().describe('list 时按类目过滤；create 时必填'),
@@ -186,7 +186,7 @@ export function registerCatalogTools(server) {
   // ── 3. catalog_dimensions ──
   server.tool(
     'catalog_dimensions',
-    '规格维度与选项：action=list(spuId) | add_dimension(spuId,name,required) | add_option(spuId,dimensionId,optionValue) | delete_option(spuId,dimensionId,optionId)',
+    '商品的规格维度与选项管理。每个 SPU 可有多个维度（如颜色、版本），每个维度下有多个选项（如黑色、512GB）。创建 SKU 时需要指定各维度的 optionId。action=list 查维度及选项；add_dimension/add_option 添加；delete_option 删除。',
     {
       action: actionDims,
       spuId: z.number().describe('商品(SPU) ID'),
@@ -228,7 +228,7 @@ export function registerCatalogTools(server) {
   // ── 4. catalog_skus ──
   server.tool(
     'catalog_skus',
-    'SKU：action=list(spuId) | create(spuId,specOptionIds,priceCents,displayName?) | update(spuId,skuId,priceCents?,displayName?) | delete(spuId,skuId)',
+    'SKU 查询与管理。SKU = 各规格维度选项的组合 + 价格（priceCents，单位：分）。action=list 查某 SPU 下所有 SKU；create 需传 specOptionIds（各维度选项 ID 列表）+ priceCents；update 可改价格或展示名；delete 删除。',
     {
       action: actionSkus,
       spuId: z.number().describe('商品(SPU) ID'),
@@ -273,7 +273,7 @@ export function registerCatalogTools(server) {
   // ── 5. catalog_upload_image ──
   server.tool(
     'catalog_upload_image',
-    '上传本地图片文件到服务器，返回可访问的 URL。可用于添加展示图时的 imageUrl。需后端开启 MinIO（minio.enabled=true）。',
+    '上传本地图片到服务器，返回可访问 URL（可用于展示图的 imageUrl 参数）。需后端 MinIO 已启动。',
     { localPath: z.string().describe('本地图片文件的绝对路径') },
     async ({ localPath }) => {
       try {
@@ -291,7 +291,7 @@ export function registerCatalogTools(server) {
   // ── 6. catalog_product_images ──
   server.tool(
     'catalog_product_images',
-    '产品级展示图：action=list(spuId) | add(spuId, imageUrl 或 localPath 二选一, sortOrder?) | delete(spuId, imageId)',
+    '产品级展示图管理（不绑定具体规格选项）。action=list 查看；add 添加（imageUrl 或 localPath 二选一，传 localPath 时内部自动上传）；delete 删除。',
     {
       action: actionImages,
       spuId: z.number().describe('商品(SPU) ID'),
@@ -329,7 +329,7 @@ export function registerCatalogTools(server) {
   // ── 7. catalog_option_images ──
   server.tool(
     'catalog_option_images',
-    '选项级展示图：action=list(spuId,dimensionId,optionId) | add(同上, imageUrl 或 localPath 二选一) | delete(同上, imageId)',
+    '选项级展示图管理（绑定到具体维度选项，如「颜色:黑色」的图片）。action=list 查看；add 添加（imageUrl 或 localPath 二选一）；delete 删除。',
     {
       action: actionImages,
       spuId: z.number().describe('商品(SPU) ID'),

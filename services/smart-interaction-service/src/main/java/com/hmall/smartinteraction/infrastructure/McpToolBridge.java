@@ -3,22 +3,30 @@ package com.hmall.smartinteraction.infrastructure;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import io.netty.channel.ChannelOption;
+import io.netty.handler.timeout.ReadTimeoutHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.netty.http.client.HttpClient;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Component
 public class McpToolBridge {
 
     private static final Logger log = LoggerFactory.getLogger(McpToolBridge.class);
+    private static final Duration CALL_TIMEOUT = Duration.ofSeconds(30);
 
     private final WebClient webClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -26,7 +34,13 @@ public class McpToolBridge {
     private volatile List<Map<String, Object>> cachedTools;
 
     public McpToolBridge(LlmProviderConfig config) {
+        HttpClient httpClient = HttpClient.create()
+            .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5_000)
+            .responseTimeout(Duration.ofSeconds(30))
+            .doOnConnected(conn ->
+                conn.addHandlerLast(new ReadTimeoutHandler(30, TimeUnit.SECONDS)));
         this.webClient = WebClient.builder()
+            .clientConnector(new ReactorClientHttpConnector(httpClient))
             .baseUrl(config.mcp().url())
             .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
             .defaultHeader(HttpHeaders.ACCEPT, "application/json, text/event-stream")
@@ -51,19 +65,39 @@ public class McpToolBridge {
 
     public String executeTool(String toolName, Object arguments) {
         try {
+            log.info("Executing MCP tool: {} with session: {}", toolName, sessionId.get());
             ObjectNode params = objectMapper.createObjectNode();
             params.put("name", toolName);
             params.set("arguments", objectMapper.valueToTree(arguments));
 
-            JsonNode response = jsonRpcCall("tools/call", params);
+            JsonNode response = callWithSessionRetry("tools/call", params);
             JsonNode content = response.path("result").path("content");
             if (content.isArray() && !content.isEmpty()) {
-                return content.get(0).path("text").asText("");
+                String result = content.get(0).path("text").asText("");
+                log.info("MCP tool {} completed, result length: {}", toolName, result.length());
+                return result;
+            }
+            JsonNode error = response.path("error");
+            if (!error.isMissingNode()) {
+                String errorMsg = error.path("message").asText("Unknown MCP error");
+                log.warn("MCP tool {} returned error: {}", toolName, errorMsg);
+                return "工具执行错误：" + errorMsg;
             }
             return response.path("result").toString();
         } catch (Exception e) {
             log.error("MCP tool execution failed: {}", toolName, e);
-            return "Tool execution error: " + e.getMessage();
+            return "工具执行错误：" + e.getMessage();
+        }
+    }
+
+    private JsonNode callWithSessionRetry(String method, ObjectNode params) {
+        try {
+            return jsonRpcCall(method, params);
+        } catch (WebClientResponseException.BadRequest e) {
+            log.warn("MCP session likely expired (400), re-initializing...");
+            invalidateCache();
+            initializeAndDiscoverTools();
+            return jsonRpcCall(method, params);
         }
     }
 
@@ -139,7 +173,7 @@ public class McpToolBridge {
                 if (newSid != null) sessionId.set(newSid);
             })
             .map(entity -> entity.getBody() != null ? entity.getBody() : "{}")
-            .block();
+            .block(CALL_TIMEOUT);
 
         try {
             return objectMapper.readTree(extractJson(responseBody));

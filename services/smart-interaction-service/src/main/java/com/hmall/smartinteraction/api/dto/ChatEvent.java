@@ -28,6 +28,10 @@ public record ChatEvent(
         return new ChatEvent("done", null, null, null, null, null, null);
     }
 
+    public static ChatEvent skillMatched(String skillsJson) {
+        return new ChatEvent("skill_matched", skillsJson, null, null, null, null, null);
+    }
+
     public static ChatEvent error(String message) {
         return new ChatEvent("error", null, null, null, null, null, message);
     }

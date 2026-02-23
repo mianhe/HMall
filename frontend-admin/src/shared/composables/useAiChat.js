@@ -14,7 +14,9 @@ export function useAiChat() {
   const models = ref([])
   const selectedProvider = ref(null)
   const skills = ref([])
+  const skillMode = ref('auto')
   const selectedSkillId = ref(null)
+  const lastMatchedSkills = ref([])
   const route = useRoute()
 
   const toolCallCallbacks = []
@@ -35,10 +37,6 @@ export function useAiChat() {
   async function loadSkills() {
     try {
       skills.value = await skillApi.getSkills()
-      const defaultSkill = skills.value.find(s => s.isDefault)
-      if (defaultSkill && !selectedSkillId.value) {
-        selectedSkillId.value = defaultSkill.id
-      }
     } catch (e) {
       console.warn('Failed to load skills:', e)
     }
@@ -59,6 +57,7 @@ export function useAiChat() {
   async function removeSkill(id) {
     await skillApi.deleteSkill(id)
     if (selectedSkillId.value === id) {
+      skillMode.value = 'auto'
       selectedSkillId.value = null
     }
     await loadSkills()
@@ -101,10 +100,14 @@ export function useAiChat() {
         messages: chatMessages,
         context: { page: route.path },
         provider: selectedProvider.value,
+        clientType: 'admin',
       }
-      if (selectedSkillId.value) {
+      if (skillMode.value === 'manual' && selectedSkillId.value) {
         payload.skillId = selectedSkillId.value
+      } else if (skillMode.value === 'none') {
+        payload.skillMode = 'none'
       }
+      lastMatchedSkills.value = []
       const reader = await streamChat(payload, abortController.signal)
 
       await parseSseStream(reader, assistantMsg)
@@ -187,6 +190,14 @@ export function useAiChat() {
         break
       }
 
+      case 'skill_matched':
+        try {
+          lastMatchedSkills.value = JSON.parse(data.content)
+        } catch {
+          lastMatchedSkills.value = []
+        }
+        break
+
       case 'error':
         assistantMsg.content += '\n\n[错误: ' + (data.message || '未知错误') + ']'
         break
@@ -212,7 +223,9 @@ export function useAiChat() {
     models,
     selectedProvider,
     skills,
+    skillMode,
     selectedSkillId,
+    lastMatchedSkills,
     loadModels,
     loadSkills,
     createSkill,

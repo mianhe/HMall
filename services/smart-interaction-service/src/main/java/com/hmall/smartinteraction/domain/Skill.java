@@ -25,6 +25,9 @@ public class Skill {
     @Column(columnDefinition = "TEXT")
     private String allowedToolsJson;
 
+    @Column(nullable = false, length = 20)
+    private String audience = "all";
+
     @Column(nullable = false)
     private boolean isDefault = false;
 
@@ -37,6 +40,10 @@ public class Skill {
     protected Skill() {}
 
     public Skill(String name, String description, String systemPrompt, List<String> allowedTools) {
+        this(name, description, systemPrompt, allowedTools, "all");
+    }
+
+    public Skill(String name, String description, String systemPrompt, List<String> allowedTools, String audience) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Skill name must not be blank");
         }
@@ -44,11 +51,12 @@ public class Skill {
         this.description = description;
         this.systemPrompt = systemPrompt;
         setAllowedTools(allowedTools);
+        this.audience = audience != null ? audience : "all";
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
     }
 
-    public void update(String name, String description, String systemPrompt, List<String> allowedTools) {
+    public void update(String name, String description, String systemPrompt, List<String> allowedTools, String audience) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Skill name must not be blank");
         }
@@ -56,6 +64,7 @@ public class Skill {
         this.description = description;
         this.systemPrompt = systemPrompt;
         setAllowedTools(allowedTools);
+        this.audience = audience != null ? audience : "all";
         this.updatedAt = Instant.now();
     }
 
@@ -123,10 +132,16 @@ public class Skill {
         }
     }
 
+    public boolean matchesAudience(String clientType) {
+        if (clientType == null || clientType.isBlank()) return true;
+        return "all".equals(this.audience) || this.audience.equals(clientType);
+    }
+
     public Long getId() { return id; }
     public String getName() { return name; }
     public String getDescription() { return description; }
     public String getSystemPrompt() { return systemPrompt; }
+    public String getAudience() { return audience; }
     public boolean isDefault() { return isDefault; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
