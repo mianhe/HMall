@@ -1,9 +1,11 @@
 package com.hmall.activity.api;
 
 import com.hmall.activity.api.dto.ActivityDto;
+import com.hmall.activity.api.dto.EventMetadataDto;
 import com.hmall.activity.api.dto.StatsDto;
 import com.hmall.activity.application.ActivityApplicationService;
 import com.hmall.activity.domain.ActivityStats;
+import com.hmall.activity.domain.EventMetadataRegistry;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,6 +44,14 @@ public class ActivityController {
             @RequestParam(defaultValue = "20") int limit) {
         List<ActivityDto> list = applicationService.listRecent(limit).stream()
             .map(ActivityDto::from)
+            .toList();
+        return ResponseEntity.ok(list);
+    }
+
+    @GetMapping("/event-metadata")
+    public ResponseEntity<List<EventMetadataDto>> getEventMetadata() {
+        List<EventMetadataDto> list = EventMetadataRegistry.all().stream()
+            .map(EventMetadataDto::from)
             .toList();
         return ResponseEntity.ok(list);
     }

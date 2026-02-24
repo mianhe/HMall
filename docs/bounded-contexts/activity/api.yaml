@@ -51,6 +51,20 @@ paths:
                 items:
                   $ref: '#/components/schemas/ActivityDto'
 
+  /api/activities/event-metadata:
+    get:
+      summary: 查询所有已注册的事件元数据
+      description: 返回系统中所有已知事件类型的业务语义信息，包括所属 BC、中文标签、分类（正向/补偿/异常）及补偿关系。前端应使用此接口获取事件展示信息，而非硬编码。
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EventMetadataDto'
+
   /api/activities/stats:
     get:
       summary: 查询统计（支持时间范围，用于仪表盘）
@@ -113,6 +127,32 @@ components:
         receivedAt:
           type: string
           format: date-time
+        metadata:
+          $ref: '#/components/schemas/EventMetadataDto'
+          nullable: true
+          description: 事件元数据（所属 BC、中文标签、分类等）；未注册的事件类型为 null
+
+    EventMetadataDto:
+      type: object
+      description: 事件类型的业务语义元数据。由后端 EventMetadataRegistry 集中管理，前端直接使用，不应硬编码。
+      properties:
+        eventType:
+          type: string
+          description: 事件类型标识，如 OrderCreated
+        boundedContext:
+          type: string
+          description: 所属限界上下文，如 Order、Payment、Inventory、Fulfillment
+        label:
+          type: string
+          description: 中文显示标签，如"订单创建"、"库存锁定"
+        category:
+          type: string
+          enum: [normal, compensation, exception]
+          description: 事件分类：normal=正向事件，compensation=补偿事件，exception=异常事件
+        compensatesEventType:
+          type: string
+          nullable: true
+          description: 仅补偿事件有值，表示它补偿的正向事件类型（如 StockReleased 补偿 StockReserved）
 
     StatsDto:
       type: object

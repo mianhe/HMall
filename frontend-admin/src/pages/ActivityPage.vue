@@ -125,66 +125,6 @@
           </div>
         </section>
       </template>
-
-      <!-- Today's Events (collapsible) -->
-      <section>
-        <div
-          class="flex items-center justify-between mb-3 cursor-pointer select-none"
-          @click="eventsExpanded = !eventsExpanded"
-        >
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-semibold text-gray-500 uppercase tracking-wide">今日事件</span>
-            <span class="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">{{ todayActivities.length }}</span>
-            <svg
-              :class="['w-4 h-4 text-gray-400 transition-transform', eventsExpanded ? 'rotate-180' : '']"
-              fill="none" stroke="currentColor" viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
-          <button
-            @click.stop="loadRecent"
-            :disabled="recentLoading"
-            class="text-sm text-gray-500 hover:text-vmall-red transition-colors disabled:opacity-50"
-          >
-            {{ recentLoading ? '刷新中…' : '刷新' }}
-          </button>
-        </div>
-        <div v-if="recentError" class="text-vmall-red text-sm mb-2">{{ recentError }}</div>
-        <transition name="collapse">
-          <div v-show="eventsExpanded" class="bg-white rounded-lg border border-vmall-gray-border overflow-hidden">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="bg-gray-50 text-gray-500 text-left">
-                  <th class="px-4 py-3 font-medium">时间</th>
-                  <th class="px-4 py-3 font-medium">事件</th>
-                  <th class="px-4 py-3 font-medium">订单 ID</th>
-                  <th class="px-4 py-3 font-medium">详情</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="!todayActivities.length && !recentLoading">
-                  <td colspan="4" class="px-4 py-8 text-center text-gray-400">今日暂无事件</td>
-                </tr>
-                <tr
-                  v-for="item in todayActivities"
-                  :key="item.id"
-                  class="border-t border-gray-100 hover:bg-gray-50 transition-colors"
-                >
-                  <td class="px-4 py-3 text-gray-600 whitespace-nowrap">{{ formatTime(item.occurredAt) }}</td>
-                  <td class="px-4 py-3">
-                    <span :class="['inline-block px-2 py-0.5 rounded text-xs font-medium', badgeClass(item.eventType)]">
-                      {{ eventLabel(item.eventType) }}
-                    </span>
-                  </td>
-                  <td class="px-4 py-3 text-gray-700 font-mono">{{ item.orderId ?? '—' }}</td>
-                  <td class="px-4 py-3 text-gray-500 text-xs">{{ eventDetail(item) }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </transition>
-      </section>
     </main>
   </div>
 </template>
@@ -194,7 +134,7 @@ import { ref, computed, onMounted } from 'vue'
 import AppHeader from '../shared/ui/AppHeader.vue'
 import StatCard from '../shared/ui/StatCard.vue'
 import FunnelStep from '../shared/ui/FunnelStep.vue'
-import { getActivityStats, getRecentActivities } from '../shared/api/activity.js'
+import { getActivityStats } from '../shared/api/activity.js'
 
 const periodOptions = [
   { value: 'today', label: '今日' },
@@ -208,53 +148,6 @@ const customTo = ref('')
 const stats = ref(null)
 const statsLoading = ref(false)
 const statsError = ref('')
-const recentActivities = ref([])
-const recentLoading = ref(false)
-const recentError = ref('')
-const eventsExpanded = ref(true)
-
-const EVENT_LABELS = {
-  OrderCreated:               '创建订单',
-  OrderCancelled:             '取消订单',
-  OrderCompleted:             '订单完成',
-  PaymentCompleted:           '支付成功',
-  PaymentFailed:              '支付失败',
-  PaymentExpired:             '支付过期',
-  StockReserved:              '库存占用',
-  StockReleased:              '库存释放',
-  FulfillmentOrderCreated:    '履约单创建',
-  FulfillmentOrderAllocated:  '开始配货',
-  FulfillmentShipped:         '已发货',
-  FulfillmentDelivered:       '已签收',
-}
-
-function eventLabel(eventType) {
-  return EVENT_LABELS[eventType] || eventType
-}
-
-function eventDetail(item) {
-  try {
-    const p = JSON.parse(item.payload || '{}')
-    if (item.eventType === 'PaymentCompleted' && p.amountCents) {
-      return `¥${(p.amountCents / 100).toFixed(2)}`
-    }
-    if (item.eventType === 'FulfillmentShipped' && p.fulfillmentOrderId) {
-      return `履约单 #${p.fulfillmentOrderId}`
-    }
-    if (item.eventType === 'FulfillmentOrderAllocated' && p.fulfillmentOrderId) {
-      return `履约单 #${p.fulfillmentOrderId}`
-    }
-  } catch { /* ignore */ }
-  return ''
-}
-
-const todayActivities = computed(() => {
-  const todayStr = new Date().toISOString().slice(0, 10)
-  return recentActivities.value.filter(a => {
-    if (!a.occurredAt) return false
-    return a.occurredAt.startsWith(todayStr) || new Date(a.occurredAt).toISOString().slice(0, 10) === todayStr
-  })
-})
 
 const successRate = computed(() => {
   if (!stats.value || stats.value.paymentAttempts === 0) return 0
@@ -305,64 +198,7 @@ async function loadStats(params) {
   }
 }
 
-async function loadRecent() {
-  recentLoading.value = true
-  recentError.value = ''
-  try {
-    recentActivities.value = await getRecentActivities(100)
-  } catch (e) {
-    recentError.value = e.response?.data?.message || e.message || '加载活动失败'
-  } finally {
-    recentLoading.value = false
-  }
-}
-
-function formatTime(isoStr) {
-  if (!isoStr) return '—'
-  const d = new Date(isoStr)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-}
-
-const eventBadgeMap = {
-  OrderCreated:               'bg-blue-50 text-blue-700',
-  OrderCancelled:             'bg-red-50 text-red-700',
-  OrderCompleted:             'bg-green-50 text-green-700',
-  PaymentCompleted:           'bg-green-50 text-green-700',
-  PaymentFailed:              'bg-red-50 text-red-700',
-  PaymentExpired:             'bg-amber-50 text-amber-700',
-  StockReserved:              'bg-blue-50 text-blue-700',
-  StockReleased:              'bg-green-50 text-green-700',
-  FulfillmentOrderCreated:    'bg-indigo-50 text-indigo-700',
-  FulfillmentOrderAllocated:  'bg-amber-50 text-amber-700',
-  FulfillmentShipped:         'bg-blue-50 text-blue-700',
-  FulfillmentDelivered:       'bg-green-50 text-green-700',
-}
-
-function badgeClass(eventType) {
-  return eventBadgeMap[eventType] || 'bg-gray-100 text-gray-600'
-}
-
 onMounted(() => {
   loadStats({ period: 'today' })
-  loadRecent()
 })
 </script>
-
-<style scoped>
-.collapse-enter-active,
-.collapse-leave-active {
-  transition: all 0.3s ease;
-  overflow: hidden;
-}
-.collapse-enter-from,
-.collapse-leave-to {
-  max-height: 0;
-  opacity: 0;
-}
-.collapse-enter-to,
-.collapse-leave-from {
-  max-height: 2000px;
-  opacity: 1;
-}
-</style>

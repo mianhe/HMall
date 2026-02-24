@@ -28,6 +28,8 @@
 - ✅ 2.1 按 orderId 查询：同一订单的多条事件按 occurredAt **正序**返回（事件时间线）
 - ✅ 2.2 按 orderId 查询：orderId 不存在时返回空列表
 - ✅ 2.3 查询最近活动：跨所有订单，按 occurredAt **倒序**返回，默认 limit=20
+- ✅ 2.4 活动记录中嵌入事件元数据：每条 ActivityDto 附带 `metadata` 字段（boundedContext、label、category、compensatesEventType），前端直接使用，无需硬编码
+- ✅ 2.5 查询事件元数据列表：`GET /api/activities/event-metadata` 返回所有已注册事件类型的元数据，供前端初始化使用
 
 ## 3. 统计与仪表盘
 
@@ -110,3 +112,134 @@
 | 3.3.1 | 查询今日统计 | 不传参数或 `period=today` 时，返回当日各指标（基于 occurredAt）；paymentAttempts = success + failed + expired；无数据时各指标为 0 | ✅ |
 | 3.3.2 | 按起止日期查询统计 | `from` + `to` 传入时，返回该时间范围内的聚合指标，响应中回显 from/to | ✅ |
 | 3.3.3 | 按快捷周期查询统计 | `period=last7` / `period=last30` 时，返回最近 7 天 / 30 天的聚合指标 | ✅ |
+
+---
+
+## 4. 订单旅程回放
+
+`order-journey.feature`（手工验收为主，后端无新增 API）
+
+面向**产品经理、开发者、业务人员**的可视化功能：通过回放一笔真实订单的领域事件序列，直观展示交易全生命周期——包括正常路径与 Saga 补偿路径。
+
+### 4.1 目标与受众
+
+| 维度 | 说明 |
+|------|------|
+| **目标** | 让非技术/半技术人员理解系统的交易流程、跨 BC 协作方式、以及异常情况下的补偿机制 |
+| **受众** | 产品经理、业务人员、新加入的开发者 |
+| **入口** | frontend-admin 活动监控页（ActivityPage）新增"订单旅程"入口 |
+| **数据来源** | 现有 `GET /api/activities?orderId={id}` 返回的事件列表（已按 occurredAt 正序），无需新增后端 API |
+
+### 4.2 核心设计决策
+
+| # | 决策 | 说明 |
+|---|------|------|
+| A1 | 纯前端实现，不新增后端 API | 现有 `GET /api/activities?orderId={id}` 已返回完整事件序列（含 payload），前端按 eventType 分组、标注颜色、推断因果关系即可 |
+| A2 | 事件按 BC 泳道分组 | 纵轴分为 Order / Inventory / Payment / Fulfillment 四条泳道，横轴为时间轴，直观展示跨 BC 协作 |
+| A3 | 正向事件与补偿事件用颜色区分 | 正向事件（OrderCreated、StockReserved、PaymentCompleted 等）用蓝/绿色；补偿事件（OrderCancelled、StockReleased）用红/橙色 |
+| A4 | 因果关系用连线表达 | 关键因果关系用箭头连线（如 PaymentCompleted → FulfillmentOrderCreated，PaymentExpired → OrderCancelled → StockReleased）|
+| A5 | 渐进式实现：先分组时间线，再泳道图 | 第一步实现增强版分组时间线（低成本、效果好），后续可迭代为泳道式可视化 |
+
+### 4.3 事件分类与展示
+
+#### 4.3.1 事件归属 BC
+
+| BC | 事件类型 | 中文标签 | 性质 |
+|----|----------|----------|------|
+| **Order** | `OrderCreated` | 订单创建 | 正向 |
+| | `OrderCancelled` | 订单取消 | 补偿 |
+| | `OrderCompleted` | 订单完成 | 正向（终态） |
+| **Inventory** | `StockReserved` | 库存锁定 | 正向 |
+| | `StockReleased` | 库存释放 | 补偿 |
+| **Payment** | `PaymentCompleted` | 支付成功 | 正向 |
+| | `PaymentFailed` | 支付失败 | 异常（非补偿，可重试） |
+| | `PaymentExpired` | 支付超时 | 异常（触发补偿） |
+| **Fulfillment** | `FulfillmentOrderCreated` | 履约单创建 | 正向 |
+| | `FulfillmentOrderAllocated` | 开始配货 | 正向 |
+| | `FulfillmentShipped` | 已发货 | 正向 |
+| | `FulfillmentDelivered` | 已签收 | 正向（终态） |
+
+#### 4.3.2 典型路径模板
+
+**正常路径（Happy Path）**：
+
+```
+OrderCreated → StockReserved → PaymentCompleted → FulfillmentOrderCreated → FulfillmentOrderAllocated → FulfillmentShipped → FulfillmentDelivered → OrderCompleted
+```
+
+**支付超时补偿路径**：
+
+```
+OrderCreated → StockReserved → PaymentExpired → OrderCancelled → StockReleased
+```
+
+**用户取消补偿路径**：
+
+```
+OrderCreated → StockReserved → OrderCancelled → StockReleased
+```
+
+**支付失败（可重试）路径**：
+
+```
+OrderCreated → StockReserved → PaymentFailed → ... → PaymentCompleted → ...（继续正常路径）
+```
+
+#### 4.3.3 补偿关系（Saga Compensating Transactions）
+
+| 正向事务 | 补偿事务 | 触发条件 |
+|---------|---------|---------|
+| `OrderCreated` | `OrderCancelled` | PaymentExpired / 用户主动取消 |
+| `StockReserved` | `StockReleased` | OrderCancelled 后同步释放 |
+
+### 4.4 交互方案
+
+#### 第一阶段：增强版分组时间线（MVP）
+
+在 ActivityPage 中新增入口，输入 orderId 后展示：
+
+1. **顶部概要**：orderId、当前状态（根据最后一个事件推断）、事件总数、时间跨度
+2. **分组垂直时间线**：
+   - 事件按 occurredAt 正序，从上到下排列
+   - 每个事件节点包含：BC 标签（彩色 badge）、事件名（中文）、时间戳
+   - BC 颜色编码：Order=蓝色、Payment=绿色、Inventory=琥珀色、Fulfillment=靛蓝色
+   - 补偿事件用红色/橙色背景突出
+   - 点击事件节点可展开 payload 详情（金额、SKU、履约单号等）
+3. **路径标注**：
+   - 正常路径事件之间用实线连接
+   - 补偿事件用虚线标注"补偿"关系（如 StockReleased ← 补偿 → StockReserved）
+
+#### 第二阶段：泳道式可视化（后续迭代）
+
+将时间线升级为横向泳道图：
+- 纵轴：Order / Inventory / Payment / Fulfillment 四条泳道
+- 横轴：时间轴
+- 事件节点在对应泳道上，跨泳道因果关系用箭头连接
+- 可选：回放动画（事件按时间逐个出现）
+
+### 4.5 需求场景
+
+| # | Scenario | 验收要点 | 状态 | 阶段 |
+|---|----------|----------|------|------|
+| 4.1 | 输入 orderId 查看订单旅程 | ActivityPage 新增入口，输入 orderId 后调用 `GET /api/activities?orderId={id}`，展示事件时间线 | ✅ | MVP |
+| 4.2 | 事件按 BC 分组，颜色区分 | 每个事件显示 BC 标签（Order/Inventory/Payment/Fulfillment），使用 BC 专属颜色 | ✅ | MVP |
+| 4.3 | 补偿事件高亮标注 | 补偿事件（OrderCancelled、StockReleased）使用红/橙色样式，与正向事件视觉区分 | ✅ | MVP |
+| 4.4 | 事件详情可展开 | 点击事件节点可展开 payload 关键字段（支付金额、SKU 明细、履约单号等） | ✅ | MVP |
+| 4.5 | 正常路径订单展示完整旅程 | 成功订单展示 OrderCreated → ... → OrderCompleted 全链路，所有事件正确排序 | ✅ | MVP |
+| 4.6 | 补偿路径订单展示补偿过程 | 取消/超时订单展示补偿事件（OrderCancelled、StockReleased），补偿关系可识别 | ✅ | MVP |
+| 4.7 | 顶部概要信息 | 展示 orderId、推断状态、事件数量、时间跨度（首尾事件间隔） | ✅ | MVP |
+| 4.8 | 无事件时提示 | orderId 无对应事件时显示空状态提示 | ✅ | MVP |
+| 4.9 | 泳道式可视化 | 事件按 BC 分布在横向泳道上，跨泳道因果关系用箭头连接；支持时间线/泳道图视图切换 | ✅ | V2 |
+| 4.10 | 回放动画 | 事件按时间顺序逐个出现；支持播放/暂停/显示全部/速度调节（0.5x-4x） | ✅ | V2 |
+
+### 4.6 后端与数据可行性
+
+| 能力 | 现有支持 | 结论 |
+|------|---------|------|
+| 按 orderId 查事件列表 | `GET /api/activities?orderId={id}`，occurredAt 正序 | ✅ 直接使用 |
+| 事件 payload 含业务字段 | payload 为完整 JSON（amountCents、items、fulfillmentOrderId 等） | ✅ 前端解析展示 |
+| 事件覆盖交易全生命周期 | 12 种事件，覆盖 Order/Payment/Inventory/Fulfillment | ✅ 无遗漏 |
+| 补偿事件有记录 | StockReleased、OrderCancelled 均有 orderId 关联 | ✅ 可展示补偿路径 |
+| MCP 工具 | `activity_query`（action=list, orderId）| ✅ AI 对话中也可查 |
+
+**结论**：后端数据层完全就绪，不需要新增 API 或修改领域模型。核心工作量在前端可视化实现。

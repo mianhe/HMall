@@ -102,7 +102,32 @@
 
 ---
 
-## 六、AI 智能对话
+## 六、订单旅程回放
+
+### 6.1 页面
+
+| 路由 | 页面 | 功能 |
+|------|------|------|
+| `/activity/journey` | OrderJourneyPage | 输入 orderId 后展示该订单全生命周期的事件回放（分组时间线） |
+| `/activity/journey/:orderId` | OrderJourneyPage | 直接展示指定订单的事件旅程 |
+
+### 6.2 功能
+
+| 功能 | 说明 | API |
+|------|------|-----|
+| 订单旅程入口 | ActivityPage 新增入口（输入框 + 按钮），输入 orderId 跳转到旅程页 | — |
+| 顶部概要 | 展示 orderId、推断状态、事件数量、时间跨度 | `GET /api/activities?orderId={id}` |
+| 分组时间线 | 事件按 occurredAt 正序排列，每个节点显示 BC 标签（彩色 badge）、中文事件名、时间戳 | 同上 |
+| BC 颜色编码 | Order=蓝色、Payment=绿色、Inventory=琥珀色、Fulfillment=靛蓝色 | — |
+| 补偿事件高亮 | 补偿事件（OrderCancelled、StockReleased）使用红/橙色样式 | — |
+| 事件详情展开 | 点击事件节点可展开 payload 关键字段（支付金额、SKU 明细、履约单号等） | — |
+| 空状态 | orderId 无对应事件时显示空状态提示 | — |
+
+后端需求见 `docs/bounded-contexts/activity/requirements.md` §4。
+
+---
+
+## 七、AI 智能对话
 
 ### 6.1 全局对话窗
 

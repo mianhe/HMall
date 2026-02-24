@@ -45,6 +45,29 @@ class BusinessActivity <<聚合根>> {
   receivedAt 系统填充；eventId 唯一（幂等）
 }
 
+enum EventCategory <<值对象>> {
+  NORMAL
+  COMPENSATION
+  EXCEPTION
+}
+
+class EventMetadata <<值对象>> {
+  - eventType: String *
+  - boundedContext: String *
+  - label: String *
+  - category: EventCategory *
+  - compensatesEventType: String {null=非补偿}
+}
+
+class EventMetadataRegistry <<领域服务>> {
+  + find(eventType): Optional<EventMetadata>
+  + all(): Collection<EventMetadata>
+}
+
+EventMetadataRegistry o-- "*" EventMetadata : 管理
+EventMetadata --> EventCategory
+BusinessActivity ..> EventMetadataRegistry : eventType 查询元数据
+
 note right of BusinessActivity
   eventId: 事件实例的 UUID，由发布方生成。
   orderId: 电商主查询维度，从事件业务字段提取；
@@ -52,14 +75,21 @@ note right of BusinessActivity
   payload: 事件原始 JSON，用于审计和按需解析。
 end note
 
+note bottom of EventMetadataRegistry
+  Activity BC 对"事件类型"这一领域概念的认知：
+  每种事件属于哪个 BC、叫什么、是正向/补偿/异常。
+  是领域知识的单一来源，前端和 API 层均从此获取。
+  新增事件类型时只需在此注册一行。
+end note
+
 @enduml
 ```
 
 ---
 
-## 四、聚合
+## 四、领域概念
 
-### BusinessActivity（业务活动记录）
+### 4.1 BusinessActivity（聚合根 — 业务活动记录）
 
 | 属性 | 类型 | 说明 |
 |------|------|------|
@@ -71,6 +101,35 @@ end note
 | payload | String | 事件原始 JSON |
 | occurredAt | Instant | 事件发生时间（来自事件载荷） |
 | receivedAt | Instant | 服务接收时间 |
+
+### 4.2 EventCategory（值对象 — 事件分类）
+
+| 值 | 含义 |
+|----|------|
+| `NORMAL` | 正向事件（推动流程前进） |
+| `COMPENSATION` | 补偿事件（Saga 回滚，撤销此前正向操作） |
+| `EXCEPTION` | 异常事件（非补偿，可能触发补偿或重试） |
+
+### 4.3 EventMetadata（值对象 — 事件元数据）
+
+描述一种事件类型的业务语义。
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| eventType | String | 事件类型标识，如 `OrderCreated` |
+| boundedContext | String | 所属限界上下文，如 `Order`、`Payment` |
+| label | String | 中文显示标签，如"订单创建" |
+| category | EventCategory | 事件分类 |
+| compensatesEventType | String（可空） | 仅补偿事件有值，表示它补偿了哪个正向事件 |
+
+### 4.4 EventMetadataRegistry（领域服务 — 事件元数据注册表）
+
+Activity BC 对"事件类型"这一领域概念的认知中心，集中管理所有已知事件类型的业务语义。是**领域知识的单一来源**——前端、API 层、统计服务均从此获取事件的分类、标签和补偿关系，任何消费方**不应**硬编码这些信息。
+
+- `find(eventType)` → 查询单个事件类型的元数据
+- `all()` → 返回所有已注册事件类型的元数据
+
+新增事件类型时，在注册表中注册一行即可，API 响应和前端展示自动生效。
 
 ---
 

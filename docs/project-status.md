@@ -29,7 +29,7 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 | **Smart Interaction** | LLM + MCP 智能交互（对话式操作）+ Skill 管理 + 自动匹配 | 🔄 演进中 | 端口 8089；4 feature（ai-chat + skill-management + skill-auto-matching + user-context）、24 scenario 全绿；后端：Skill CRUD + 默认设置 + 通配符工具过滤 + 对话集成 Skill + **Skill 自动匹配** + **userId 自动注入**（消费者端从 X-User-Id 提取，注入 MCP tool 参数）；前端：Skill 选择器三态 + Skill 管理面板；待完成：对话历史持久化、MCP 工具扩展（Fulfillment/Activity/Address） |
 | **Inventory** | 同步占用/释放库存、库存管理 | ✅ 已完成 | 3 feature、12 scenario 全绿；已与 Order 集成 |
 | **Payment** | 扣款/退款/超时检测 | ✅ 已完成 | 5 feature、19 scenario 全绿；超时检测定时自动执行；事件通知 Order（Kafka：PaymentCompleted/Failed/Expired）；已与 Order 集成（同步创建支付单/退款） |
-| **Activity** | 消费 Order/Payment/Inventory/Fulfillment 事件，活动记录、查询与统计仪表盘 | ✅ 已完成 | 3 个 feature（consume/query/stats），16 个 scenario，全部通过；已订阅 Fulfillment 全部 4 个事件 |
+| **Activity** | 消费 Order/Payment/Inventory/Fulfillment 事件，活动记录、查询、统计仪表盘、订单旅程回放 | ✅ 已完成 | 3 个 feature（consume/query/stats），16 个 scenario 全绿；已订阅 Fulfillment 全部 4 个事件；订单旅程回放 MVP + V2 全部完成（4.1～4.10：分组时间线 + 泳道式可视化 + 回放动画） |
 | **Fulfillment** | 拆单、开始配货、发货、签收、取消、查询 | ✅ 已完成 | 端口 8088；6 feature、24 scenario 全绿；ALLOCATING 状态与「开始配货」API；同步创建/取消 + Kafka 事件发布（Created/Allocated/Shipped/Delivered）；已与 Order、Activity 集成 |
 | **Pricing** | 算价、优惠 | 🔲 规划中 | 创建订单时同步调用 |
 | **Cart** | 购物车增删改查、结算预览 | ✅ 已完成 | 5 feature（+ smoke），17 scenario，全部通过；已与 Catalog 集成（CatalogSkuQueryAdapter 实时查询 SKU）+ User；结算由前端编排 |
@@ -115,6 +115,7 @@ Cart 通过 `CatalogSkuQueryAdapter`（`@Component`，REST 调用 `catalog.base-
 
 | 日期 | 变更内容 |
 |------|---------|
+| 2026-02-24 | Activity 订单旅程回放全部完成（4.1～4.10）：MVP 增强版分组时间线（BC 彩色 badge、补偿事件红色高亮、payload 详情展开、路径类型标识）+ V2 泳道式可视化（SwimlaneDiagram 组件：4 条 BC 泳道、SVG 因果连线含箭头、补偿连线虚线红色）+ 回放动画（播放/暂停/显示全部、4 档变速 0.5x-4x、节点缩放渐入）+ 视图切换（时间线/泳道图 tab）；纯前端实现，无新增后端 API |
 | 2026-02-23 | Smart Interaction 购物助手 V2（I-3 购物闭环）：userId 注入链路打通（前端 X-User-Id header → AiChatController 提取 → AiChatService 自动注入 MCP tool 参数，消费者未认证返回 401，管理端不注入）；新增 Cart MCP tool（cart_manage：list/add/update_quantity/remove/checkout_preview）和 Order MCP tools（order_query：get/list + order_create）；购物助手 Skill 升级为 v2（allowedTools 加入 cart_manage/order_create，systemPrompt 补充购物车和下单操作指引）；消费端 Base Prompt 更新能力范围；user-context.feature 3 scenario 全绿；MCP 工具总数 8→11 |
 | 2026-02-22 | Smart Interaction 消费者端迭代 I-1（基础打通 + 商品发现）：frontend-web 接入 AI Chat（浮动按钮 + 对话面板 + SSE 流式 + Markdown + Tool Call 可视化）；消费者版 useAiChat composable（自动匹配模式，无 Skill 管理）；购物助手 v1 Skill 配置（catalog 只读 4 工具）；Vite 代理 /api/ai → 8089；需求文档更新（消费者端扩展 §二 + 迭代规划 I-1～I-4） |
 | 2026-02-22 | Inventory 新增库存列表查询 API（GET /api/inventory/stock）：返回所有已初始化 SkuStock；MCP inventory_stock 新增 list action（含 Catalog SKU 名称拼接与合计汇总）；库存管理助手 Skill Prompt 更新；12 scenario 全绿 |
