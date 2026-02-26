@@ -21,6 +21,9 @@
 - ✅ 1.4 明细中 skuId 不存在时应失败并返回 404
 - ✅ 1.5 数量≤0 或单价<0 时应失败并返回错误
 - ✅ 1.6 userId 不存在时应失败并返回 404
+- 🔲 1.7 明细中含 SERVICE 类型商品时，仅对 PHYSICAL 类型明细调用库存占用，SERVICE 类型跳过（来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)）
+- 🔲 1.8 纯服务订单（全部明细均为 SERVICE）时应跳过库存占用，直接创建成功
+- 🔲 1.9 补购场景：明细携带 relatedOrderId 和 relatedSkuId 时，应校验原订单存在且关联实体商品已签收；校验失败返回错误
 
 ---
 
@@ -54,6 +57,7 @@
 - ✅ 4.3 收到 FulfillmentOrderAllocated 后应将 status 置为 FULFILLING（履约已开始配货，订单页可显示「正在配货」）
 - ✅ 4.4 收到 FulfillmentShipped 后应更新 status 为 SHIPPED
 - ✅ 4.5 收到 FulfillmentDelivered 后应将 status 置为 DELIVERED 并发布 OrderCompleted
+- 🔲 4.6 收到 ServiceActivated 后应等效 FulfillmentDelivered 处理；混合订单按最慢原则——实体 Delivered + 虚拟 Activated 全部到达才推进 OrderCompleted（来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)）
 
 ---
 
@@ -61,10 +65,10 @@
 
 | 功能 | .feature 文件 | 状态 | Scenario 数 | 备注 |
 |------|----------------|------|-------------|------|
-| 1. 创建订单 | order-create.feature | ✅ 已完成 | 8 | — |
-| 2. 取消订单 | order-cancel.feature | ✅ 已完成 | 8 | PAID/FULFILLING 取消调用 CancelFulfillmentPort；SHIPPED/DELIVERED 不可取消 |
+| 1. 创建订单 | order-create.feature | 🔄 需变更 | 8 + 3 | 1.7-1.9 来自虚拟商品业务需求 |
+| 2. 取消订单 | order-cancel.feature | ✅ 已完成 | 8 | PAID/FULFILLING 取消调用 CancelFulfillmentPort；SHIPPED/DELIVERED 不可取消；ACTIVATED 虚拟单 MVP 不可取消 |
 | 3. 查询订单 | order-query.feature | ✅ 已完成 | 3 | — |
-| 4. 事件驱动 | order-events.feature | ✅ 已完成 | 6 | 4.1 保持 PAID；4.3 消费 FulfillmentOrderAllocated 置 FULFILLING |
+| 4. 事件驱动 | order-events.feature | 🔄 需变更 | 6 + 1 | 4.6 消费 ServiceActivated 来自虚拟商品业务需求 |
 
 ---
 

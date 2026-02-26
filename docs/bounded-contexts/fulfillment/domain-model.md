@@ -6,7 +6,7 @@
 
 ## 一、职责说明
 
-Fulfillment 负责订单的履约执行：接收 Order 的创建请求后，按业务规则拆单（MVP 阶段 1:1），管理每个履约单从 CREATED → ALLOCATING → SHIPPED → DELIVERED 的生命周期，通过 Kafka 事件通知 Order 推进状态。
+Fulfillment 负责订单的履约执行：接收 Order 的创建请求后，按业务规则拆单，管理每个履约单的生命周期，通过 Kafka 事件通知 Order 推进状态。实体履约单：CREATED → ALLOCATING → SHIPPED → DELIVERED；🔲 虚拟服务履约单：CREATED → ACTIVATED（来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)）。
 
 ---
 
@@ -23,24 +23,32 @@ title Fulfillment 限界上下文 - 领域模型
 class FulfillmentOrder <<聚合根>> {
   - fulfillmentOrderId: Long
   - orderId: Long
+  - fulfillmentType: FulfillmentType {PHYSICAL|VIRTUAL}
   - status: FulfillmentOrderStatus
   - shippingAddress: ShippingAddress
   - shippingInfo: ShippingInfo
   - createdAt: Instant
   - updatedAt: Instant
   --
-  不变式: orderId 必填, items 非空, shippingAddress 必填
+  不变式: orderId 必填, items 非空, fulfillmentType 必填
   --
-  + allocate(): void
-  + ship(carrier, trackingNumber): void
-  + confirmDelivery(): void
+  + allocate(): void {仅 PHYSICAL}
+  + ship(carrier, trackingNumber): void {仅 PHYSICAL}
+  + confirmDelivery(): void {仅 PHYSICAL}
+  + activate(): void {仅 VIRTUAL}
   + cancel(): void
+}
+
+enum FulfillmentType {
+  PHYSICAL
+  VIRTUAL
 }
 
 class FulfillmentItem <<实体>> {
   - fulfillmentItemId: Long
   - skuId: Long
   - quantity: Integer
+  - itemType: ItemType {PHYSICAL|SERVICE}
   --
   不变式: skuId 必填, quantity > 0
 }
@@ -66,6 +74,7 @@ enum FulfillmentOrderStatus {
   ALLOCATING
   SHIPPED
   DELIVERED
+  ACTIVATED
   CANCELLED
 }
 
@@ -93,7 +102,17 @@ class FulfillmentDelivered <<领域事件>> {
   occurredAt: Instant
 }
 
+class ServiceActivated <<领域事件>> {
+  orderId: Long
+  fulfillmentOrderId: Long
+  serviceSkuId: Long
+  activatedAt: Instant
+  expiresAt: Instant
+  occurredAt: Instant
+}
+
 FulfillmentOrder "1" *-- "1..*" FulfillmentItem : items
+FulfillmentOrder ..> FulfillmentType : fulfillmentType
 FulfillmentOrder "1" *-- "1" ShippingAddress
 FulfillmentOrder "1" *-- "0..1" ShippingInfo
 FulfillmentOrder ..> FulfillmentOrderStatus : status
@@ -101,10 +120,12 @@ FulfillmentOrder ..> FulfillmentOrderCreated : 创建成功时发布
 FulfillmentOrder ..> FulfillmentOrderAllocated : allocate 成功时发布
 FulfillmentOrder ..> FulfillmentShipped : ship 成功时发布
 FulfillmentOrder ..> FulfillmentDelivered : confirmDelivery 成功时发布
+FulfillmentOrder ..> ServiceActivated : activate 成功时发布（VIRTUAL）
 
 note right of FulfillmentOrder
   一笔 orderId 可对应 1~N 个 FulfillmentOrder
-  （MVP 阶段 1:1）
+  PHYSICAL：CREATED → ALLOCATING → SHIPPED → DELIVERED
+  VIRTUAL：CREATED → ACTIVATED（创建后即激活）
 end note
 
 @enduml
@@ -120,22 +141,26 @@ end note
 |------|------|------|
 | fulfillmentOrderId | Long | 唯一标识 |
 | orderId | Long | 关联的订单 ID，引用 Order BC |
+| fulfillmentType | FulfillmentType | 🔲 PHYSICAL / VIRTUAL |
 | status | FulfillmentOrderStatus | 履约单状态 |
 | items | List\<FulfillmentItem\> | 履约商品明细 |
-| shippingAddress | ShippingAddress | 配送地址（创建时从 Order 快照） |
-| shippingInfo | ShippingInfo | 物流信息（发货后填充） |
+| shippingAddress | ShippingAddress | 配送地址（PHYSICAL 必填，VIRTUAL 可选） |
+| shippingInfo | ShippingInfo | 物流信息（仅 PHYSICAL，发货后填充） |
 | createdAt | Instant | 创建时间 |
 | updatedAt | Instant | 更新时间 |
 
-**FulfillmentOrderStatus**：CREATED | ALLOCATING | SHIPPED | DELIVERED | CANCELLED
+**FulfillmentOrderStatus**：CREATED | ALLOCATING | SHIPPED | DELIVERED | 🔲 ACTIVATED | CANCELLED
 
-**不变式**：orderId 必填；items 非空且每项 quantity > 0；shippingAddress 必填。
+**不变式**：orderId 必填；items 非空且每项 quantity > 0；fulfillmentType 必填；PHYSICAL 类型 shippingAddress 必填。
+
+> 🔲 新增属性/状态来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)
 
 **领域行为**：
-- `allocate()`：仅 CREATED → ALLOCATING（开始配货）
-- `ship(carrier, trackingNumber)`：仅 ALLOCATING → SHIPPED，填充 shippingInfo
-- `confirmDelivery()`：仅 SHIPPED → DELIVERED，记录 deliveredAt
-- `cancel()`：仅 CREATED 或 ALLOCATING → CANCELLED（已发货不可取消）
+- `allocate()`：仅 PHYSICAL，CREATED → ALLOCATING（开始配货）
+- `ship(carrier, trackingNumber)`：仅 PHYSICAL，ALLOCATING → SHIPPED，填充 shippingInfo
+- `confirmDelivery()`：仅 PHYSICAL，SHIPPED → DELIVERED，记录 deliveredAt
+- 🔲 `activate()`：仅 VIRTUAL，CREATED → ACTIVATED，发布 ServiceActivated
+- `cancel()`：CREATED 或 ALLOCATING → CANCELLED（已发货/已激活不可取消）
 
 ### FulfillmentItem — 实体
 
@@ -144,8 +169,9 @@ end note
 | fulfillmentItemId | Long | 唯一标识 |
 | skuId | Long | SKU ID，引用 Catalog |
 | quantity | Integer | 数量，> 0 |
+| itemType | ItemType | 🔲 PHYSICAL / SERVICE，创建时从 Order items 带入 |
 
-**不变式**：skuId 必填；quantity > 0。
+**不变式**：skuId 必填；quantity > 0；itemType 必填。
 
 ### ShippingAddress — 值对象
 
@@ -177,6 +203,8 @@ end note
 
 ## 四、状态流转
 
+### PHYSICAL 履约单
+
 ```mermaid
 stateDiagram-v2
     [*] --> CREATED: 创建履约单
@@ -187,13 +215,23 @@ stateDiagram-v2
     SHIPPED --> DELIVERED: confirmDelivery（签收）
 ```
 
-| 转换 | 前置条件 | 动作 |
-|------|----------|------|
-| → CREATED | Order 同步调用创建 | 保存履约单，发布 FulfillmentOrderCreated |
-| CREATED → ALLOCATING | 管理端/内部调用开始配货 | 发布 FulfillmentOrderAllocated |
-| ALLOCATING → SHIPPED | 提供 carrier + trackingNumber | 填充 shippingInfo，发布 FulfillmentShipped |
-| SHIPPED → DELIVERED | 物流签收确认 | 记录 deliveredAt，发布 FulfillmentDelivered |
-| CREATED / ALLOCATING → CANCELLED | Order 补偿调用 | 标记取消，不发布事件 |
+### 🔲 VIRTUAL 履约单（服务）
+
+```mermaid
+stateDiagram-v2
+    [*] --> CREATED: 创建虚拟履约单
+    CREATED --> ACTIVATED: activate（服务激活）
+    CREATED --> CANCELLED: cancel（取消）
+```
+
+| 转换 | 适用类型 | 前置条件 | 动作 |
+|------|---------|----------|------|
+| → CREATED | 全部 | Order 同步调用创建 | 保存履约单，发布 FulfillmentOrderCreated |
+| CREATED → ALLOCATING | PHYSICAL | 管理端/内部调用开始配货 | 发布 FulfillmentOrderAllocated |
+| ALLOCATING → SHIPPED | PHYSICAL | 提供 carrier + trackingNumber | 填充 shippingInfo，发布 FulfillmentShipped |
+| SHIPPED → DELIVERED | PHYSICAL | 物流签收确认 | 记录 deliveredAt，发布 FulfillmentDelivered |
+| 🔲 CREATED → ACTIVATED | VIRTUAL | 创建后自动激活 | 发布 ServiceActivated |
+| CREATED / ALLOCATING → CANCELLED | 全部 | Order 补偿调用 | 标记取消，不发布事件 |
 
 ---
 
@@ -205,6 +243,7 @@ stateDiagram-v2
 | FulfillmentOrderAllocated（已开始配货） | allocate 成功 | orderId, fulfillmentOrderId, occurredAt |
 | FulfillmentShipped（已发货） | ship 成功 | orderId, fulfillmentOrderId, occurredAt |
 | FulfillmentDelivered（已签收） | confirmDelivery 成功 | orderId, fulfillmentOrderId, occurredAt |
+| 🔲 ServiceActivated（虚拟服务已激活） | activate 成功 | orderId, fulfillmentOrderId, serviceSkuId, activatedAt, expiresAt, occurredAt |
 
 事件的订阅方、Topic、传输通道、JSON 消息体等集成细节见 [event-flow.md](./event-flow.md)。
 

@@ -1,19 +1,19 @@
 
 ---
-name: fix-bug-or-adjust-requirement
-description: 修复 Bug 或调整需求：定位→测试先红→实现变绿→文档同步→前端适配。触发词：fix bug、修 bug、调整需求、改需求。
+name: fix-bug-or-adjust-feature
+description: 修复 Bug 或调整特性：定位→测试先红→实现变绿→文档同步→前端适配。触发词：fix bug、修 bug、调整特性、改特性。
 ---
 
-# 修复 Bug 或调整需求
+# 修复 Bug 或调整特性
 
-针对**已有功能**的缺陷修复或需求微调，区别于「新增功能」的 ATDD 全流程。核心原则：**测试先行**——先让测试反映正确的期望行为（红），再改代码让测试通过（绿）。
+针对**已有特性**的缺陷修复或场景微调，区别于「新增/大改特性」的 ATDD 全流程。核心原则：**测试先行**——先让测试反映正确的期望行为（红），再改代码让测试通过（绿）。
 
 | 阶段 | 目标 |
 |------|------|
 | 一、定位 | 弄清根因与改动范围 |
 | 二、测试先红 | 调整测试用例，反映正确的期望行为 |
 | 三、实现变绿 | 修改代码，让测试通过 |
-| 四、文档同步 | 更新需求、契约、事件流等文档 |
+| 四、文档同步 | 更新特性、契约、事件流等文档 |
 | 五、前端适配 | 若前端展示需调整，同步修改 |
 
 ---
@@ -48,7 +48,7 @@ description: 修复 Bug 或调整需求：定位→测试先红→实现变绿�
 
 | 步骤 | 动作 |
 |------|------|
-| 8 | 更新需求文档（`requirements.md`）、事件流（`event-flow.md`）、Saga 设计等 |
+| 8 | 更新特性文档（`requirements.md` 承载的内容是特性）、事件流（`event-flow.md`）、Saga 设计等 |
 | 9 | 若涉及跨 BC 契约变更，同步更新上下文地图（`context-map.md`） |
 
 ### 阶段五：前端适配
@@ -65,7 +65,7 @@ description: 修复 Bug 或调整需求：定位→测试先红→实现变绿�
 - [ ] 问题根因已定位
 - [ ] 测试已调整并验证先红后绿
 - [ ] 代码按依赖顺序修改
-- [ ] 文档已同步（需求、事件流、契约、上下文地图）
+- [ ] 文档已同步（特性、事件流、API 契约、上下文地图）
 - [ ] 前端已适配（若涉及）
 - [ ] 全部测试通过
 
@@ -73,8 +73,8 @@ description: 修复 Bug 或调整需求：定位→测试先红→实现变绿�
 
 ## 参考
 
-- `docs/bounded-contexts/<上下文>/requirements.md`：需求
+- `docs/bounded-contexts/<上下文>/requirements.md`：特性
 - `docs/bounded-contexts/<上下文>/api.yaml`：契约
 - `docs/bounded-contexts/<上下文>/event-flow.md`：事件流
 - `docs/context-map.md`：上下文地图
-- `evolve-feature` Skill：新增/大改功能时用 ATDD 流程
+- `evolve-feature` Skill：新增/大改特性时用 ATDD 流程

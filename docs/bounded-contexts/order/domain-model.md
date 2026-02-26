@@ -36,9 +36,17 @@ class OrderLineItem <<实体>> {
   - unitPriceCents: Long
   - totalPriceCents: Long
   - displayName: String
+  - itemType: ItemType {PHYSICAL|SERVICE}
+  - relatedSkuId: Long {SERVICE 关联的实体 SKU}
+  - relatedOrderId: Long {补购关联的原订单}
   - serviceAttributes: Map
   --
-  不变式: quantity>0, 价格≥0
+  不变式: quantity>0, 价格≥0, itemType 必填
+}
+
+enum ItemType {
+  PHYSICAL
+  SERVICE
 }
 
 class ShippingAddress <<值对象>> {
@@ -113,9 +121,14 @@ end note
 | unitPriceCents | Long | 单价（分），快照 |
 | totalPriceCents | Long | 小计（分） |
 | displayName | String | 商品展示名，快照 |
+| itemType | ItemType | 🔲 PHYSICAL / SERVICE，创建时从 Catalog SPU.productType 带入 |
+| relatedSkuId | Long | 🔲 SERVICE 类型关联的实体 SKU ID（随购时为同单实体 SKU） |
+| relatedOrderId | Long | 🔲 补购场景关联的原始订单 ID |
 | serviceAttributes | Map | 增值服务（如 engravingText） |
 
-**不变式**：quantity>0；unitPriceCents、totalPriceCents≥0。
+**不变式**：quantity>0；unitPriceCents、totalPriceCents≥0；itemType 必填。
+
+> 🔲 新增属性来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)
 
 ### ShippingAddress — 值对象
 
@@ -161,7 +174,8 @@ Order 发布：OrderCreated, OrderCancelled, OrderCompleted（定义见 [event-f
 | FulfillmentOrderAllocated | FULFILLING | 履约开始配货，订单页可显示「正在配货」 |
 | FulfillmentShipped | SHIPPED | 全部履约单发货才推进（1:N 时） |
 | FulfillmentDelivered | DELIVERED | 全部签收才推进，发布 OrderCompleted |
-| 用户取消（PENDING_PAYMENT / PAID / FULFILLING） | CANCELLED | SHIPPED 及之后不可取消；PAID/FULFILLING 时需调用 cancelFulfillment |
+| 🔲 ServiceActivated | 等效 DELIVERED | 虚拟服务激活，混合订单按最慢原则 |
+| 用户取消（PENDING_PAYMENT / PAID / FULFILLING） | CANCELLED | SHIPPED 及之后不可取消；PAID/FULFILLING 时需调用 cancelFulfillment；ACTIVATED 虚拟单 MVP 不可取消 |
 
 ---
 

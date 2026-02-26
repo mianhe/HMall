@@ -83,6 +83,17 @@
 
 ---
 
+## 6. 购物车展示关联服务
+`cart-service.feature`
+
+> 以下变更来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)
+
+- 🔲 6.1 查看购物车时，实体商品旁应展示可选的关联服务列表（从 Catalog ServiceBinding 查询）
+- 🔲 6.2 添加服务 SKU 到购物车时，应记录 relatedSkuId（关联的实体 SKU）
+- 🔲 6.3 结算预览时，实体商品与其关联服务应分组展示，小计与总价包含服务费用
+
+---
+
 ## 功能与 feature 对应
 
 | 功能 | .feature 文件 | 状态 | Scenario 数 |
@@ -92,3 +103,4 @@
 | 3. 修改购物车项 | cart-update-item.feature | ✅ 已实现 | 4 |
 | 4. 删除购物车项 | cart-delete-item.feature | ✅ 已实现 | 3 |
 | 5. 购物车结算预览 | cart-checkout.feature | ✅ 已实现 | 2 |
+| 6. 购物车展示关联服务 | cart-service.feature | 🔲 待实现 | 3 |

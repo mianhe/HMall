@@ -13,7 +13,7 @@
 | Order | 编排中心 |
 | Inventory | 下游：**同步**占用/释放库存（Order 直接调用） |
 | Payment | 下游：**同步调用**发起支付、退款；支付结果由 Payment 通过 **Kafka 事件**通知（PaymentCompleted/Failed/Expired），Order 通过 KafkaPaymentEventConsumer 消费 |
-| Fulfillment | 下游：**同步调用**创建/取消履约单；发货/签收由 Fulfillment 通过 **Kafka 事件**通知（FulfillmentShipped/Delivered） |
+| Fulfillment | 下游：**同步调用**创建/取消履约单；发货/签收由 Fulfillment 通过 **Kafka 事件**通知（FulfillmentShipped/Delivered）；🔲 虚拟服务激活通过 ServiceActivated 事件通知 |
 | Pricing | 下游：算价（同步调用） |
 
 ---
@@ -22,7 +22,7 @@
 
 PlaceOrder →（同步调用 Inventory 占用，成功则）OrderCreated → PaymentCompleted →（同步调用 Fulfillment 创建履约单，保持 PAID）→ FulfillmentOrderAllocated（Order 置 FULFILLING）→ FulfillmentShipped → FulfillmentDelivered → OrderCompleted
 
-- **PlaceOrder**：保存订单后**同步调用** Inventory 占用；若库存不足则失败返回，订单不落库或回滚
+- **PlaceOrder**：保存订单后**同步调用** Inventory 占用（🔲 仅 PHYSICAL 类型 items，SERVICE 类型跳过）；若库存不足则失败返回，订单不落库或回滚
 - **PaymentCompleted**：Order 收到支付完成事件后，置 PAID 并**同步调用** Fulfillment 创建履约单，返回后**保持 PAID**（不置 FULFILLING）
 - **FulfillmentOrderAllocated**：Order 消费 Fulfillment 的「开始配货」事件后置 FULFILLING（订单页可显示「正在配货」）
 - **失败分支**：PaymentFailed → 不影响订单（保持待支付，用户可重试）；PaymentExpired → 触发补偿（含释放库存、取消订单）
@@ -124,6 +124,7 @@ Order 通过 `KafkaFulfillmentEventConsumer` 消费 Fulfillment 的 Allocated / 
 | `fulfillment.order.allocated` | FulfillmentOrderAllocated | `orderEventService.onFulfillmentOrderAllocated(orderId)` → 置 FULFILLING |
 | `fulfillment.shipped` | FulfillmentShipped | `orderEventService.onFulfillmentShipped(orderId)` |
 | `fulfillment.delivered` | FulfillmentDelivered | `orderEventService.onFulfillmentDelivered(orderId)` |
+| 🔲 `fulfillment.service.activated` | ServiceActivated | `orderEventService.onServiceActivated(orderId)` → 等效 Delivered，混合订单按最慢原则 |
 
 ### Order 订阅
 
@@ -135,6 +136,7 @@ Order 通过 `KafkaFulfillmentEventConsumer` 消费 Fulfillment 的 Allocated / 
 | PaymentExpired | Payment | Kafka（`payment.expired`） | orderId | 取消、补偿（含释放库存） |
 | FulfillmentShipped | Fulfillment | Kafka（`fulfillment.shipped`） | orderId, fulfillmentOrderId | 置 fulfillmentStatus SHIPPED（1:N 时需全部到达才推进） |
 | FulfillmentDelivered | Fulfillment | Kafka（`fulfillment.delivered`） | orderId, fulfillmentOrderId | 置 DELIVERED、发布 OrderCompleted（1:N 时需全部到达才推进） |
+| 🔲 ServiceActivated | Fulfillment | Kafka（`fulfillment.service.activated`） | orderId, fulfillmentOrderId | 等效 FulfillmentDelivered；混合订单按最慢原则（实体 Delivered + 虚拟 Activated 全到达才推进） |
 
 ---
 
@@ -142,7 +144,7 @@ Order 通过 `KafkaFulfillmentEventConsumer` 消费 Fulfillment 的 Allocated / 
 
 | 调用 | 时机 | 说明 |
 |------|------|------|
-| occupy(orderId, items) | PlaceOrder 保存订单后 | 同步占用库存；失败则订单回滚/不落库，返回库存不足 |
+| occupy(orderId, items) | PlaceOrder 保存订单后 | 同步占用库存（🔲 仅 PHYSICAL items，SERVICE items 过滤掉）；失败则订单回滚/不落库，返回库存不足 |
 | release(orderId) | CancelOrder | 同步释放该订单的库存占用 |
 | createPayment(orderId, amount) | PlaceOrder 库存占用成功后 | 同步创建支付单、获取支付链接；返回给前端跳转 |
 | refund(orderId) | CancelOrder（若已支付） | 同步调用退款 |

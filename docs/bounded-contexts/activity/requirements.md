@@ -127,7 +127,7 @@
 |------|------|
 | **目标** | 让非技术/半技术人员理解系统的交易流程、跨 BC 协作方式、以及异常情况下的补偿机制 |
 | **受众** | 产品经理、业务人员、新加入的开发者 |
-| **入口** | frontend-admin 活动监控页（ActivityPage）新增"订单旅程"入口 |
+| **入口** | `frontend/admin` 活动监控页（ActivityPage）新增"订单旅程"入口 |
 | **数据来源** | 现有 `GET /api/activities?orderId={id}` 返回的事件列表（已按 occurredAt 正序），无需新增后端 API |
 
 ### 4.2 核心设计决策
@@ -158,6 +158,7 @@
 | | `FulfillmentOrderAllocated` | 开始配货 | 正向 |
 | | `FulfillmentShipped` | 已发货 | 正向 |
 | | `FulfillmentDelivered` | 已签收 | 正向（终态） |
+| | 🔲 `ServiceActivated` | 服务已激活 | 正向（虚拟服务终态，来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)） |
 
 #### 4.3.2 典型路径模板
 

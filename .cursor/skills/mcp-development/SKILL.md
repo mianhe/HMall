@@ -11,13 +11,13 @@ description: 为 HMall BC 设计并实现 MCP tools：API 分类与暴露范围�
 
 ### 步骤
 
-1. **列出该 BC 的全部 REST API**（读 `docs/bounded-contexts/<bc>/api.yaml`）。
+1. **列出该 BC 的全部 API 契约**（读 `docs/bounded-contexts/<bc>/api.yaml`）。
 2. **逐个分类**：
 
 | 分类 | 判断标准 | MCP 暴露？ | 示例 |
 |------|----------|-----------|------|
 | **用户操作入口** | 前端管理后台或消费者端直接调用；是用户/AI 的自然操作意图 | **是** | 查询库存、设置库存、查询订单列表 |
-| **系统协调 API** | 仅由其它 BC 在 Saga/流程中同步调用；直接调用会绕过协调方的一致性保证 | **否** | 占用库存（Order→Inventory）、释放库存 |
+| **系统协调 API** | 仅由其它 BC 在 Saga/流程中同步调用；直接调用会绕过协调方的一致性保证 | **否** | Saga 步骤中的占用/释放类 API |
 | **内部/技术 API** | 健康检查、metrics、内部回调 | **否** | `/actuator/health` |
 
 3. **输出「暴露清单」**：只包含「用户操作入口」类 API。
@@ -37,7 +37,7 @@ description: 为 HMall BC 设计并实现 MCP tools：API 分类与暴露范围�
 - **不要**为同一资源的 list/get/create/update/delete 各建一个 tool（易膨胀到 30+）。
 - **要**按资源收敛：一个资源一个 tool，用参数 `action` 区分 list | get | create | update | delete。
 - 读操作合并：list 与 search 合并为一个 list（可选 keyword/categoryId）；get 与 get_full 合并为一个 get（可选 detail: basic | full）。
-- 参考：Catalog 收敛后 7 个 tools，见 `hmall-mcp/docs/TOOLS.md`。
+- 参考：`hmall-mcp/docs/TOOLS.md` 中的已有 tool 设计。
 
 ### 2. 命名约定
 
@@ -47,7 +47,7 @@ description: 为 HMall BC 设计并实现 MCP tools：API 分类与暴露范围�
 
 ### 3. 只暴露已有能力，不发明新用例
 
-- MCP 层只**调用该 BC 已有 REST API**，不在此层实现新业务规则。
+- MCP 层只**调用该 BC 已有 API 契约**，不在此层实现新业务规则。
 - 参数与后端 API 对齐：必填/可选、类型、语义一致。
 
 ### 4. 面向 AI 的返回与错误
@@ -84,9 +84,9 @@ description: 为 HMall BC 设计并实现 MCP tools：API 分类与暴露范围�
 - **inputSchema**：用 **zod** 定义；`action` 为枚举，其余参数按 action 条件必填（在 description 中说明）。
 - **handler**：async，调 `api(method, path, body)` 访问后端；返回 `{ content: [{ type: 'text', text }] }`；错误 try/catch 转可读文本。
 
-### 3. 与后端 API 的对应
+### 3. 与 API 契约的对应
 
-- 先确认该 BC 的 REST API（`docs/bounded-contexts/<bc>/api.yaml`）。
+- 先确认该 BC 的 API 契约（`docs/bounded-contexts/<bc>/api.yaml`）。
 - action 映射到 HTTP method + path；list/get → GET，create → POST，update → PUT，delete → DELETE。
 - 环境变量：`HMALL_API_BASE`（默认 `http://localhost:8080/api`）。
 
@@ -117,6 +117,5 @@ description: 为 HMall BC 设计并实现 MCP tools：API 分类与暴露范围�
 
 ## 五、参考
 
-- **设计示例**：`hmall-mcp/docs/TOOLS.md`（Catalog 7 个 tool）。
-- **实现示例**：`hmall-mcp/tools/catalog.js`。
+- **设计与实现示例**：`hmall-mcp/docs/TOOLS.md` 和 `hmall-mcp/tools/` 下已有 BC 的实现。
 - **运行与配置**：`hmall-mcp/README.md`。

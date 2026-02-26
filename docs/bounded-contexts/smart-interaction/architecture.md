@@ -20,7 +20,7 @@ Smart Interaction 是**独立的限界上下文**，拥有自己的领域模型�
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  frontend-admin (Vue 3)                                         │
+│  frontend/admin (Vue 3)                                         │
 │                                                                 │
 │  ┌───────────────────────────────────────────┐                  │
 │  │  AI Chat (全局 Drawer)                     │                  │
@@ -333,7 +333,7 @@ GET    /api/ai/models          → 可用模型列表
 | 流式推送 | SSE (Server-Sent Events) | 浏览器原生支持 |
 | MCP 通信 | HTTP JSON-RPC (Streamable HTTP) | 端口 3000 |
 | 持久化 | JPA + PostgreSQL | Skill、Conversation、Settings |
-| 前端 | Vue 3 + Tailwind CSS | 组件化，与 frontend-admin 一致 |
+| 前端 | Vue 3 + Tailwind CSS | 组件化，与 frontend/admin 一致 |
 | Markdown | marked + DOMPurify | 轻量渲染 |
 | MCP Server | Node.js + @modelcontextprotocol/sdk | 多模块 tools |
 
@@ -353,4 +353,4 @@ GET    /api/ai/models          → 可用模型列表
 
 ### 前端接入扩展
 
-当前仅 frontend-admin 接入。将来 frontend-web（消费者端）可接入同一服务，使用面向消费者的 Skill（如"购物助手"）。
+当前仅 `frontend/admin` 接入。将来 `frontend/web`（消费者端）可接入同一服务，使用面向消费者的 Skill（如"购物助手"）。

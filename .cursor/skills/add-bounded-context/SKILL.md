@@ -9,7 +9,7 @@ description: 在 HMall 中新增一个限界上下文（BC）：后端四层骨�
 
 ## 前置条件
 
-- `analyze-requirement` 已完成，`docs/bounded-contexts/<ctx>/` 下已有 `requirements.md`、`domain-model.md` 等。
+- `analyze-requirement` 已完成，`docs/bounded-contexts/<ctx>/` 下已有特性（承载于 requirements.md）、领域模型（domain-model.md）等。
 - 若文档尚未创建，先执行 `analyze-requirement`。
 
 ## 执行流程
@@ -18,13 +18,13 @@ description: 在 HMall 中新增一个限界上下文（BC）：后端四层骨�
 
 | 读取对象 | 用途 |
 |----------|------|
-| `services/cart-service/` 的代码结构 | 作为骨架模板（pom.xml、Application、Controller、ExceptionHandler、ErrorDto、BadRequestException、package-info.java、application.yml、smoke.feature、AcceptanceTestConfig、CucumberSpringConfiguration、RunCucumberTest） |
+| 任一已有 BC 的 `services/<existing>-service/` 代码结构 | 作为骨架模板（pom.xml、四层包、Controller、ExceptionHandler、测试脚手架等） |
 | `scripts/hmall.sh` | 确认已用端口、定位需修改的位置 |
 | `scripts/README.md` | 同步更新 |
 | `docs/context-map.md` | 更新 BC 状态 |
 | `docs/README.md` | 更新文档索引 |
 | `docs/project-status.md` | 更新 BC 进度表 |
-| 本 BC 的 `docs/bounded-contexts/<ctx>/event-flow.md`（若有） | api.yaml 的 API 契约来源 |
+| 本 BC 的 `docs/bounded-contexts/<ctx>/event-flow.md`（若有） | API 契约来源 |
 
 ### 第二步：创建后端骨架
 
@@ -32,7 +32,7 @@ description: 在 HMall 中新增一个限界上下文（BC）：后端四层骨�
 
 | 文件 | 要点 |
 |------|------|
-| `pom.xml` | 照搬 cart-service，改 artifactId/name/description |
+| `pom.xml` | 参考已有 BC 的 pom.xml，改 artifactId/name/description |
 | `XxxApplication.java` | 标准 `@SpringBootApplication` 启动类 |
 | 四层 `package-info.java` | `api`、`application`、`domain`、`infrastructure` |
 | `XxxController.java` | `@RequestMapping("/api/<ctx>")`，一个 `GET /health` 返回 200 |
@@ -55,9 +55,9 @@ description: 在 HMall 中新增一个限界上下文（BC）：后端四层骨�
 | `CucumberSpringConfiguration.java` | `@CucumberContextConfiguration` + `@SpringBootTest(classes={XxxApplication.class, AcceptanceTestConfig.class}, webEnvironment=RANDOM_PORT)` + `@ActiveProfiles("test")` |
 | `RunCucumberTest.java` | `@Suite` + `@SelectClasspathResource("features")` + `glue = "com.hmall.<ctx>.acceptance"` |
 
-### 第四步：创建 API 契约文档
+### 第四步：创建 API 契约
 
-`docs/bounded-contexts/<ctx>/api.yaml`：基于 `event-flow.md`（或 `requirements.md`）中定义的 REST 接口，编写 OpenAPI 3.0 契约。骨架阶段只需定义 path/method/request/response schema，无需实现。
+`docs/bounded-contexts/<ctx>/api.yaml`：基于 BC 级事件流（event-flow.md）或特性（requirements.md）中涉及的 API，编写 API 契约（OpenAPI 3.0）。骨架阶段只需定义 path/method/request/response schema，无需实现。
 
 ### 第五步：更新文档
 

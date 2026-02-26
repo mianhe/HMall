@@ -27,8 +27,8 @@
   - `order-service`（Order，端口 8081）
 - **数据库**：PostgreSQL 16（Docker）
 - **前端**：Vue 3、Vite、Vue Router、Tailwind CSS、axios  
-  - `frontend-admin`（管理后台，端口 5173）  
-  - `frontend-web`（消费者端，端口 5174）
+  - `frontend/admin`（管理后台，端口 5173）  
+  - `frontend/web`（消费者端，端口 5174）
 - **MCP**：Node.js MCP Server（在 `hmall-mcp/`），stdio 或 HTTP 两种方式，供任意 MCP Client 调用 Catalog 接口
 
 ## 功能与需求文档（哪里看有哪些功能）
@@ -36,8 +36,8 @@
 | 端 | 文档 | 说明 |
 |----|------|------|
 | **后端** | `docs/bounded-contexts/catalog/requirements.md` | 后端功能列表，与 .feature 一一对应 |
-| **前端（管理后台）** | `docs/frontend-admin/requirements.md` | 管理后台：单页分层展示 Catalog |
-| **前端（消费者端）** | `docs/frontend-web/requirements.md` | 消费者端：登录、商城浏览 |
+| **前端（管理后台）** | `docs/frontend/admin/ui-spec.md` | 管理后台：单页分层展示 Catalog |
+| **前端（消费者端）** | `docs/frontend/web/ui-spec.md` | 消费者端：登录、商城浏览 |
 | **MCP** | `hmall-mcp/README.md` | MCP Server 的 Tools 列表、stdio/HTTP 启动方式、Client 配置说明 |
 
 ## 环境要求
@@ -70,8 +70,8 @@
 | 启动 catalog-service（Catalog） | `cd services/catalog-service && mvn spring-boot:run` |
 | 启动 user-service（User） | `cd services/user-service && mvn spring-boot:run` |
 | 启动 order-service（Order） | `cd services/order-service && mvn spring-boot:run` |
-| 启动管理后台 | `cd frontend-admin && npm install && npm run dev` |
-| 启动消费者端 | `cd frontend-web && npm install && npm run dev` |
+| 启动管理后台 | `cd frontend/admin && npm install && npm run dev` |
+| 启动消费者端 | `cd frontend/web && npm install && npm run dev` |
 | 停止微服务/前端 | 在对应终端里按 `Ctrl+C` |
 | 停止数据库 | `docker compose -f infra/docker-compose.yml down` |
 
@@ -124,8 +124,9 @@
 │   ├── bounded-contexts/   # 各 BC 需求、领域模型、API 契约
 │   │   ├── catalog/
 │   │   └── user/
-│   ├── frontend-admin/     # 管理后台前端设计输入、需求
-│   └── frontend-web/       # 消费者端前端需求
+│   ├── frontend/
+│   │   ├── admin/          # 管理后台界面规格（ui-spec）
+│   │   └── web/            # 消费者端界面规格（ui-spec）
 ├── scripts/                # 系统操作脚本（一键启动/停止/状态/重启/测试）
 │   ├── hmall.sh            # 入口脚本
 │   └── README.md           # 命令与参数说明
@@ -135,9 +136,10 @@
 │   ├── catalog-service/    # Catalog（端口 8080）
 │   ├── user-service/       # User（端口 8082）
 │   └── order-service/      # Order（端口 8081）
-├── frontend-admin/         # Vue 3 + Vite 管理后台（端口 5173）
-├── frontend-web/           # Vue 3 + Vite 消费者端（端口 5174）
-│   └── vite.config.js      # 代理 /api/users、/api/login→8082，其余/api→8080
+├── frontend/
+│   ├── admin/              # Vue 3 + Vite 管理后台（端口 5173）
+│   └── web/                # Vue 3 + Vite 消费者端（端口 5174）
+│       └── vite.config.js  # 代理 /api/users、/api/login→8082，其余/api→8080
 └── hmall-mcp/              # MCP Server（stdio + HTTP，供 AI Client 调 Catalog API）
     └── README.md
 ```

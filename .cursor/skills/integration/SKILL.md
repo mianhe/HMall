@@ -1,15 +1,15 @@
 ---
 name: integration
-description: 跨 BC 或跨系统集成：在调用方实现出站端口的真实适配器，对接被调用方已有 API；通用流程，适用于 Order–Inventory、Order–Payment 等任意上下游对接。触发词：集成、integration、对接、打通、BC 对接、与 xx 对接。
+description: 跨 BC 或跨系统集成：在调用方实现出站端口的真实适配器，对接被调用方已有 API；通用流程，适用于任意上下游 BC 对接。触发词：集成、integration、对接、打通、BC 对接、与 xx 对接。
 ---
 
 # 跨 BC / 跨系统集成
 
-在**调用方**将出站 **Port** 从桩/占位替换为**真实适配器**，通过 HTTP 等调用**被调用方**已有 API。通用：不限定具体 BC。
+在**调用方**将出站端口（Port）从桩/占位替换为**真实适配器**，通过 HTTP 等调用**被调用方**已有 API。通用：不限定具体 BC。
 
 | 阶段 | 目标 |
 |------|------|
-| 一、契约与上下文 | 确认被调用方 api.yaml 与调用方 Port、context-map 一致 |
+| 一、API 契约与上下文地图 | 确认被调用方 API 契约（api.yaml）与调用方 Port、上下文地图（ContextMap）一致 |
 | 二、适配器与配置 | 实现真实适配器，配置下游 base URL，Profile/条件 Bean 区分测试与运行 |
 | 三、验证 | 验收仍用 Stub 全绿；可选集成测试或联调 |
 
@@ -26,12 +26,12 @@ description: 跨 BC 或跨系统集成：在调用方实现出站端口的真实
 
 ## 步骤 To-Do
 
-### 阶段一：契约与上下文
+### 阶段一：API 契约与上下文地图
 
 | 步骤 | 动作 |
 |------|------|
-| 1 | 读 `docs/context-map.md`，确认调用方→被调用方及集成方式（REST/事件等）。 |
-| 2 | 读被调用方 `api.yaml`，确认 path/method/request/response 与 Port 语义一致；不一致则先对齐契约或 Port。 |
+| 1 | 读上下文地图（`docs/context-map.md`），确认调用方→被调用方及集成方式（REST/事件等）。 |
+| 2 | 读被调用方 API 契约（`api.yaml`），确认 path/method/request/response 与 Port 语义一致；不一致则先对齐契约或 Port。 |
 
 ### 阶段二：适配器与配置
 
@@ -73,5 +73,4 @@ description: 跨 BC 或跨系统集成：在调用方实现出站端口的真实
 
 - `docs/context-map.md`、`docs/architecture/integration.md`
 - `docs/bounded-contexts/<被调用方>/api.yaml`
-- 示例：Order→Inventory 见 `inventory/api.yaml`（occupy、release）。
 

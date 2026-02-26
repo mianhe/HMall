@@ -614,7 +614,7 @@ start_frontend_admin() {
     return 0
   fi
   echo "Starting frontend-admin..."
-  (cd "${ROOT}/frontend-admin" && npm run dev >> "${LOG_DIR}/frontend-admin.log" 2>&1 &)
+  (cd "${ROOT}/frontend/admin" && npm run dev >> "${LOG_DIR}/frontend-admin.log" 2>&1 &)
   echo $! > "${PID_DIR}/frontend-admin.pid"
   echo "Waiting for frontend-admin (5173)..."
   wait_for_port 5173 "frontend-admin" || true
@@ -651,7 +651,7 @@ start_frontend_web() {
     return 0
   fi
   echo "Starting frontend-web..."
-  (cd "${ROOT}/frontend-web" && npm run dev >> "${LOG_DIR}/frontend-web.log" 2>&1 &)
+  (cd "${ROOT}/frontend/web" && npm run dev >> "${LOG_DIR}/frontend-web.log" 2>&1 &)
   echo $! > "${PID_DIR}/frontend-web.pid"
   echo "Waiting for frontend-web (5174)..."
   wait_for_port 5174 "frontend-web" || true
@@ -782,13 +782,13 @@ launch_bff_web() {
 launch_frontend_admin() {
   is_port_listen 5173 && return 0
   echo "Launching frontend-admin..."
-  (cd "${ROOT}/frontend-admin" && npm run dev >> "${LOG_DIR}/frontend-admin.log" 2>&1 &)
+  (cd "${ROOT}/frontend/admin" && npm run dev >> "${LOG_DIR}/frontend-admin.log" 2>&1 &)
   echo $! > "${PID_DIR}/frontend-admin.pid"
 }
 launch_frontend_web() {
   is_port_listen 5174 && return 0
   echo "Launching frontend-web..."
-  (cd "${ROOT}/frontend-web" && npm run dev >> "${LOG_DIR}/frontend-web.log" 2>&1 &)
+  (cd "${ROOT}/frontend/web" && npm run dev >> "${LOG_DIR}/frontend-web.log" 2>&1 &)
   echo $! > "${PID_DIR}/frontend-web.pid"
 }
 launch_mcp() {

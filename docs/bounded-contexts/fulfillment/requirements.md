@@ -25,6 +25,9 @@ Fulfillment 负责订单的履约执行：接收 Order 的创建履约请求，�
 | F4 | 取消履约单为同步调用 | Order 补偿时同步调用，仅 CREATED、ALLOCATING 状态可取消 |
 | F5 | 多履约单按「最慢」原则推进 Order 状态 | 全部发货才 SHIPPED，全部签收才 DELIVERED |
 | F6 | MVP 先做 1:1 不拆单 | 架构预留 1:N 能力，但首版所有商品放入同一个履约单 |
+| F7 | 🔲 按商品类型拆单 | 来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)：PHYSICAL items → 实体履约单，SERVICE items → 虚拟履约单 |
+| F8 | 🔲 虚拟履约单生命周期 | CREATED → ACTIVATED（无 ALLOCATING / SHIPPED 阶段）；ACTIVATED 等效 DELIVERED |
+| F9 | 🔲 已激活虚拟单不可取消 | ACTIVATED 后不可取消（MVP 不支持退保） |
 
 ---
 
@@ -36,6 +39,9 @@ Fulfillment 负责订单的履约执行：接收 Order 的创建履约请求，�
 - ✅ 1.2 创建成功时应发布 FulfillmentOrderCreated 事件（含 orderId、fulfillmentOrderIds）
 - ✅ 1.3 同一 orderId 重复调用时应幂等处理（返回已有的 fulfillmentOrderIds，不重复创建）
 - ✅ 1.4 入参缺失 orderId 或 items 为空时应返回 400 错误
+- 🔲 1.5 items 中含 PHYSICAL 和 SERVICE 类型时应拆为两个履约单（实体履约单 + 虚拟履约单），返回两个 fulfillmentOrderId（来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)）
+- 🔲 1.6 items 全部为 SERVICE 类型时应创建一个虚拟履约单（fulfillmentType=VIRTUAL）
+- 🔲 1.7 虚拟履约单创建后应自动激活（CREATED → ACTIVATED），发布 ServiceActivated 事件
 
 ---
 
@@ -79,6 +85,7 @@ Fulfillment 负责订单的履约执行：接收 Order 的创建履约请求，�
 - ✅ 5.1 CREATED 或 ALLOCATING 状态的履约单取消应成功，状态变为 CANCELLED
 - ✅ 5.2 SHIPPED 或 DELIVERED 状态取消应失败并返回错误（已发货不可取消）
 - ✅ 5.3 按 orderId 取消该订单的所有未发货履约单（供 Order 补偿调用）
+- 🔲 5.4 ACTIVATED 状态的虚拟履约单取消应失败并返回错误（MVP 不支持退保）（来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)）
 
 ---
 
@@ -96,13 +103,13 @@ Fulfillment 负责订单的履约执行：接收 Order 的创建履约请求，�
 
 | 功能 | .feature 文件 | 状态 | 预计 Scenario 数 |
 |------|----------------|------|-----------------|
-| 1. 创建履约单 | fulfillment-create.feature | ✅ 已实现 | 4 |
-| 2. 开始配货 | fulfillment-allocate.feature | ✅ 已实现 | 4 |
-| 3. 发货 | fulfillment-ship.feature | ✅ 已实现 | 5 |
-| 4. 签收确认 | fulfillment-deliver.feature | ✅ 已实现 | 4 |
-| 5. 取消履约单 | fulfillment-cancel.feature | ✅ 已实现 | 4 |
-| 6. 查询履约单 | fulfillment-query.feature | ✅ 已实现 | 3 |
-| **合计** | | | **24** |
+| 1. 创建履约单 | fulfillment-create.feature | 🔄 需变更 | 4 + 3 | 1.5-1.7 来自虚拟商品业务需求 |
+| 2. 开始配货 | fulfillment-allocate.feature | ✅ 已实现 | 4 | 仅适用 PHYSICAL 履约单 |
+| 3. 发货 | fulfillment-ship.feature | ✅ 已实现 | 5 | 仅适用 PHYSICAL 履约单 |
+| 4. 签收确认 | fulfillment-deliver.feature | ✅ 已实现 | 4 | 仅适用 PHYSICAL 履约单 |
+| 5. 取消履约单 | fulfillment-cancel.feature | 🔄 需变更 | 4 + 1 | 5.4 ACTIVATED 不可取消 |
+| 6. 查询履约单 | fulfillment-query.feature | ✅ 已实现 | 3 | 响应应包含 fulfillmentType |
+| **合计** | | | **24 + 4** |
 
 ---
 

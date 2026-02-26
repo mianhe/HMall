@@ -62,7 +62,7 @@ flowchart TB
 | **Catalog** | 类目、商品(SPU)、规格维度、SKU、展示图 | ✅ 已实现 | 4 feature，45 scenario |
 | **User** | 用户注册、登录(JWT)、收货地址管理 | ✅ 已实现 | 3 feature，19 scenario |
 | **Order** | 订单创建、取消、查询、事件驱动、状态流转 | ✅ 已实现 | 4 feature，25 scenario；已集成 Inventory + Fulfillment |
-| **BFF** | frontend 统一 API 入口，代理 Catalog/User/Order/Inventory/Cart/Fulfillment | ✅ POC | 透传代理、CORS、4xx/5xx 转发 |
+| **BFF** | `frontend` 统一 API 入口，代理 Catalog/User/Order/Inventory/Cart/Fulfillment | ✅ POC | 透传代理、CORS、4xx/5xx 转发 |
 | **Smart Interaction** | LLM + MCP 智能交互（对话式操作） | ✅ 已实现 | 4 个验收场景全绿；端口 8089 |
 | **Cart** | 购物车增删改查、结算预览 | ✅ 已实现 | 5 feature（+ smoke），17 scenario，全部通过；已与 Catalog 集成（CatalogSkuQueryAdapter REST 调用）+ User；结算由前端编排到 Order |
 | **Inventory** | 同步占用/释放库存 | ✅ 已实现并已与 Order 集成 | Order 同步调用 occupy/release |
@@ -181,8 +181,9 @@ flowchart TB
 | FulfillmentOrderAllocated | 管理后台开始配货 | FulfillmentOrder | 1:N | `fulfillment.order.allocated` | Order, Activity | orderId, fulfillmentOrderId, occurredAt |
 | FulfillmentShipped | Fulfillment 内部发货流程 | FulfillmentOrder | 1:N | `fulfillment.shipped` | Order, Activity | orderId, fulfillmentOrderId, occurredAt |
 | FulfillmentDelivered | Fulfillment 内部签收确认 | FulfillmentOrder | 1:N | `fulfillment.delivered` | Order, Activity | orderId, fulfillmentOrderId, occurredAt |
+| 🔲 ServiceActivated | 虚拟履约单激活（创建后自动） | FulfillmentOrder(VIRTUAL) | 1:N | `fulfillment.service.activated` | Order, Activity | orderId, fulfillmentOrderId, serviceSkuId, activatedAt, expiresAt, occurredAt |
 
-**注意**：FulfillmentOrderCreated 事件仅 Activity 消费。Order 通过同步调用返回值获取 fulfillmentOrderIds，不再消费此事件。Allocated/Shipped/Delivered 由 Order 消费以推进状态。
+**注意**：FulfillmentOrderCreated 事件仅 Activity 消费。Order 通过同步调用返回值获取 fulfillmentOrderIds，不再消费此事件。Allocated/Shipped/Delivered 由 Order 消费以推进状态。🔲 ServiceActivated 对 Order 等效 FulfillmentDelivered（来自业务需求 [虚拟商品](business-requirements/virtual-product/overview.md)）。
 
 ### 事件通用约定
 
@@ -203,7 +204,7 @@ Activity BC 订阅全部事件，以 orderId 为维度提供事件时间线查�
 | Order | `order.created` / `cancelled` / `completed` | ✅ |
 | Payment | `payment.completed` / `failed` / `expired` | ✅ |
 | Inventory | `inventory.stock.reserved` / `stock.released` | ✅ |
-| Fulfillment | `fulfillment.order.created` / `order.allocated` / `shipped` / `delivered` | ✅ |
+| Fulfillment | `fulfillment.order.created` / `order.allocated` / `shipped` / `delivered` / 🔲 `service.activated` | ✅（service.activated 待实现） |
 
 ---
 
@@ -227,6 +228,7 @@ docs/
 │   ├── bff/
 │   ├── smart-interaction/
 │   └── ...
-├── frontend-admin/
-└── frontend-web/
+├── frontend/
+│   ├── admin/
+│   └── web/
 ```

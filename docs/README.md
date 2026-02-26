@@ -14,6 +14,9 @@ docs/
 │   ├── integration.md            # 集成技术选型（REST、事件总线 Kafka）
 │   ├── event-driven-business-analysis.md  # 事件驱动业务分析方法
 │   └── ai-chat.md               # 智能对话交互系统设计（LLM + MCP）
+├── business-requirements/                        # 跨 BC 业务需求的整体方案
+│   └── <epic-name>/
+│       └── overview.md           # 背景、事件流、设计决策、影响摘要、迭代计划
 ├── bounded-contexts/
 │   ├── catalog/
 │   │   ├── domain-model.md
@@ -59,11 +62,11 @@ docs/
 │   │   ├── api.yaml
 │   │   └── event-flow.md
 │   └── ...
-├── frontend-admin/
-│   ├── design-input.md
-│   └── requirements.md
-└── frontend-web/
-    └── requirements.md
+├── frontend/
+│   ├── admin/
+│   │   └── ui-spec.md
+│   └── web/
+│       └── ui-spec.md
 ```
 
 ## 文档索引
@@ -71,6 +74,7 @@ docs/
 | 类型 | 文档 | 说明 |
 |------|------|------|
 | **系统总览** | [context-map.md](./context-map.md) | BC 边界、集成关系、各 BC 为独立微服务 |
+| **业务需求方案** | `business-requirements/<name>/overview.md` | 跨 BC 业务需求的整体方案、设计决策、迭代计划 |
 | **设计原则** | [design-principles.md](./design-principles.md) | DDD 分层、验收约定、文档与输入 |
 | **项目进度** | [project-status.md](./project-status.md) | BC 路线图、前端进度、关键决策 |
 | **集成技术** | [architecture/integration.md](./architecture/integration.md) | REST、事件总线（Kafka） |
@@ -91,8 +95,8 @@ docs/
 | Activity | [requirements.md](./bounded-contexts/activity/requirements.md) | [domain-model.md](./bounded-contexts/activity/domain-model.md) | [api.yaml](./bounded-contexts/activity/api.yaml) | — |
 | Cart | [requirements.md](./bounded-contexts/cart/requirements.md) | [domain-model.md](./bounded-contexts/cart/domain-model.md) | [api.yaml](./bounded-contexts/cart/api.yaml) | — |
 | Fulfillment | [requirements.md](./bounded-contexts/fulfillment/requirements.md) | [domain-model.md](./bounded-contexts/fulfillment/domain-model.md) | [api.yaml](./bounded-contexts/fulfillment/api.yaml) | event-flow |
-| Frontend-admin | [requirements.md](./frontend-admin/requirements.md) | — | — | design-input |
-| Frontend-web | [requirements.md](./frontend-web/requirements.md) | — | — | — |
+| Frontend-admin | [ui-spec.md](./frontend/admin/ui-spec.md) | — | — | — |
+| Frontend-web | [ui-spec.md](./frontend/web/ui-spec.md) | — | — | — |
 
 ## 与设计原则的对应
 

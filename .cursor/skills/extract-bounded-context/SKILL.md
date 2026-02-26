@@ -1,11 +1,11 @@
 ---
 name: extract-bounded-context
-description: 从已有服务中拆分出独立的限界上下文（BC）：需求与文档拆分 → 创建新 BC 骨架 → 代码搬迁 → 测试迁移 → 原宿主清理 → 脚本与文档更新。全程保证双侧测试绿色。触发词：拆分 BC、提取 BC、extract bounded context、拆分限界上下文。
+description: 从已有服务中拆分出独立的限界上下文（BC）：特性与文档拆分 → 创建新 BC 骨架 → 代码搬迁 → 测试迁移 → 原宿主清理 → 脚本与文档更新。全程保证双侧测试绿色。触发词：拆分 BC、提取 BC、extract bounded context、拆分限界上下文。
 ---
 
 # 拆分限界上下文
 
-从一个已有服务（宿主）中将某个功能模块提取为独立的限界上下文。与 `add-bounded-context`（从零新建）不同，拆分涉及代码搬迁、测试迁移、原宿主清理，需要全程保持双侧绿色。
+从一个已有服务（宿主）中将某个领域模块提取为独立的限界上下文。与 `add-bounded-context`（从零新建）不同，拆分涉及代码搬迁、测试迁移、原宿主清理，需要全程保持双侧绿色。
 
 ## 适用场景
 
@@ -33,7 +33,7 @@ description: 从已有服务中拆分出独立的限界上下文（BC）：需�
 | **哪些代码** | 哪些包/类要搬到新 BC？列出清单 |
 | **哪些配置** | 哪些 application.yml 配置项属于该模块？ |
 | **哪些测试** | 哪些 feature 文件、step definitions、test config 要迁移？ |
-| **哪些文档** | 哪些需求、设计文档要从宿主文档中拆出？ |
+| **哪些文档** | 哪些特性、设计文档要从宿主文档中拆出？ |
 | **依赖方向** | 该模块是否依赖宿主的任何代码？宿主是否依赖该模块的任何代码？（理想状态：零依赖） |
 
 ### 0b. 确认新 BC 的定位
@@ -51,16 +51,16 @@ description: 从已有服务中拆分出独立的限界上下文（BC）：需�
 |----------|------|
 | 宿主服务的完整代码（待拆分模块） | 了解当前实现 |
 | 宿主的测试代码（待迁移部分） | 了解测试结构 |
-| 宿主的 `requirements.md` | 识别哪些需求要拆出 |
+| 宿主的特性（requirements.md） | 识别哪些特性要拆出 |
 | `docs/context-map.md` | 了解系统全貌和集成关系 |
 | `scripts/hmall.sh` | 确认已用端口和脚本结构 |
 | `add-bounded-context` Skill | 作为新 BC 骨架的模板参考 |
 
 ---
 
-## Step 1：需求与文档拆分
+## Step 1：特性与文档拆分
 
-**目标**：将待拆分模块的需求从宿主文档中分离出来，建立新 BC 的文档。
+**目标**：将待拆分模块的特性从宿主文档中分离出来，建立新 BC 的文档。
 
 ### 1a. 创建新 BC 文档目录
 
@@ -68,7 +68,7 @@ description: 从已有服务中拆分出独立的限界上下文（BC）：需�
 
 | 文件 | 内容来源 |
 |------|---------|
-| `requirements.md` | 从宿主 `requirements.md` 中提取相关章节，按项目惯例格式重写（feature/scenario 格式） |
+| `requirements.md` | 从宿主 requirements.md 中提取相关特性与场景 |
 | `domain-model.md`（如有领域模型） | 新写或标注"当前无聚合根，仅有领域服务" |
 | `api.yaml`（如有 REST API） | 从宿主 api.yaml 中提取或新写 |
 
@@ -78,7 +78,7 @@ description: 从已有服务中拆分出独立的限界上下文（BC）：需�
 
 ### 1c. 与用户确认
 
-文档拆分完成后，向用户展示新 BC 的 requirements.md 和宿主更新后的 requirements.md，确认拆分边界正确。
+文档拆分完成后，向用户展示新 BC 的 requirements.md 和宿主更新后的 requirements.md（承载的内容是特性），确认拆分边界正确。
 
 ---
 
@@ -94,7 +94,7 @@ description: 从已有服务中拆分出独立的限界上下文（BC）：需�
 
 **执行**：
 
-1. 创建 `services/<new-ctx>-service/` 目录和 `pom.xml`（参考宿主或 cart-service）
+1. 创建 `services/<new-ctx>-service/` 目录和 `pom.xml`（参考宿主或其他已有 BC）
 2. 创建 Application 启动类
 3. 创建包结构（根据 0b 的架构决策）
 4. 创建测试 application.yml（H2 或 WireMock，根据需要）
@@ -241,7 +241,7 @@ cd services/<host>-service && mvn test
 
 ## 检查清单
 
-- [ ] 新 BC 文档已创建（requirements.md 等）
+- [ ] 新 BC 文档已创建（特性/requirements.md 等）
 - [ ] 宿主文档已更新（移除已拆出内容）
 - [ ] 新 BC 骨架可编译
 - [ ] 代码已搬迁，新 BC 测试全绿

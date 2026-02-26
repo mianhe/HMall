@@ -16,7 +16,7 @@
 
 ## 二、BFF（前端聚合层）
 
-frontend-admin、frontend-web 所有 API 请求统一经 BFF（端口 8085）转发到 Catalog、User、Order 等下游服务。
+`frontend/admin`、`frontend/web` 所有 API 请求统一经 BFF（端口 8085）转发到 Catalog、User、Order 等下游服务。
 
 - **开发环境**：Vite proxy 将 `/api` 指向 BFF
 - **路由**：按路径前缀转发（`/api/categories`、`/api/products` → Catalog；`/api/users`、`/api/login` → User；`/api/orders` → Order）
@@ -67,5 +67,5 @@ frontend-admin、frontend-web 所有 API 请求统一经 BFF（端口 8085）转
 
 | 形态 | 前端接入 | REST（BC 间） | 事件 |
 |------|----------|---------------|------|
-| **当前** | BFF 代理（frontend-admin、frontend-web → BFF → Catalog/User/Order） | REST/HTTP | Kafka |
+| **当前** | BFF 代理（frontend/admin、frontend/web → BFF → Catalog/User/Order） | REST/HTTP | Kafka |
 | **微服务** | BFF 代理 + 服务发现 | HTTP + 服务发现 | Kafka |

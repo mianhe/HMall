@@ -25,9 +25,9 @@
 - **cart-service** — Cart 微服务（端口 8087），购物车管理
 - **fulfillment-service** — Fulfillment 微服务（端口 8088），履约管理（创建/发货/签收/取消）
 - **smart-interaction-service** — Smart Interaction 微服务（端口 8089），LLM + MCP 智能交互
-- **bff-web** — BFF 微服务（端口 8085），frontend-admin、frontend-web 经此代理调用后端
-- **frontend-admin** — 管理后台（Vite，端口 5173）
-- **frontend-web** — 消费者端（Vite，端口 5174）
+- **bff-web** — BFF 微服务（端口 8085），frontend/admin、frontend/web 经此代理调用后端
+- **frontend-admin** — 管理后台（Vite，端口 5173），目录 `frontend/admin`
+- **frontend-web** — 消费者端（Vite，端口 5174），目录 `frontend/web`
 - **mcp** — MCP Server HTTP（端口 3000）
 
 `start` / `stop` / `restart` 可带一个或多个组件；不写时 **start/stop/restart 默认针对全部**。

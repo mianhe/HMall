@@ -10,7 +10,7 @@
 |----|------|----------|
 | Order | 上游：调用创建/取消履约单 | **同步调用**（REST） |
 | Fulfillment | 当前 BC | — |
-| Order | 下游：订阅 Allocated / Shipped / Delivered | **Kafka 事件** |
+| Order | 下游：订阅 Allocated / Shipped / Delivered / 🔲 ServiceActivated | **Kafka 事件** |
 | Activity | 下游：订阅全部事件 | **Kafka 事件** |
 
 ---
@@ -37,6 +37,11 @@ Order 同步调用 createFulfillment(orderId, items, shippingAddress)
 物流签收确认
   → FulfillmentOrder 状态 SHIPPED → DELIVERED
   → 发布 FulfillmentDelivered 事件（Order + Activity 消费）
+
+🔲 虚拟服务履约单（来自业务需求 虚拟商品）：
+  → 创建时按 itemType 拆单：SERVICE items → VIRTUAL 履约单
+  → 虚拟履约单创建后自动激活（CREATED → ACTIVATED）
+  → 发布 ServiceActivated 事件（Order + Activity 消费）
 ```
 
 ### 取消（补偿路径）
@@ -86,8 +91,8 @@ POST /api/fulfillment/create
 {
   "orderId": 12345,
   "items": [
-    { "skuId": 101, "quantity": 2 },
-    { "skuId": 202, "quantity": 1 }
+    { "skuId": 101, "quantity": 2, "itemType": "PHYSICAL" },
+    { "skuId": 301, "quantity": 1, "itemType": "SERVICE" }
   ],
   "shippingAddress": {
     "recipientName": "何勉",
@@ -215,8 +220,9 @@ GET /api/fulfillment?orderId={orderId}&status={status}
 | FulfillmentOrderAllocated | 开始配货成功 | `fulfillment.order.allocated` | Order, Activity | orderId, fulfillmentOrderId, occurredAt |
 | FulfillmentShipped | 发货成功 | `fulfillment.shipped` | Order, Activity | orderId, fulfillmentOrderId, occurredAt |
 | FulfillmentDelivered | 签收确认 | `fulfillment.delivered` | Order, Activity | orderId, fulfillmentOrderId, occurredAt |
+| 🔲 ServiceActivated | 虚拟服务激活 | `fulfillment.service.activated` | Order, Activity | orderId, fulfillmentOrderId, serviceSkuId, activatedAt, expiresAt, occurredAt |
 
-**注意**：FulfillmentOrderCreated 事件仅 Activity 消费。Order 在同步创建履约单后保持 PAID；收到 FulfillmentOrderAllocated 后置 FULFILLING。
+**注意**：FulfillmentOrderCreated 事件仅 Activity 消费。Order 在同步创建履约单后保持 PAID；收到 FulfillmentOrderAllocated 后置 FULFILLING。🔲 ServiceActivated 对 Order 等效 FulfillmentDelivered。
 
 ### 事件消息体
 
@@ -265,6 +271,21 @@ GET /api/fulfillment?orderId={orderId}&status={status}
   "orderId": 12345,
   "fulfillmentOrderId": 1001,
   "occurredAt": "2026-02-20T14:00:00Z"
+}
+```
+
+**🔲 ServiceActivated**：
+
+```json
+{
+  "eventType": "ServiceActivated",
+  "eventId": "uuid",
+  "orderId": 12345,
+  "fulfillmentOrderId": 1002,
+  "serviceSkuId": 301,
+  "activatedAt": "2026-02-20T10:00:05Z",
+  "expiresAt": "2027-02-20T10:00:05Z",
+  "occurredAt": "2026-02-20T10:00:05Z"
 }
 ```
 

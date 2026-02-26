@@ -1,6 +1,6 @@
 # HMall BFF Web
 
-BFF (Backend for Frontend) 微服务，为 frontend-web 提供统一 API 入口，代理 Catalog、User、Order 的 REST 接口。
+BFF (Backend for Frontend) 微服务，为 `frontend/web` 提供统一 API 入口，代理 Catalog、User、Order 的 REST 接口。
 
 ## 启动
 
@@ -47,6 +47,6 @@ bff:
 GET /health
 ```
 
-## 联调 frontend-web
+## 联调 frontend/web
 
-将 `frontend-web/vite.config.js` 的 proxy target 改为 `http://localhost:8085` 即可。
+将 `frontend/web/vite.config.js` 的 proxy target 改为 `http://localhost:8085` 即可。

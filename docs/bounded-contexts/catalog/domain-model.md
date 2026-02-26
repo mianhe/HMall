@@ -30,8 +30,24 @@ class Spu <<聚合根>> {
   - categoryId: Long *
   - name: String *
   - description: String
+  - productType: ProductType * {PHYSICAL|SERVICE, 默认 PHYSICAL}
+  - serviceCategory: String {仅 SERVICE}
+  - serviceDurationDays: Integer {仅 SERVICE}
   --
-  不变式: 名称、categoryId 必填
+  不变式: 名称、categoryId 必填；productType 必填
+}
+
+enum ProductType {
+  PHYSICAL
+  SERVICE
+}
+
+class ServiceBinding <<实体>> {
+  - serviceBindingId: Long
+  - serviceSpuId: Long *
+  - targetSpuId: Long *
+  --
+  不变式: serviceSpuId 须为 SERVICE 类型 SPU；targetSpuId 须为 PHYSICAL 类型 SPU
 }
 
 class SpecDimension <<实体>> {
@@ -80,6 +96,7 @@ class SkuSpecValue <<值对象>> {
 
 Category "0..*" -- "0..1" Category : parent >
 Spu "0..*" --> "0..1" Category : categoryId
+Spu ..> ProductType : productType
 Spu "1" *-- "0..*" SpecDimension : 组合
 Spu "1" *-- "0..*" Sku : 组合
 SpecDimension "1" *-- "0..*" SpecOption : 组合
@@ -87,10 +104,17 @@ Spu "1" *-- "0..*" ProductImage : 组合（展示图）
 ProductImage --> SpecOption : specOptionId {0..1 可选}
 Sku "1" *-- "0..*" SkuSpecValue : 组合
 SkuSpecValue --> SpecOption : specOptionId
+ServiceBinding "0..*" --> Spu : serviceSpuId（SERVICE）
+ServiceBinding "0..*" --> Spu : targetSpuId（PHYSICAL）
 
 note bottom of ProductImage
   specOptionId 为空：产品级展示图；
   不为空：该选项的展示图
+end note
+
+note bottom of ServiceBinding
+  服务 SPU 与实体 SPU 的关联：
+  碎屏险(SERVICE) → 手机(PHYSICAL)
 end note
 @enduml
 ```
@@ -112,14 +136,31 @@ end note
 
 ### SPU — 聚合根
 
-| 属性       | 类型   | 说明 |
-|------------|--------|------|
-| SpuID      | Long   | 唯一标识 |
-| CategoryID | Long   | 所属类目，必填 |
-| 名称       | String | 必填 |
-| 描述       | String | 可选 |
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| SpuID | Long | 唯一标识 |
+| CategoryID | Long | 所属类目，必填 |
+| 名称 | String | 必填 |
+| 描述 | String | 可选 |
+| productType | ProductType | 🔲 PHYSICAL（默认）/ SERVICE |
+| serviceCategory | String | 🔲 仅 SERVICE 类型，如 SCREEN_INSURANCE、EXTENDED_WARRANTY |
+| serviceDurationDays | Integer | 🔲 仅 SERVICE 类型，服务有效期天数 |
 
-组合 SpecDimension、SKU。**不变式**：名称、CategoryID 必填；描述可选。
+组合 SpecDimension、SKU。**不变式**：名称、CategoryID、productType 必填；描述可选；serviceCategory 和 serviceDurationDays 仅 SERVICE 时有值。
+
+> 🔲 新增属性来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)
+
+### ServiceBinding — 实体（🔲 新增）
+
+> 来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| serviceBindingId | Long | 唯一标识 |
+| serviceSpuId | Long | 服务 SPU ID，必填，须为 SERVICE 类型 |
+| targetSpuId | Long | 目标实体 SPU ID，必填，须为 PHYSICAL 类型 |
+
+**不变式**：serviceSpuId 所指 SPU 的 productType 必须为 SERVICE；targetSpuId 所指 SPU 的 productType 必须为 PHYSICAL。
 
 #### SpecDimension — 实体
 
@@ -188,5 +229,6 @@ end note
 | ProductImage | product_image |
 | Sku | sku |
 | SKUSpecValue | sku_id + spec_option_id |
+| ServiceBinding | service_binding（🔲 新增） |
 
 不变式由应用层校验。
