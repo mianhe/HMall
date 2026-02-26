@@ -103,8 +103,8 @@ hmall-mcp/                         # MCP Server（AI 操作商品数据）
 
 ```
 需要做什么？
-├── 新建 BC 或重大演进 → analyze-requirement（然后 add-bounded-context → evolve-feature × N）
-├── 演进一个特性       → evolve-feature
+├── 分析业务需求（新建 BC / 重大演进 / 跨 BC）→ analyze-requirement
+├── 演进一个特性（已知改哪个 BC 的哪个 Feature）→ evolve-feature
 ├── 修 bug 或小幅调整  → fix-bug-or-adjust-feature
 ├── 对接两个 BC        → integration
 └── 前端页面           → frontend-development

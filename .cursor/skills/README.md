@@ -118,7 +118,7 @@ flowchart LR
 
 | Skill | 定位 | 核心流程 | 产出 |
 |-------|------|---------|------|
-| **analyze-requirement** | 需求分析与设计。支持单 BC 和跨 BC 业务需求两种范围。以事件流分析为起点，梳理主流程与补偿路径，进行领域建模和 Saga 设计 | 事件流分析 → 领域建模 → Saga 设计 → 特性编写 → [迭代规划] → 影响分析 | 单 BC：BC 级事件流、领域模型、特性 + 变更清单。跨 BC 业务需求：`docs/business-requirements/<name>/overview.md` + 各 BC 文档增量变更 |
+| **analyze-requirement** | 分析业务需求。从用户需求出发，分析对系统的影响，产出方案与各 BC 特性变更。无论影响一个还是多个 BC，流程统一 | 理解需求 → 事件流分析 → 领域建模 → 设计决策 → 产出方案（overview + 各 BC 特性变更） | `docs/business-requirements/<name>/overview.md` + 各 BC 文档增量变更 |
 | **add-bounded-context** | 为新 BC 搭建技术骨架。不含业务代码，仅保证 `mvn test` 可运行 | 读参考模板 → 创建四层包结构 → 测试脚手架 → API 契约 → 更新脚本与文档 | 可编译运行的空 BC，冒烟测试通过 |
 | **extract-bounded-context** | 从已有服务中拆分出独立 BC。搬迁代码与测试，清理宿主，全程双侧绿色 | 文档拆分 → 新 BC 骨架 → 代码搬迁 → 测试迁移 → 宿主清理 → 脚本与文档更新 | 独立的新 BC（测试全绿）+ 清理后的宿主（测试全绿） |
 | **evolve-feature** | 在已有 BC 内演进特性，严格遵循 ATDD。最常用的 Skill | ① 特性与模型确认 → ② 契约与测试先红 → ③ 实现变绿 → 清理与重构 | 通过验收的特性代码、更新的契约与文档 |
@@ -131,10 +131,9 @@ flowchart LR
 
 | 场景 | Skill 组合 |
 |------|-----------|
-| 新建 BC（从零开始） | analyze-requirement → add-bounded-context → evolve-feature × N → integration |
+| 新建 BC | analyze-requirement → add-bounded-context → evolve-feature × N → integration |
 | 从已有服务拆分 BC | [analyze-requirement →] extract-bounded-context → evolve-feature × N |
-| 已有 BC 重大演进 | analyze-requirement → evolve-feature × N → [integration] |
-| 跨 BC 业务需求 | analyze-requirement（跨 BC 范围）→ 按迭代：evolve-feature × N（多 BC）→ integration → frontend |
+| 业务需求（涉及一个或多个 BC） | analyze-requirement → evolve-feature × N → [integration] → [frontend] |
 | 演进单个特性 | evolve-feature |
 | 修复 Bug 或小幅调整 | fix-bug-or-adjust-feature |
 | 跨 BC 对接 | integration |
@@ -144,10 +143,9 @@ flowchart LR
 
 ```
 需要做什么？
-  ├── 新建 BC 或单 BC 重大演进 → analyze-requirement（单 BC 范围）
-  ├── 跨多个 BC 的新能力 → analyze-requirement（跨 BC 范围）
+  ├── 分析一个业务需求（新建 BC / 重大演进 / 跨 BC）→ analyze-requirement
   ├── 从已有服务拆分模块为独立 BC → extract-bounded-context
-  ├── 演进一个特性 → evolve-feature
+  ├── 演进一个特性（已知改哪个 BC 的哪个 Feature）→ evolve-feature
   ├── 修 Bug 或小幅调整 → fix-bug-or-adjust-feature
   ├── 对接两个 BC → integration
   └── 前端页面 → frontend-development
