@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-@RestControllerAdvice(basePackageClasses = { CategoryController.class, ProductController.class, ProductImageController.class, SpecDimensionController.class, SkuController.class, SkuLookupController.class })
+@RestControllerAdvice(basePackageClasses = { CategoryController.class, ProductController.class, ProductImageController.class, SpecDimensionController.class, SkuController.class, SkuLookupController.class, ServiceBindingController.class })
 public class CatalogExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(CatalogExceptionHandler.class);

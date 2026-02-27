@@ -81,6 +81,32 @@
             当前商品暂无规格维度，默认展示首个 SKU 价格。
           </p>
 
+          <!-- 可选服务（仅 PHYSICAL 商品，有绑定服务时展示） -->
+          <div v-if="availableServices.length" class="mt-6 border border-vmall-gray-border rounded-lg p-4">
+            <p class="text-sm font-medium text-gray-700 mb-3">可选服务</p>
+            <div class="space-y-4">
+              <div
+                v-for="svc in availableServices"
+                :key="svc.serviceSpuId"
+                class="p-3 bg-blue-50/50 rounded-lg"
+              >
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="text-sm font-medium text-gray-800">{{ svc.name }}</span>
+                </div>
+                <div v-if="svc.bindings?.length" class="space-y-1.5 ml-1">
+                  <div
+                    v-for="binding in svc.bindings"
+                    :key="binding.bindingId"
+                    class="flex items-center justify-between text-sm"
+                  >
+                    <span class="text-gray-700">{{ bindingSpecDisplay(binding) }}</span>
+                    <span class="font-medium text-vmall-red shrink-0">¥{{ (binding.priceCents / 100).toFixed(2) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- 立即购买 / 加入购物车 -->
           <div class="mt-6 flex flex-wrap gap-3 items-center">
             <button
@@ -139,7 +165,7 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getProduct, getDimensions, getSkus } from '../shared/api/catalog.js'
+import { getProduct, getDimensions, getSkus, getAvailableServices } from '../shared/api/catalog.js'
 import { addCartItem } from '../shared/api/cart.js'
 import { useAuth } from '../shared/auth.js'
 
@@ -149,6 +175,7 @@ const { isLoggedIn } = useAuth()
 const product = ref(null)
 const dimensions = ref([])
 const skus = ref([])
+const availableServices = ref([])
 const loading = ref(true)
 const error = ref('')
 const activeTab = ref('detail')
@@ -221,6 +248,13 @@ function selectOption(dim, opt) {
   currentImageIndex.value = 0
 }
 
+function bindingSpecDisplay(binding) {
+  if (binding.specValues?.length) {
+    return binding.specValues.map((s) => s.optionValue).join('·')
+  }
+  return `SKU #${binding.serviceSkuId}`
+}
+
 function goCheckout() {
   const sku = matchedSku.value
   const p = product.value
@@ -275,6 +309,7 @@ async function load() {
   product.value = null
   dimensions.value = []
   skus.value = []
+  availableServices.value = []
   selectedOptionIds.value = {}
   currentImageIndex.value = 0
   try {
@@ -286,6 +321,9 @@ async function load() {
     product.value = p
     dimensions.value = dims?.length ? dims : []
     skus.value = skuList?.length ? skuList : []
+    if (p.productType !== 'SERVICE') {
+      availableServices.value = await getAvailableServices(id.value).catch(() => [])
+    }
   } catch (e) {
     error.value = e.response?.data?.message || e.message || '加载失败'
   } finally {

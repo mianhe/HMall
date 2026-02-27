@@ -65,6 +65,27 @@ export async function deleteProductImage(spuId, imageId) {
   await client.delete(`/products/${spuId}/images/${imageId}`)
 }
 
+// ---------- 服务绑定 ----------
+
+export async function getAvailableServices(spuId) {
+  const { data } = await client.get(`/products/${spuId}/available-services`)
+  return data
+}
+
+export async function getServiceBindings(skuId) {
+  const { data } = await client.get(`/skus/${skuId}/service-bindings`)
+  return data
+}
+
+export async function createServiceBinding(skuId, body) {
+  const { data } = await client.post(`/skus/${skuId}/service-bindings`, body)
+  return data
+}
+
+export async function deleteServiceBinding(skuId, bindingId) {
+  await client.delete(`/skus/${skuId}/service-bindings/${bindingId}`)
+}
+
 // ---------- 选项级展示图 ----------
 
 export async function addOptionImage(spuId, dimensionId, optionId, body) {

@@ -46,7 +46,8 @@ public class ProductController {
         Spu created = applicationService.create(
             dto.categoryId(),
             dto.name(),
-            dto.description()
+            dto.description(),
+            dto.productType()
         );
         return ResponseEntity
             .status(HttpStatus.CREATED)
@@ -96,6 +97,7 @@ public class ProductController {
             s.getCategoryId(),
             s.getName(),
             s.getDescription(),
+            s.getProductType(),
             coverImageUrl,
             defaultDisplayImages
         );

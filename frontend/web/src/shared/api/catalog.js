@@ -40,6 +40,12 @@ export async function getSkus(spuId) {
   return data
 }
 
+/** 某实体商品的可选服务列表 */
+export async function getAvailableServices(spuId) {
+  const { data } = await client.get(`/products/${spuId}/available-services`)
+  return data
+}
+
 /** 某规格选项的展示图列表 */
 export async function getOptionImages(spuId, dimensionId, optionId) {
   const { data } = await client.get(

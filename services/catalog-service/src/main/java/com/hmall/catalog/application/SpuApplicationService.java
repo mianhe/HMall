@@ -8,9 +8,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-/**
- * 管理商品应用服务：仅在叶子类别下创建、按类别/ID 查询。
- */
 @Service
 public class SpuApplicationService {
 
@@ -23,13 +20,13 @@ public class SpuApplicationService {
     }
 
     @Transactional
-    public Spu create(Long categoryId, String name, String description) {
+    public Spu create(Long categoryId, String name, String description, String productType) {
         var category = categoryRepository.findById(categoryId)
             .orElseThrow(() -> new IllegalArgumentException("类别不存在"));
         if (categoryRepository.existsByParentId(category.getId())) {
             throw new NotLeafCategoryException("仅叶子类别可挂商品");
         }
-        Spu spu = new Spu(categoryId, name, description);
+        Spu spu = new Spu(categoryId, name, description, productType);
         return spuRepository.save(spu);
     }
 
@@ -53,7 +50,8 @@ public class SpuApplicationService {
     public Spu update(Long id, String name, String description) {
         Spu existing = spuRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("商品不存在"));
-        Spu updated = new Spu(existing.getId(), existing.getCategoryId(), name, description);
+        Spu updated = new Spu(existing.getId(), existing.getCategoryId(), name, description,
+            existing.getProductType());
         return spuRepository.save(updated);
     }
 

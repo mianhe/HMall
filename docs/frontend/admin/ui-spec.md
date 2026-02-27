@@ -34,19 +34,22 @@
 - **树形展示**（`CatalogTree` / `CatalogTreeNode`），只读。
 - **刷新按钮**：重新请求并渲染整棵树。
 - **错误与空态**：请求失败显示错误信息（含 5xx 重试与友好提示）；无数据时提示「暂无数据，请通过 MCP 添加类目与商品」。
+- **商品类型标签**：商品名称旁显示 `productType` Badge（PHYSICAL 灰色、SERVICE 蓝色）。
 
 | 层级 | 展示内容 |
 |------|----------|
 | 类目 | 名称、描述；可展开看子类目或商品 |
-| 商品 | 名称、描述、**规格维度**（如「颜色、容量」）；点击进入商品详情页 |
+| 商品 | 名称、**productType Badge**、描述、**规格维度**（如「颜色、容量」）；点击进入商品详情页 |
 | SKU | 规格组合、价格、展示名 |
+| 服务绑定 | 仅 SERVICE 商品的 SKU 下展示：目标 SPU 名称 + 绑定价格（null 显示「继承标准价」） |
 
 API 封装位置：`frontend/admin/src/shared/api/catalog.js`。契约：`docs/bounded-contexts/catalog/api.yaml`。
 
 ### 2.3 商品详情页（ProductDetailPage）
 
 - **进入方式**：Catalog 页树形列表中**点击商品名称**，跳转 `/products/:id`。
-- **页面展示**：商品基础信息、规格维度与选项、产品级展示图、各选项展示图。
+- **页面展示**：商品基础信息（含 productType Badge）、规格维度与选项、产品级展示图、各选项展示图。
+- **服务绑定管理**（仅 SERVICE 类型商品）：每个 SKU 下展示已绑定的目标商品列表（含价格），支持新增绑定（输入目标 SPU ID + 可选价格）和删除绑定。API: `GET/POST /api/skus/{skuId}/service-bindings`、`DELETE /api/skus/{skuId}/service-bindings/{bindingId}`。
 - **图片上传**：产品级和选项级均为「先 `POST /api/files/upload` 得到 URL，再调用对应的图片创建 API」；上传成功后刷新图片列表。
 - **删除**：产品级展示图、选项级展示图均提供删除操作。
 - 错误时展示后端返回的 `message`，不在前端写死文案。

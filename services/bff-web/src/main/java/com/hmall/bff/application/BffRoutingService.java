@@ -26,7 +26,7 @@ public class BffRoutingService {
     }
 
     private Downstream resolve(String path) {
-        if (path.startsWith("/api/categories") || path.startsWith("/api/products") || path.startsWith("/api/files")) {
+        if (path.startsWith("/api/categories") || path.startsWith("/api/products") || path.startsWith("/api/skus") || path.startsWith("/api/files")) {
             return new Downstream("catalog", props.catalog().baseUrl());
         }
         if (path.startsWith("/api/users") || path.startsWith("/api/login")) {

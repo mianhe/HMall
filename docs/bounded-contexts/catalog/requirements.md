@@ -120,18 +120,20 @@ SKU = 每个必填维度选一 Option + 价格（分）。规格展示名可自�
 
 > 以下变更来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)
 
-SPU 新增商品类型（实体 / 服务），服务类 SPU 可与实体 SPU 建立关联（ServiceBinding），表示该服务可附加在哪些实体产品上。
+SPU 新增商品类型（实体 / 服务）。服务类 SPU 的期限通过 SpecDimension + SpecOption 表达（如"服务期限"维度，"一年"/"两年"选项），与实体商品规格统一。服务 SKU 通过 ServiceBinding 与实体 SPU 建立上下文定价关系：同一服务 SKU 保护不同实体商品时价格不同。
 
-- 🔲 5.1 创建 SPU 时可指定 productType（PHYSICAL / SERVICE），不指定时默认 PHYSICAL；返回应包含 productType
-- 🔲 5.2 创建 SERVICE 类型 SPU 时可指定 serviceCategory（如 SCREEN_INSURANCE、EXTENDED_WARRANTY）和 serviceDurationDays（服务有效期天数）
-- 🔲 5.3 为服务 SPU 添加 ServiceBinding（关联到目标实体 SPU）时应成功
-- 🔲 5.4 目标 SPU 不存在时添加 ServiceBinding 应返回 404
-- 🔲 5.5 服务 SPU 不存在时添加 ServiceBinding 应返回 404
-- 🔲 5.6 对 PHYSICAL 类型 SPU 添加 ServiceBinding 应失败并返回错误（仅 SERVICE 可绑定）
-- 🔲 5.7 查询某实体 SPU 的可选服务列表时应返回所有已绑定的服务 SPU（含名称、serviceCategory、serviceDurationDays 及其 SKU 价格）
-- 🔲 5.8 删除 ServiceBinding 时应成功
-- 🔲 5.9 按 ID 查询 SPU 详情时，响应应包含 productType（兼容已有 2.4）
-- 🔲 5.10 按类目或搜索返回商品列表时，响应应包含 productType（兼容已有 2.3、2.11）
+- ✅ 5.1 创建 SPU 时可指定 productType（PHYSICAL / SERVICE），不指定时默认 PHYSICAL；返回应包含 productType
+- ✅ 5.2 创建 SERVICE 类型 SPU；服务期限通过 SpecDimension + SpecOption 表达
+- ✅ 5.3 为服务 SKU 添加 ServiceBinding（关联到目标实体 SPU + 可选售价）时应成功；priceCents 可为 null（继承 SKU 标准价）或指定值（上下文定价）
+- ✅ 5.4 目标 SPU 不存在时添加 ServiceBinding 应返回 404
+- ✅ 5.5 服务 SKU 不存在时添加 ServiceBinding 应返回 404
+- ✅ 5.6 对 PHYSICAL 类型 SPU 的 SKU 添加 ServiceBinding 应失败并返回错误（仅 SERVICE SKU 可绑定）
+- ✅ 5.7 查询某实体 SPU 的可选服务列表时应返回所有已绑定的服务 SKU（按 SPU 分组，含名称、规格值、ServiceBinding 售价）
+- ✅ 5.8 删除 ServiceBinding 时应成功
+- ✅ 5.9 按 ID 查询 SPU 详情时，响应应包含 productType（兼容已有 2.4）
+- ✅ 5.10 按类目或搜索返回商品列表时，响应应包含 productType（兼容已有 2.3、2.11）
+- ✅ 5.11 为服务 SKU 添加 ServiceBinding 时不指定售价（priceCents=null），应成功并继承 SKU 标准价
+- ✅ 5.12 查询可选服务列表时，binding 未指定售价的服务应返回 SKU 标准价作为最终售价
 
 ---
 
@@ -140,7 +142,7 @@ SPU 新增商品类型（实体 / 服务），服务类 SPU 可与实体 SPU 建
 | 功能 | .feature 文件 | 场景数 | 状态 |
 |------|----------------|--------|------|
 | 1. 管理类目 | category.feature | 1.1～1.10 | ✅ 全部已实现 |
-| 2. 管理商品 | product.feature | 2.1～2.11 | 🔄 响应需包含 productType（5.9、5.10） |
+| 2. 管理商品 | product.feature | 2.1～2.11 | ✅ 全部已实现（响应已包含 productType） |
 | 3. 管理 SPU 规格维度与选项 | spec-dimension.feature | 3.1～3.14 | 🔄 变更已有需求（展示图可挂产品本身，不再强制关联影响外观的选项） |
 | 4. 管理 SKU | sku.feature | 4.1～4.12 | ✅ 全部已实现 |
-| 5. 管理商品类型与服务绑定 | service-binding.feature | 5.1～5.10 | 🔲 全部待实现 |
+| 5. 管理商品类型与服务绑定 | service-binding.feature | 5.1～5.12 | ✅ 全部已实现 |

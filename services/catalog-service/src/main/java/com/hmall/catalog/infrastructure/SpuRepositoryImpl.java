@@ -59,6 +59,7 @@ public class SpuRepositoryImpl implements SpuRepository {
         e.setCategoryId(domain.getCategoryId());
         e.setName(domain.getName());
         e.setDescription(domain.getDescription());
+        e.setProductType(domain.getProductType());
         return e;
     }
 
@@ -67,7 +68,8 @@ public class SpuRepositoryImpl implements SpuRepository {
             entity.getId(),
             entity.getCategoryId(),
             entity.getName(),
-            entity.getDescription()
+            entity.getDescription(),
+            entity.getProductType()
         );
     }
 }

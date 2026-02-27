@@ -7,16 +7,17 @@
 
 ---
 
-## 工具总览（15 个，均已实现）
+## 工具总览（16 个，均已实现）
 
-### Catalog（7 个）
+### Catalog（8 个）
 
 | 工具名 | 用途 |
 |--------|------|
 | `catalog_categories` | 类目：列表 / 树 / 详情 / 创建 / 修改 / 删除 |
-| `catalog_products` | 商品(SPU)：列表或搜索 / 详情(基础或完整) / 创建 / 修改 / 删除 |
+| `catalog_products` | 商品(SPU)：列表或搜索 / 详情(基础或完整) / 创建(含 productType) / 修改 / 删除 |
 | `catalog_dimensions` | 规格维度与选项：列表 / 添加维度 / 添加选项 / 删除选项 |
 | `catalog_skus` | SKU：列表 / 创建 / 修改 / 删除 |
+| `catalog_service_bindings` | 服务绑定：列表 / 创建 / 删除（将服务 SKU 绑定到实体 SPU） |
 | `catalog_upload_image` | 上传本地图片，返回可访问 URL |
 | `catalog_product_images` | 产品级展示图：列表 / 添加(支持 URL 或本地路径) / 删除 |
 | `catalog_option_images` | 选项级展示图：列表 / 添加(支持 URL 或本地路径) / 删除 |
@@ -107,6 +108,7 @@
 | `detail` | string | 否 | **get** 时：`basic` 仅基础信息，`full` 含规格维度、选项及 SKU；默认可为 basic |
 | `name` | string | create/update 时必填 | 商品名称 |
 | `description` | string | 否 | 商品描述 |
+| `productType` | string | 否 | **create** 时：`PHYSICAL`（默认）或 `SERVICE`（服务类商品） |
 
 **示例**
 
@@ -221,6 +223,31 @@
 - 查某选项的图：`action=list`, `spuId=1`, `dimensionId=1`, `optionId=2`
 - 添加：`action=add`, `spuId=1`, `dimensionId=1`, `optionId=2`, `localPath=/path/to/black.jpg`
 - 删除：`action=delete`, `spuId=1`, `dimensionId=1`, `optionId=2`, `imageId=1`
+
+---
+
+## 8. catalog_service_bindings
+
+服务绑定(ServiceBinding)管理。将 SERVICE 类型商品的 SKU 绑定到 PHYSICAL 类型商品(SPU)，支持三种定价模式：
+
+1. **无 binding**：服务独立售卖，价格 = SKU.priceCents
+2. **binding + priceCents 为空**：限定适用范围，继承 SKU 标准价
+3. **binding + priceCents 非空**：上下文定价，覆盖 SKU 标准价
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `action` | string | 是 | `list` \| `create` \| `delete` |
+| `skuId` | number | 是 | 服务 SKU ID |
+| `bindingId` | number | delete 时必填 | 绑定 ID |
+| `targetSpuId` | number | create 时必填 | 绑定到的实体商品(SPU) ID |
+| `priceCents` | number \| null | 否 | create 时可选：绑定价格（分），null 表示继承 SKU 标准价 |
+
+**示例**
+
+- 查某服务 SKU 的绑定：`action=list`, `skuId=10`
+- 创建绑定（指定价格）：`action=create`, `skuId=10`, `targetSpuId=1`, `priceCents=29900`
+- 创建绑定（继承标准价）：`action=create`, `skuId=10`, `targetSpuId=2`
+- 删除绑定：`action=delete`, `skuId=10`, `bindingId=5`
 
 ---
 
@@ -474,4 +501,4 @@
 - **User**：默认 API 基地址 `http://localhost:8082/api`，可通过 `HMALL_USER_API_BASE` 覆盖。
 - **Activity**：默认 API 基地址 `http://localhost:8086/api`，可通过 `HMALL_ACTIVITY_API_BASE` 覆盖。
 
-*当前实现已与本文档一致：上述 15 个 tool 均已实现。*
+*当前实现已与本文档一致：上述 16 个 tool 均已实现。*

@@ -7,9 +7,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-/**
- * SPU（商品）表对应的 JPA 实体。
- */
 @Entity
 @Table(name = "spu")
 public class SpuEntity {
@@ -27,38 +24,19 @@ public class SpuEntity {
     @Column(length = 2000)
     private String description;
 
-    /** JPA 与仓储映射用 */
+    @Column(name = "product_type", nullable = false)
+    private String productType = "PHYSICAL";
+
     public SpuEntity() {}
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Long getCategoryId() {
-        return categoryId;
-    }
-
-    public void setCategoryId(Long categoryId) {
-        this.categoryId = categoryId;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public Long getCategoryId() { return categoryId; }
+    public void setCategoryId(Long categoryId) { this.categoryId = categoryId; }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
+    public String getProductType() { return productType; }
+    public void setProductType(String productType) { this.productType = productType; }
 }

@@ -23,7 +23,7 @@
 import { ref, onMounted } from 'vue'
 import AppHeader from '../shared/ui/AppHeader.vue'
 import CatalogTree from '../shared/ui/CatalogTree.vue'
-import { getCategories, getProducts, getDimensions, getSkus } from '../shared/api/catalog.js'
+import { getCategories, getProducts, getDimensions, getSkus, getServiceBindings } from '../shared/api/catalog.js'
 
 const tree = ref([])
 const loading = ref(false)
@@ -92,7 +92,16 @@ async function loadCategoryNode(category) {
         getDimensions(p.id),
         getSkus(p.id),
       ])
-      return { ...p, dimensions: dims, skus }
+      let skusWithBindings = skus
+      if (p.productType === 'SERVICE') {
+        skusWithBindings = await Promise.all(
+          skus.map(async (sku) => {
+            const bindings = await getServiceBindings(sku.id)
+            return { ...sku, bindings }
+          })
+        )
+      }
+      return { ...p, dimensions: dims, skus: skusWithBindings }
     })
   )
   return {

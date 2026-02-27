@@ -115,7 +115,7 @@ export function registerCatalogTools(server) {
   // ── 2. catalog_products ──
   server.tool(
     'catalog_products',
-    '商品(SPU)查询与管理。action=list：按 categoryId 过滤类目下商品，或按 keyword 模糊搜索商品名称（仅名称匹配，不支持语义搜索；搜不到时建议换同义词或改用类目浏览）。get + detail=full：返回完整信息含规格维度、选项和全部 SKU 列表（含价格，单位：分，如 599900=¥5999）。create/update/delete：管理操作。',
+    '商品(SPU)查询与管理。action=list：按 categoryId 过滤类目下商品，或按 keyword 模糊搜索商品名称（仅名称匹配，不支持语义搜索；搜不到时建议换同义词或改用类目浏览）。get + detail=full：返回完整信息含规格维度、选项和全部 SKU 列表（含价格，单位：分，如 599900=¥5999）。create/update/delete：管理操作。create 时可传 productType（PHYSICAL 默认 / SERVICE 服务类商品）。',
     {
       action: actionProducts,
       categoryId: z.number().optional().describe('list 时按类目过滤；create 时必填'),
@@ -124,20 +124,21 @@ export function registerCatalogTools(server) {
       detail: z.enum(['basic', 'full']).optional().describe('get 时：full 含规格与 SKU'),
       name: z.string().optional().describe('create/update 时必填'),
       description: z.string().optional(),
+      productType: z.enum(['PHYSICAL', 'SERVICE']).optional().describe('create 时：PHYSICAL(默认) 或 SERVICE'),
     },
-    async ({ action, categoryId, keyword, productId, detail, name, description }) => {
+    async ({ action, categoryId, keyword, productId, detail, name, description, productType }) => {
       try {
         if (action === 'list') {
           if (keyword != null && keyword !== '') {
             const list = await api('GET', `/products/search?keyword=${encodeURIComponent(keyword)}`)
             if (!list.length) return ok(`未找到包含"${keyword}"的商品。`)
-            const lines = list.map(p => `[${p.id}] ${p.name}${p.description ? ' - ' + p.description : ''} (类目:${p.categoryId})`)
+            const lines = list.map(p => `[${p.id}] ${p.name} [${p.productType || 'PHYSICAL'}]${p.description ? ' - ' + p.description : ''} (类目:${p.categoryId})`)
             return ok(`共 ${list.length} 个商品：\n${lines.join('\n')}`)
           }
           const path = categoryId != null ? `/products?categoryId=${categoryId}` : '/products/search'
           const list = await api('GET', path)
           if (!list.length) return ok(categoryId != null ? '该类目下暂无商品。' : '暂无商品。')
-          const lines = list.map(p => `[${p.id}] ${p.name}${p.description ? ' - ' + p.description : ''}${p.categoryId != null ? ' (类目:' + p.categoryId + ')' : ''}`)
+          const lines = list.map(p => `[${p.id}] ${p.name} [${p.productType || 'PHYSICAL'}]${p.description ? ' - ' + p.description : ''}${p.categoryId != null ? ' (类目:' + p.categoryId + ')' : ''}`)
           return ok(lines.join('\n'))
         }
         if (action === 'get') {
@@ -147,7 +148,7 @@ export function registerCatalogTools(server) {
               api('GET', `/products/${productId}/dimensions`),
               api('GET', `/products/${productId}/skus`),
             ])
-            const lines = [`商品 [${p.id}] ${p.name}${p.description ? ' - ' + p.description : ''} (类目:${p.categoryId})`]
+            const lines = [`商品 [${p.id}] ${p.name} [${p.productType || 'PHYSICAL'}]${p.description ? ' - ' + p.description : ''} (类目:${p.categoryId})`]
             if (dims.length) {
               lines.push('\n规格维度：')
               for (const d of dims) {
@@ -164,11 +165,13 @@ export function registerCatalogTools(server) {
             }
             return ok(lines.join('\n'))
           }
-          return ok(`[${p.id}] ${p.name}${p.description ? ' - ' + p.description : ''} (类目:${p.categoryId})`)
+          return ok(`[${p.id}] ${p.name} [${p.productType || 'PHYSICAL'}]${p.description ? ' - ' + p.description : ''} (类目:${p.categoryId})`)
         }
         if (action === 'create') {
-          const p = await api('POST', '/products', { categoryId, name, description: description ?? null })
-          return ok(`创建成功：ID=${p.id}，名称="${p.name}"`)
+          const body = { categoryId, name, description: description ?? null }
+          if (productType) body.productType = productType
+          const p = await api('POST', '/products', body)
+          return ok(`创建成功：ID=${p.id}，名称="${p.name}"，类型=${p.productType || 'PHYSICAL'}`)
         }
         if (action === 'update') {
           const p = await api('PUT', `/products/${productId}`, { name, description: description ?? null })
@@ -361,6 +364,44 @@ export function registerCatalogTools(server) {
         if (action === 'delete') {
           await api('DELETE', `${base}/images/${imageId}`)
           return ok(`已删除展示图 ID=${imageId}`)
+        }
+        return err(new Error('未知 action'))
+      } catch (e) { return err(e) }
+    }
+  )
+
+  // ── 8. catalog_service_bindings ──
+  const actionBindings = z.enum(['list', 'create', 'delete'])
+  server.tool(
+    'catalog_service_bindings',
+    '服务绑定(ServiceBinding)管理。将 SERVICE 类型商品的 SKU 绑定到 PHYSICAL 类型商品(SPU)，并指定价格。三种定价模式：(1)无 binding → 服务独立售卖，价格=SKU.priceCents；(2)binding+priceCents 为空 → 限定适用范围，继承 SKU 标准价；(3)binding+priceCents 非空 → 上下文定价，覆盖 SKU 标准价。action=list 查某服务 SKU 的全部 binding；create 创建 binding；delete 删除 binding。',
+    {
+      action: actionBindings.describe('list|create|delete'),
+      skuId: z.number().describe('服务 SKU ID'),
+      bindingId: z.number().optional().describe('delete 时必填'),
+      targetSpuId: z.number().optional().describe('create 时必填：绑定到的实体商品(SPU) ID'),
+      priceCents: z.number().min(0).nullable().optional().describe('create 时可选：绑定价格（分），null 表示继承 SKU 标准价'),
+    },
+    async ({ action, skuId, bindingId, targetSpuId, priceCents }) => {
+      try {
+        if (action === 'list') {
+          const list = await api('GET', `/skus/${skuId}/service-bindings`)
+          if (!list.length) return ok('该服务 SKU 暂无绑定。')
+          const lines = list.map(b => {
+            const price = b.priceCents != null ? `¥${(b.priceCents / 100).toFixed(2)}` : '继承SKU标准价'
+            return `[${b.id}] → 目标SPU:${b.targetSpuId}${b.targetSpuName ? '(' + b.targetSpuName + ')' : ''} 价格:${price}`
+          })
+          return ok(lines.join('\n'))
+        }
+        if (action === 'create') {
+          const body = { targetSpuId, priceCents: priceCents ?? null }
+          const b = await api('POST', `/skus/${skuId}/service-bindings`, body)
+          const price = b.priceCents != null ? `¥${(b.priceCents / 100).toFixed(2)}` : '继承SKU标准价'
+          return ok(`创建绑定成功：ID=${b.id}，服务SKU=${b.serviceSkuId} → 目标SPU=${b.targetSpuId}，价格=${price}`)
+        }
+        if (action === 'delete') {
+          await api('DELETE', `/skus/${skuId}/service-bindings/${bindingId}`)
+          return ok(`已删除绑定 ID=${bindingId}`)
         }
         return err(new Error('未知 action'))
       } catch (e) { return err(e) }

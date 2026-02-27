@@ -12,6 +12,7 @@ public final class ProductApiDto {
         public Long categoryId;
         public String name;
         public String description;
+        public String productType;
     }
 
     /** 修改商品请求体 */
@@ -26,6 +27,7 @@ public final class ProductApiDto {
         public Long categoryId;
         public String name;
         public String description;
+        public String productType;
         public String coverImageUrl;
         public List<ProductImageItem> defaultDisplayImages;
     }

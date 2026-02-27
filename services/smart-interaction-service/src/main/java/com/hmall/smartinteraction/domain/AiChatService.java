@@ -123,7 +123,7 @@ public class AiChatService {
         }
     }
 
-    static final int ROUTING_TOOL_THRESHOLD = 15;
+    static final int ROUTING_TOOL_THRESHOLD = 20;
 
     private List<Skill> resolveAutoMatchedSkills(LlmProviderConfig.Provider provider, ChatRequest request) {
         String clientType = request.clientType();

@@ -22,7 +22,7 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 
 | BC | 职责 | 状态 | 说明 |
 |----|------|------|------|
-| **Catalog** | 类目、SPU、规格维度、SKU、展示图 | ✅ 已完成 | 4 feature，50 scenario |
+| **Catalog** | 类目、SPU、规格维度、SKU、展示图、商品类型与服务绑定 | ✅ 已完成 | 5 feature，63 scenario |
 | **User** | 注册、登录(JWT)、收货地址 | ✅ 已完成 | 3 feature，19 scenario |
 | **Order** | 创建、取消、查询、事件驱动状态流转 | ✅ 已完成 | 4 feature，25 scenario |
 | **Inventory** | 同步占用/释放、库存管理 | ✅ 已完成 | 3 feature，12 scenario |
@@ -45,7 +45,7 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 
 | 顺序 | 功能 | 主要影响 BC | 前置依赖 | 状态 |
 |------|------|------------|---------|------|
-| **1** | 虚拟商品（保障服务、碎屏险等） | Catalog, Order, Fulfillment, Cart, Activity | 无 | 🔄 需求分析完成。[业务需求方案](business-requirements/virtual-product/overview.md) |
+| **1** | 虚拟商品（保障服务、碎屏险等） | Catalog, Order, Fulfillment, Cart, Activity | 无 | ✅ 迭代 1（Catalog）已完成（5 feature, 63 scenario 全绿；含 SKU 级 ServiceBinding + 三种定价模式 + 前端 admin/web 集成 + MCP 工具 + AI Skill 更新）；🔲 迭代 2（交易流程）、迭代 3（补购）待开发。[业务需求方案](business-requirements/virtual-product/overview.md) |
 | **2** | 履约拆单（按仓库/商品类型拆单） | Inventory, Fulfillment, Order, Activity | 虚拟商品（提供拆分维度） | 🔲 待开发 |
 | **3** | 镭雕服务（激光雕刻定制） | Catalog, Order, Fulfillment | 虚拟商品 + 拆单 | 🔲 待开发 |
 
@@ -89,7 +89,7 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 | 7 | Fulfillment 同步创建 + 事件通知 | 创建/取消同步；发货/签收走 Kafka | 2026-02-20 |
 | 8 | 拆单由 Fulfillment 负责 | Order 只传 orderId + items，Fulfillment 决定拆单策略 | 2026-02-20 |
 | 9 | Order 取消规则收紧 | SHIPPED 及之后不可取消；多履约单按「最慢」原则推进状态 | 2026-02-20 |
-| VP1 | 服务是独立的 SERVICE 类型 SPU | 复用 SPU-SKU 模型，通过 productType 区分 | 2026-02-24 |
+| VP1 | 服务是独立的 SERVICE 类型 SPU | 复用 SPU-SKU 模型，通过 productType 区分；服务期限为 SpecDimension；ServiceBinding 绑定 SKU + 目标 SPU，priceCents 可选（null=继承 SKU 标准价，非 null=上下文定价）；无 binding 可独立售卖 | 2026-02-24 |
 | VP2 | 服务类商品不占库存 | Order 过滤 SERVICE items，仅 PHYSICAL 调用 Inventory | 2026-02-24 |
 | VP3 | 混合订单 + Fulfillment 拆单 | 一单含实体+服务，Fulfillment 按类型拆单 | 2026-02-24 |
 | VP4 | ServiceActivated 等效 Delivered | 最慢原则推进 OrderCompleted | 2026-02-24 |
@@ -103,6 +103,12 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 
 | 日期 | 变更内容 |
 |------|---------|
+| 2026-02-27 | 迭代 1 收尾：修复 available-services API 返回最终售价（binding.priceCents ?? sku.priceCents）；新增 5.11～5.12 验收场景（null priceCents 创建与查询），63 场景全绿；全文档一致性检查与更新 |
+| 2026-02-27 | 开发流程优化：Skill 流程强制约束写入 project-context.md；实现顺序原则写入 design-principles.md §2.4a；各 Skill 交叉引用统一 |
+| 2026-02-27 | ServiceBinding.priceCents 模型决策：从必填调整为可选（nullable），支持三种定价模式（独立售卖/统一价格限定范围/上下文差异定价） |
+| 2026-02-27 | SPU 移除 serviceCategory 属性：服务分类由类目体系表达，SPU 仅保留 productType 一个新增属性；全链路清理（后端 + 前端 + 文档 + 契约） |
+| 2026-02-26 | ServiceBinding 模型调整：从 SPU 级绑定改为 SKU 级绑定 + 上下文定价（serviceSkuId + targetSpuId + priceCents）；SPU 移除 serviceDurationDays，服务期限改用 SpecDimension + SpecOption；11 场景全绿，总 61 场景 |
+| 2026-02-26 | 虚拟商品迭代 1 完成：Catalog 支持 SERVICE 类型商品 + ServiceBinding（11 场景全绿，总 61 场景）；前端 admin/web 集成 productType 展示与可选服务列表 |
 | 2026-02-24 | 虚拟商品 Epic 需求分析完成：overview.md + 各 BC 文档增量变更；analyze-requirement Skill 演进支持 Epic 范围 |
 | 2026-02-24 | 功能演进路线规划：虚拟商品 → 履约拆单 → 镭雕服务 |
 | 2026-02-24 | Activity 订单旅程回放 V2 完成（分组时间线 + 泳道式可视化 + 回放动画） |

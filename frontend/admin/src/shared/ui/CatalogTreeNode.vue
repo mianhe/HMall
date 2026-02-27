@@ -45,6 +45,15 @@
           >
             {{ product.name }}
           </router-link>
+          <span
+            v-if="product.productType === 'SERVICE'"
+            class="ml-2 px-1.5 py-0.5 text-xs rounded bg-blue-50 text-blue-600"
+          >SERVICE</span>
+          <span
+            v-else
+            class="ml-2 px-1.5 py-0.5 text-xs rounded bg-gray-100 text-gray-500"
+          >PHYSICAL</span>
+          
           <span v-if="product.description" class="ml-2 text-sm text-vmall-gray-text">{{ product.description }}</span>
         </div>
 
@@ -97,18 +106,33 @@
         </template>
 
         <!-- SKU 行 -->
-        <div
-          v-for="sku in product.skus"
-          :key="'s-' + sku.id"
-          class="flex items-center py-1.5 px-4 bg-gray-50/50 hover:bg-vmall-gray-bg text-sm"
-          :style="{ paddingLeft: `${16 + (depth + 2) * 24}px` }"
-        >
-          <span class="text-vmall-gray-text">SKU：</span>
-          <span class="ml-1 text-gray-700">
-            {{ skuDisplay(sku) }}
-          </span>
-          <span class="ml-2 font-medium text-vmall-red">¥{{ (sku.priceCents / 100).toFixed(2) }}</span>
-        </div>
+        <template v-for="sku in product.skus" :key="'s-' + sku.id">
+          <div
+            class="flex items-center py-1.5 px-4 bg-gray-50/50 hover:bg-vmall-gray-bg text-sm"
+            :style="{ paddingLeft: `${16 + (depth + 2) * 24}px` }"
+          >
+            <span class="text-vmall-gray-text">SKU：</span>
+            <span class="ml-1 text-gray-700">
+              {{ skuDisplay(sku) }}
+            </span>
+            <span class="ml-2 font-medium text-vmall-red">¥{{ (sku.priceCents / 100).toFixed(2) }}</span>
+          </div>
+          <!-- 服务绑定行（仅 SERVICE 商品的 SKU） -->
+          <template v-if="product.productType === 'SERVICE' && sku.bindings?.length">
+            <div
+              v-for="binding in sku.bindings"
+              :key="'b-' + binding.id"
+              class="flex items-center py-1 px-4 text-xs text-gray-500"
+              :style="{ paddingLeft: `${16 + (depth + 3) * 24}px` }"
+            >
+              <span class="text-gray-400">→</span>
+              <span class="ml-1">{{ binding.targetSpuName || `SPU#${binding.targetSpuId}` }}</span>
+              <span class="ml-2">
+                {{ binding.priceCents != null ? `¥${(binding.priceCents / 100).toFixed(2)}` : '继承标准价' }}
+              </span>
+            </div>
+          </template>
+        </template>
       </div>
     </template>
 

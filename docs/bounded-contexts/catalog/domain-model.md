@@ -31,10 +31,9 @@ class Spu <<聚合根>> {
   - name: String *
   - description: String
   - productType: ProductType * {PHYSICAL|SERVICE, 默认 PHYSICAL}
-  - serviceCategory: String {仅 SERVICE}
-  - serviceDurationDays: Integer {仅 SERVICE}
   --
   不变式: 名称、categoryId 必填；productType 必填
+  服务期限通过 SpecDimension（如"服务期限"）+ SpecOption（如"一年"、"两年"）表达
 }
 
 enum ProductType {
@@ -44,10 +43,13 @@ enum ProductType {
 
 class ServiceBinding <<实体>> {
   - serviceBindingId: Long
-  - serviceSpuId: Long *
+  - serviceSkuId: Long *
   - targetSpuId: Long *
+  - priceCents: Long {nullable, >=0}
   --
-  不变式: serviceSpuId 须为 SERVICE 类型 SPU；targetSpuId 须为 PHYSICAL 类型 SPU
+  不变式: serviceSkuId 须属 SERVICE 类型 SPU 下的 SKU；targetSpuId 须为 PHYSICAL 类型 SPU
+  存在 binding → 该服务 SKU 适用于该目标 SPU
+  最终售价 = priceCents ?? SKU.priceCents
 }
 
 class SpecDimension <<实体>> {
@@ -104,7 +106,7 @@ Spu "1" *-- "0..*" ProductImage : 组合（展示图）
 ProductImage --> SpecOption : specOptionId {0..1 可选}
 Sku "1" *-- "0..*" SkuSpecValue : 组合
 SkuSpecValue --> SpecOption : specOptionId
-ServiceBinding "0..*" --> Spu : serviceSpuId（SERVICE）
+ServiceBinding "0..*" --> Sku : serviceSkuId（SERVICE SKU）
 ServiceBinding "0..*" --> Spu : targetSpuId（PHYSICAL）
 
 note bottom of ProductImage
@@ -113,8 +115,15 @@ note bottom of ProductImage
 end note
 
 note bottom of ServiceBinding
-  服务 SPU 与实体 SPU 的关联：
-  碎屏险(SERVICE) → 手机(PHYSICAL)
+  三种定价模式：
+  1. 无 binding → 独立售卖，售价 = SKU.priceCents
+     上门回收 ¥99：SKU.priceCents=9900
+  2. binding + priceCents=null → 限定适用范围，继承 SKU 标准价
+     镭雕 ¥199：SKU.priceCents=19900, binding(Mate80,null)
+  3. binding + priceCents≠null → 上下文定价，覆盖 SKU 标准价
+     Care+一年(SKU) × Mate80(SPU) → ¥299
+     Care+一年(SKU) × Pura70(SPU) → ¥259
+  最终售价 = binding.priceCents ?? sku.priceCents
 end note
 @enduml
 ```
@@ -142,25 +151,35 @@ end note
 | CategoryID | Long | 所属类目，必填 |
 | 名称 | String | 必填 |
 | 描述 | String | 可选 |
-| productType | ProductType | 🔲 PHYSICAL（默认）/ SERVICE |
-| serviceCategory | String | 🔲 仅 SERVICE 类型，如 SCREEN_INSURANCE、EXTENDED_WARRANTY |
-| serviceDurationDays | Integer | 🔲 仅 SERVICE 类型，服务有效期天数 |
+| productType | ProductType | ✅ PHYSICAL（默认）/ SERVICE |
 
-组合 SpecDimension、SKU。**不变式**：名称、CategoryID、productType 必填；描述可选；serviceCategory 和 serviceDurationDays 仅 SERVICE 时有值。
+组合 SpecDimension、SKU。**不变式**：名称、CategoryID、productType 必填；描述可选。
 
-> 🔲 新增属性来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)
+服务期限通过 SpecDimension（如"服务期限"）+ SpecOption（如"一年"、"两年"）表达，与实体商品的规格维度完全统一。
 
-### ServiceBinding — 实体（🔲 新增）
+> ✅ 新增属性来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)
+
+### ServiceBinding — 实体（✅ 已实现）
 
 > 来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)
+
+表达服务 SKU 对实体商品的**适用关系**，可选地携带**价格覆盖**。
+
+- **存在 binding** → 该服务 SKU 适用于该目标 SPU
+- **priceCents ≠ null** → 上下文定价，覆盖 SKU 标准价
+- **priceCents = null** → 继承 SKU.priceCents 作为售价
+- **无 binding 的 SERVICE SKU** → 可独立售卖，价格为 SKU.priceCents
+
+定价规则：`最终售价 = binding.priceCents ?? sku.priceCents`
 
 | 属性 | 类型 | 说明 |
 |------|------|------|
 | serviceBindingId | Long | 唯一标识 |
-| serviceSpuId | Long | 服务 SPU ID，必填，须为 SERVICE 类型 |
+| serviceSkuId | Long | 服务 SKU ID，必填，须属 SERVICE 类型 SPU |
 | targetSpuId | Long | 目标实体 SPU ID，必填，须为 PHYSICAL 类型 |
+| priceCents | Long | 可选（nullable）；不为 null 时覆盖 SKU 标准价，≥0 |
 
-**不变式**：serviceSpuId 所指 SPU 的 productType 必须为 SERVICE；targetSpuId 所指 SPU 的 productType 必须为 PHYSICAL。
+**不变式**：serviceSkuId 所属 SPU 的 productType 必须为 SERVICE；targetSpuId 所指 SPU 的 productType 必须为 PHYSICAL；priceCents 不为 null 时 ≥ 0。
 
 #### SpecDimension — 实体
 
@@ -229,6 +248,6 @@ end note
 | ProductImage | product_image |
 | Sku | sku |
 | SKUSpecValue | sku_id + spec_option_id |
-| ServiceBinding | service_binding（🔲 新增） |
+| ServiceBinding | service_binding |
 
 不变式由应用层校验。

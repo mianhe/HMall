@@ -59,7 +59,7 @@ flowchart TB
 
 | 上下文 | 职责 | 状态 | 与 project-status 对应 |
 |--------|------|------|------------------------|
-| **Catalog** | 类目、商品(SPU)、规格维度、SKU、展示图 | ✅ 已实现 | 4 feature，45 scenario |
+| **Catalog** | 类目、商品(SPU)、规格维度、SKU、展示图、商品类型（PHYSICAL/SERVICE）与服务绑定（ServiceBinding） | ✅ 已实现 | 5 feature，63 scenario |
 | **User** | 用户注册、登录(JWT)、收货地址管理 | ✅ 已实现 | 3 feature，19 scenario |
 | **Order** | 订单创建、取消、查询、事件驱动、状态流转 | ✅ 已实现 | 4 feature，25 scenario；已集成 Inventory + Fulfillment |
 | **BFF** | `frontend` 统一 API 入口，代理 Catalog/User/Order/Inventory/Cart/Fulfillment | ✅ POC | 透传代理、CORS、4xx/5xx 转发 |

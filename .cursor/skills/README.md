@@ -139,6 +139,12 @@ flowchart LR
 | 跨 BC 对接 | integration |
 | 前端页面开发 | frontend-development |
 
+### ⚠️ Skill 流程不可绕过
+
+**任何涉及领域模型、特性、验收测试或 API 契约的变更，都必须通过对应的 Skill 执行。** 即使是在对话讨论中产生的变更决策，也必须先明确对应的 Skill、读取并走完其完整流程——而不是"顺手改代码"。
+
+分析阶段（`analyze-requirement`）只产出文档，不产出代码。代码实现必须切换到 `evolve-feature` 等 Skill。
+
 ### 如何选择 Skill
 
 ```

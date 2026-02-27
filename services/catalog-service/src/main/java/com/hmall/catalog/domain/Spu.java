@@ -12,36 +12,29 @@ public class Spu {
     private final Long categoryId;
     private final String name;
     private final String description;
+    private final String productType;
 
     /** 新建（尚未持久化，id 为 null） */
-    public Spu(Long categoryId, String name, String description) {
+    public Spu(Long categoryId, String name, String description, String productType) {
         this.id = null;
         this.categoryId = Objects.requireNonNull(categoryId, "categoryId");
         this.name = Objects.requireNonNull(name, "name");
         this.description = description;
+        this.productType = productType != null ? productType : "PHYSICAL";
     }
 
     /** 从持久化还原 */
-    public Spu(Long id, Long categoryId, String name, String description) {
+    public Spu(Long id, Long categoryId, String name, String description, String productType) {
         this.id = Objects.requireNonNull(id, "id");
         this.categoryId = Objects.requireNonNull(categoryId, "categoryId");
         this.name = Objects.requireNonNull(name, "name");
         this.description = description;
+        this.productType = productType != null ? productType : "PHYSICAL";
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public Long getCategoryId() {
-        return categoryId;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getDescription() {
-        return description;
-    }
+    public Long getId() { return id; }
+    public Long getCategoryId() { return categoryId; }
+    public String getName() { return name; }
+    public String getDescription() { return description; }
+    public String getProductType() { return productType; }
 }
