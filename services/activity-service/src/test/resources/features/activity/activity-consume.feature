@@ -23,6 +23,7 @@
       | a0000001-0000-0000-0000-000000000010 | FulfillmentOrderAllocated  | fulfillment.order.allocated | 110     | 2025-02-19T10:09:00Z |
       | a0000001-0000-0000-0000-000000000011 | FulfillmentShipped         | fulfillment.shipped         | 111     | 2025-02-19T10:10:00Z |
       | a0000001-0000-0000-0000-000000000012 | FulfillmentDelivered       | fulfillment.delivered       | 112     | 2025-02-19T10:11:00Z |
+      | a0000001-0000-0000-0000-000000000013 | ServiceActivated           | fulfillment.service.activated | 113   | 2025-02-19T10:12:00Z |
 
   场景: 重复事件不应重复记录
     假如 已存在活动记录 eventId "dup-event-001" eventType "OrderCreated" topic "order.created" orderId 201 occurredAt "2025-02-19T12:00:00Z"

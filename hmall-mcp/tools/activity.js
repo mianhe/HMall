@@ -26,6 +26,9 @@ function ok(text) {
 }
 
 function err(e) {
+  if (e.cause?.code === 'ECONNREFUSED' || e.message?.includes('ECONNREFUSED') || e.message?.includes('fetch failed')) {
+    return { content: [{ type: 'text', text: `错误：无法连接后端服务（${ACTIVITY_API_BASE}），请确认服务已启动。原始错误：${e.message}` }] }
+  }
   return { content: [{ type: 'text', text: `错误：${e.message}` }] }
 }
 

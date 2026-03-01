@@ -11,7 +11,7 @@ public interface CreateFulfillmentPort {
     List<Long> createFulfillment(Long orderId, List<ItemQuantity> items,
                                   ShippingAddress shippingAddress);
 
-    record ItemQuantity(long skuId, int quantity) {}
+    record ItemQuantity(long skuId, int quantity, String itemType) {}
 
     record ShippingAddress(String recipientName, String phone,
                            String province, String city,

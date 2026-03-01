@@ -8,6 +8,8 @@ import java.util.List;
 public class OccupyInventoryStub implements OccupyInventoryPort {
 
     private volatile boolean shouldFail;
+    private volatile int callCount;
+    private volatile int lastItemCount;
 
     public void setShouldFail(boolean fail) {
         this.shouldFail = fail;
@@ -15,10 +17,22 @@ public class OccupyInventoryStub implements OccupyInventoryPort {
 
     public void reset() {
         this.shouldFail = false;
+        this.callCount = 0;
+        this.lastItemCount = 0;
+    }
+
+    public int getCallCount() {
+        return callCount;
+    }
+
+    public int getLastItemCount() {
+        return lastItemCount;
     }
 
     @Override
     public void occupy(Long orderId, List<OccupyInventoryPort.ItemQuantity> items) {
+        callCount++;
+        lastItemCount = items == null ? 0 : items.size();
         if (shouldFail) {
             throw new RuntimeException("库存不足");
         }

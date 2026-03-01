@@ -9,4 +9,6 @@ public interface DomainEventPublisher {
     void publish(FulfillmentShipped event);
 
     void publish(FulfillmentDelivered event);
+
+    void publish(ServiceActivated event);
 }

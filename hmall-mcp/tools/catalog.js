@@ -1,5 +1,5 @@
 /**
- * Catalog 模块的 MCP tools（收敛版）：7 个 resource-level tools + 1 个 upload，共 8 个。
+ * Catalog 模块的 MCP tools（收敛版）：8 个 resource-level tools + 1 个 upload + 1 个 available-services，共 10 个。
  * 调后端 REST API。设计见 hmall-mcp/docs/TOOLS.md。
  */
 import { z } from 'zod'
@@ -48,6 +48,9 @@ function ok(text) {
 }
 
 function err(e) {
+  if (e.cause?.code === 'ECONNREFUSED' || e.message?.includes('ECONNREFUSED') || e.message?.includes('fetch failed')) {
+    return { content: [{ type: 'text', text: `错误：无法连接后端服务（${API_BASE}），请确认服务已启动。原始错误：${e.message}` }] }
+  }
   return { content: [{ type: 'text', text: `错误：${e.message}` }] }
 }
 
@@ -55,7 +58,7 @@ export function registerCatalogTools(server) {
   const actionList = z.enum(['list', 'tree', 'get', 'create', 'update', 'delete'])
   const actionProducts = z.enum(['list', 'get', 'create', 'update', 'delete'])
   const actionDims = z.enum(['list', 'add_dimension', 'add_option', 'delete_option'])
-  const actionSkus = z.enum(['list', 'create', 'update', 'delete'])
+  // actionSkus enum moved inline to actionSkusFull below
   const actionImages = z.enum(['list', 'add', 'delete'])
 
   // ── 1. catalog_categories ──
@@ -229,13 +232,14 @@ export function registerCatalogTools(server) {
   )
 
   // ── 4. catalog_skus ──
+  const actionSkusFull = z.enum(['list', 'get', 'get_by_id', 'create', 'update', 'delete'])
   server.tool(
     'catalog_skus',
-    'SKU 查询与管理。SKU = 各规格维度选项的组合 + 价格（priceCents，单位：分）。action=list 查某 SPU 下所有 SKU；create 需传 specOptionIds（各维度选项 ID 列表）+ priceCents；update 可改价格或展示名；delete 删除。',
+    'SKU 查询与管理。SKU = 各规格维度选项的组合 + 价格（priceCents，单位：分）。SKU.priceCents 是该 SKU 的标准售价。\n\n⚠️ 对于 SERVICE 类型商品：如果服务通过 ServiceBinding 绑定到了实体商品，最终消费者看到的售价由 binding.priceCents 决定（binding 为 null 时才 fallback 到 SKU.priceCents）。要改某个实体商品上的服务价格，应改 binding 价格（用 catalog_service_bindings update），不要改 SKU 标准价——除非你确实要改所有绑定继承的基础价格。\n\naction=list(spuId) 查某 SPU 下所有 SKU；get(spuId,skuId) 查详情；get_by_id(skuId) 只需 skuId 即可查 SKU 详情（不需要 spuId，适用于从购物车/订单/库存拿到 skuId 后查详情）；create 需传 spuId + specOptionIds + priceCents；update 可改标准价格或展示名；delete 删除。',
     {
-      action: actionSkus,
-      spuId: z.number().describe('商品(SPU) ID'),
-      skuId: z.number().optional().describe('update/delete 时必填'),
+      action: actionSkusFull,
+      spuId: z.number().optional().describe('list/get/create/update/delete 时必填；get_by_id 时不需要'),
+      skuId: z.number().optional().describe('get/get_by_id/update/delete 时必填'),
       specOptionIds: z.array(z.number()).optional().describe('create 时必填'),
       priceCents: z.number().min(0).optional().describe('create 必填，update 可选'),
       displayName: z.string().optional(),
@@ -247,9 +251,19 @@ export function registerCatalogTools(server) {
           if (!list.length) return ok('该商品暂无 SKU。')
           const lines = list.map(s => {
             const spec = (s.specValues || []).map(v => `${v.dimensionName}:${v.optionValue}`).join(', ') || '—'
-            return `[${s.id}] ${spec} ¥${(s.priceCents / 100).toFixed(2)}${s.displayName ? ' ' + s.displayName : ''}`
+            return `[${s.id}] ${spec} ¥${(s.priceCents / 100).toFixed(2)}${s.displayName ? ' ' + s.displayName : ''}${s.productType ? ' [' + s.productType + ']' : ''}`
           })
           return ok(lines.join('\n'))
+        }
+        if (action === 'get') {
+          const s = await api('GET', `/products/${spuId}/skus/${skuId}`)
+          const spec = (s.specValues || []).map(v => `${v.dimensionName}:${v.optionValue}`).join(', ') || '—'
+          return ok(`SKU [${s.id}] SPU=${s.spuId}${s.spuName ? '(' + s.spuName + ')' : ''} ${spec} ¥${(s.priceCents / 100).toFixed(2)}${s.displayName ? ' ' + s.displayName : ''}${s.productType ? ' [' + s.productType + ']' : ''}`)
+        }
+        if (action === 'get_by_id') {
+          const s = await api('GET', `/skus/${skuId}`)
+          const spec = (s.specValues || []).map(v => `${v.dimensionName}:${v.optionValue}`).join(', ') || '—'
+          return ok(`SKU [${s.id}] SPU=${s.spuId}${s.spuName ? '(' + s.spuName + ')' : ''} ${spec} ¥${(s.priceCents / 100).toFixed(2)}${s.displayName ? ' ' + s.displayName : ''}${s.productType ? ' [' + s.productType + ']' : ''}`)
         }
         if (action === 'create') {
           const s = await api('POST', `/products/${spuId}/skus`, { specOptionIds, priceCents, displayName: displayName ?? null })
@@ -371,16 +385,24 @@ export function registerCatalogTools(server) {
   )
 
   // ── 8. catalog_service_bindings ──
-  const actionBindings = z.enum(['list', 'create', 'delete'])
+  const actionBindings = z.enum(['list', 'create', 'update', 'delete'])
+  const coerceNullablePrice = z.preprocess(
+    (val) => {
+      if (val === null || val === undefined || val === 'null') return null
+      const n = Number(val)
+      return Number.isNaN(n) ? val : n
+    },
+    z.number().min(0).nullable(),
+  )
   server.tool(
     'catalog_service_bindings',
-    '服务绑定(ServiceBinding)管理。将 SERVICE 类型商品的 SKU 绑定到 PHYSICAL 类型商品(SPU)，并指定价格。三种定价模式：(1)无 binding → 服务独立售卖，价格=SKU.priceCents；(2)binding+priceCents 为空 → 限定适用范围，继承 SKU 标准价；(3)binding+priceCents 非空 → 上下文定价，覆盖 SKU 标准价。action=list 查某服务 SKU 的全部 binding；create 创建 binding；delete 删除 binding。',
+    '服务绑定(ServiceBinding)管理。将 SERVICE SKU 绑定到 PHYSICAL SPU，可附带上下文定价。action=list 查某服务 SKU 的全部 binding；create 创建；update(skuId,bindingId,priceCents) 修改绑定价格；delete 删除。\n\n💡 查看/修改某实体商品的服务价格：先用 catalog_available_services 查到 bindingId 和 serviceSkuId，再用 update 修改。',
     {
-      action: actionBindings.describe('list|create|delete'),
+      action: actionBindings.describe('list|create|update|delete'),
       skuId: z.number().describe('服务 SKU ID'),
-      bindingId: z.number().optional().describe('delete 时必填'),
+      bindingId: z.number().optional().describe('update/delete 时必填'),
       targetSpuId: z.number().optional().describe('create 时必填：绑定到的实体商品(SPU) ID'),
-      priceCents: z.number().min(0).nullable().optional().describe('create 时可选：绑定价格（分），null 表示继承 SKU 标准价'),
+      priceCents: coerceNullablePrice.optional().describe('create/update 时可选：绑定价格（分），传 null 表示继承 SKU 标准价'),
     },
     async ({ action, skuId, bindingId, targetSpuId, priceCents }) => {
       try {
@@ -399,11 +421,44 @@ export function registerCatalogTools(server) {
           const price = b.priceCents != null ? `¥${(b.priceCents / 100).toFixed(2)}` : '继承SKU标准价'
           return ok(`创建绑定成功：ID=${b.id}，服务SKU=${b.serviceSkuId} → 目标SPU=${b.targetSpuId}，价格=${price}`)
         }
+        if (action === 'update') {
+          if (priceCents === undefined) {
+            return err(new Error('update 时必须传 priceCents（数字表示新价格，null 表示改为继承 SKU 标准价）'))
+          }
+          const body = { priceCents }
+          const b = await api('PUT', `/skus/${skuId}/service-bindings/${bindingId}`, body)
+          const price = b.priceCents != null ? `¥${(b.priceCents / 100).toFixed(2)}` : '继承SKU标准价'
+          return ok(`修改绑定成功：ID=${b.id}，价格=${price}`)
+        }
         if (action === 'delete') {
           await api('DELETE', `/skus/${skuId}/service-bindings/${bindingId}`)
           return ok(`已删除绑定 ID=${bindingId}`)
         }
         return err(new Error('未知 action'))
+      } catch (e) { return err(e) }
+    }
+  )
+
+  // ── 9. catalog_available_services ──
+  server.tool(
+    'catalog_available_services',
+    '查询某实体商品(SPU)的可选服务列表（从实体商品角度出发）。返回所有已绑定到该 SPU 的服务，按服务 SPU 分组，每个服务下列出已绑定的 SKU 及其最终售价。适用于「查看手机可选的碎屏险/延保」等场景。\n\n返回字段含 bindingId 和 serviceSkuId，可直接用于 catalog_service_bindings 的 update（修改绑定价格）或 delete（删除绑定）。',
+    {
+      spuId: z.number().describe('实体商品(SPU) ID'),
+    },
+    async ({ spuId }) => {
+      try {
+        const services = await api('GET', `/products/${spuId}/available-services`)
+        if (!services.length) return ok('该商品暂无可选服务。')
+        const lines = []
+        for (const svc of services) {
+          lines.push(`服务：[SPU ${svc.serviceSpuId}] ${svc.name}${svc.description ? ' - ' + svc.description : ''}`)
+          for (const b of (svc.bindings || [])) {
+            const spec = (b.specValues || []).map(v => `${v.dimensionName}:${v.optionValue}`).join(', ')
+            lines.push(`  [bindingId=${b.bindingId}] serviceSkuId=${b.serviceSkuId} ${spec ? spec + ' ' : ''}¥${(b.priceCents / 100).toFixed(2)}`)
+          }
+        }
+        return ok(lines.join('\n'))
       } catch (e) { return err(e) }
     }
   )

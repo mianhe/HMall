@@ -46,3 +46,25 @@
     那么 订单 status 应为 DELIVERED
     并且 应已发布 OrderCompleted
 
+  场景: 4.8 纯服务订单收到 ServiceActivated 后应完成订单
+    假如 已存在用户 "alice" 密码 "secret123"
+    并且 Catalog 已有服务商品 "碎屏险一年期" skuId 223 价格 29900 分
+    当 用户 "alice" 提交订单 收货地址 "何勉" "13641793760" "上海" "上海" "浦东新区" "羽山路100弄9号2902" 购买 "碎屏险一年期" 数量 1
+    当 发布 PaymentCompleted 事件 针对该订单 paymentId 1001
+    当 发布 ServiceActivated 事件 针对该订单
+    那么 订单 status 应为 DELIVERED
+    并且 应已发布 OrderCompleted
+
+  场景: 4.9 混合订单按最慢原则，需实体 Delivered 与服务 Activated 全部到达才完成
+    假如 已存在用户 "alice" 密码 "secret123"
+    并且 Catalog 已有商品 "iPhone 15" skuId 123 价格 599900 分
+    并且 Catalog 已有服务商品 "碎屏险一年期" skuId 223 价格 29900 分
+    当 用户 "alice" 提交混合订单 收货地址 "何勉" "13641793760" "上海" "上海" "浦东新区" "羽山路100弄9号2902" 购买 "iPhone 15" 数量 1 和服务 "碎屏险一年期" 数量 1
+    当 发布 PaymentCompleted 事件 针对该订单 paymentId 1001
+    当 发布 FulfillmentDelivered 事件 针对该订单
+    那么 订单 status 应为 DELIVERED
+    并且 应未发布 OrderCompleted
+    当 发布 ServiceActivated 事件 针对该订单
+    那么 订单 status 应为 DELIVERED
+    并且 应已发布 OrderCompleted
+

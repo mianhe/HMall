@@ -5,6 +5,7 @@ import com.hmall.fulfillment.domain.FulfillmentDelivered;
 import com.hmall.fulfillment.domain.FulfillmentOrderAllocated;
 import com.hmall.fulfillment.domain.FulfillmentOrderCreated;
 import com.hmall.fulfillment.domain.FulfillmentShipped;
+import com.hmall.fulfillment.domain.ServiceActivated;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -52,5 +53,13 @@ public class KafkaDomainEventPublisher implements DomainEventPublisher {
         var msg = FulfillmentDeliveredMessage.from(event);
         kafkaTemplate.send(props.getFulfillmentDelivered(), String.valueOf(event.orderId()), msg);
         log.info("Kafka 发布 FulfillmentDelivered: orderId={}, fulfillmentOrderId={}", event.orderId(), event.fulfillmentOrderId());
+    }
+
+    @Override
+    public void publish(ServiceActivated event) {
+        var msg = ServiceActivatedMessage.from(event);
+        kafkaTemplate.send(props.getServiceActivated(), String.valueOf(event.orderId()), msg);
+        log.info("Kafka 发布 ServiceActivated: orderId={}, fulfillmentOrderId={}, serviceSkuId={}",
+            event.orderId(), event.fulfillmentOrderId(), event.serviceSkuId());
     }
 }

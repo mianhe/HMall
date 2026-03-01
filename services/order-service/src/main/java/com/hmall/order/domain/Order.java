@@ -13,6 +13,8 @@ public class Order {
     private final long totalAmountCents;
     private final ShippingAddress shippingAddress;
     private final List<OrderLineItem> items;
+    private final boolean physicalDelivered;
+    private final boolean serviceActivated;
     private final Instant createdAt;
     private final Instant updatedAt;
 
@@ -23,18 +25,24 @@ public class Order {
         this.totalAmountCents = items.stream().mapToLong(OrderLineItem::getTotalPriceCents).sum();
         this.shippingAddress = Objects.requireNonNull(shippingAddress, "shippingAddress");
         this.items = new ArrayList<>(items);
+        this.physicalDelivered = false;
+        this.serviceActivated = false;
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
     }
 
     public Order(Long orderId, Long userId, OrderStatus status, long totalAmountCents,
-                 ShippingAddress shippingAddress, List<OrderLineItem> items, Instant createdAt, Instant updatedAt) {
+                 ShippingAddress shippingAddress, List<OrderLineItem> items,
+                 boolean physicalDelivered, boolean serviceActivated,
+                 Instant createdAt, Instant updatedAt) {
         this.orderId = orderId;
         this.userId = userId;
         this.status = status;
         this.totalAmountCents = totalAmountCents;
         this.shippingAddress = shippingAddress;
         this.items = new ArrayList<>(items);
+        this.physicalDelivered = physicalDelivered;
+        this.serviceActivated = serviceActivated;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -45,6 +53,10 @@ public class Order {
     public long getTotalAmountCents() { return totalAmountCents; }
     public ShippingAddress getShippingAddress() { return shippingAddress; }
     public List<OrderLineItem> getItems() { return List.copyOf(items); }
+    public boolean isPhysicalDelivered() { return physicalDelivered; }
+    public boolean isServiceActivated() { return serviceActivated; }
+    public boolean hasPhysicalItems() { return items.stream().anyMatch(i -> i.getItemType() == OrderItemType.PHYSICAL); }
+    public boolean hasServiceItems() { return items.stream().anyMatch(i -> i.getItemType() == OrderItemType.SERVICE); }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

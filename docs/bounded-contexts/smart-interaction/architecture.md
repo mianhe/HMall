@@ -119,12 +119,13 @@ MCP Server (tools/list)
 ChatOrchestrator
   1. 加载 Skill（无则使用默认 Skill）
   2. 构建 system message = 基础规则 + Skill.systemPrompt
-  3. 从 MCP 获取全量 tools → 按 Skill.allowedTools 过滤
-  4. 发送给 LLM（streaming）
-  5. LLM 返回文本 → 推 SSE delta
-  6. LLM 返回 tool_calls → 执行 → 结果回填 → 再次调 LLM（循环）
-  7. 最终回复 → 推 SSE done
-  8. 持久化对话记录
+  3. 从 MCP 获取 Resources → 按 Skill.allowedTools 匹配相关 Resources → 读取内容注入 system prompt
+  4. 从 MCP 获取全量 tools → 按 Skill.allowedTools 过滤
+  5. 发送给 LLM（streaming）
+  6. LLM 返回文本 → 推 SSE delta
+  7. LLM 返回 tool_calls → 执行 → 结果回填 → 再次调 LLM（循环）
+  8. 最终回复 → 推 SSE done
+  9. 持久化对话记录
 ```
 
 ### 3.5 Skill 自动匹配
@@ -165,9 +166,10 @@ ChatOrchestrator
   2. 工具数 ≤ 15 → 直接收集所有 audience 匹配的 Skill（跳过 LLM 路由）
      工具数 > 15 → LLM 路由：用户消息 + Skill name/description → 返回匹配的 Skill
   3. 合并匹配到的 Skill 的 systemPrompt（拼接，各 Skill 用分隔标记）
-  4. 从 MCP 获取全量 tools → 不过滤（clientType 无时）或按 Skill allowedTools 并集过滤（clientType 有时）
-  5. 推 SSE skill_matched 事件 → 前端更新 Skill 选择器
-  6. 后续流程与手动选择一致（LLM 流式调用 → tool call 循环 → 最终回复）
+  4. 从 MCP 获取 Resources → 按匹配 Skill 的 allowedTools 匹配相关 Resources → 读取内容注入 system prompt
+  5. 从 MCP 获取全量 tools → 不过滤（clientType 无时）或按 Skill allowedTools 并集过滤（clientType 有时）
+  6. 推 SSE skill_matched 事件 → 前端更新 Skill 选择器
+  7. 后续流程与手动选择一致（LLM 流式调用 → tool call 循环 → 最终回复）
 ```
 
 对比手动选择时的流程：
@@ -209,6 +211,12 @@ hmall-mcp/
 │   ├── order.js          # 订单查询（待扩展）
 │   ├── fulfillment.js    # 履约管理（待扩展）
 │   └── activity.js       # 监控与统计（待扩展）
+├── resources/
+│   ├── catalog-domain.js        # Catalog 领域知识
+│   ├── inventory-domain.js      # Inventory 领域知识
+│   ├── cart-order-domain.js     # Cart & Order 领域知识
+│   ├── fulfillment-domain.js    # Fulfillment 领域知识
+│   └── activity-domain.js       # Activity 领域知识
 └── package.json
 ```
 
@@ -218,6 +226,7 @@ MCP Server **只做**：
 - 暴露 Tools（包含 name、description、inputSchema）
 - 接收 tool call 请求，转发到对应 BC 的 REST API
 - 返回执行结果
+- 暴露 Resources（领域知识文档），供 Client 在对话上下文中注入
 
 MCP Server **不做**：
 - 不知道 Skill 的存在
@@ -233,6 +242,16 @@ MCP Server **不做**：
 示例：`catalog_list_products`、`inventory_query_stock`、`order_list_orders`
 
 模块前缀使 Skill 的通配符过滤（`inventory_*`）自然可行。
+
+### 4.4 Resource 命名约定
+
+```
+hmall://{domain}/domain-knowledge
+```
+
+示例：`hmall://catalog/domain-knowledge`、`hmall://inventory/domain-knowledge`、`hmall://cart-order/domain-knowledge`
+
+每个 Resource 对应一个领域的知识文档，Client 按需读取并注入 system prompt。
 
 ---
 

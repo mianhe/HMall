@@ -38,7 +38,6 @@ class OrderLineItem <<实体>> {
   - displayName: String
   - itemType: ItemType {PHYSICAL|SERVICE}
   - relatedSkuId: Long {SERVICE 关联的实体 SKU}
-  - relatedOrderId: Long {补购关联的原订单}
   - serviceAttributes: Map
   --
   不变式: quantity>0, 价格≥0, itemType 必填
@@ -123,7 +122,6 @@ end note
 | displayName | String | 商品展示名，快照 |
 | itemType | ItemType | 🔲 PHYSICAL / SERVICE，创建时从 Catalog SPU.productType 带入 |
 | relatedSkuId | Long | 🔲 SERVICE 类型关联的实体 SKU ID（随购时为同单实体 SKU） |
-| relatedOrderId | Long | 🔲 补购场景关联的原始订单 ID |
 | serviceAttributes | Map | 增值服务（如 engravingText） |
 
 **不变式**：quantity>0；unitPriceCents、totalPriceCents≥0；itemType 必填。

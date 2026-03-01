@@ -26,7 +26,7 @@ public class CartAddItemStepDefinitions {
 
     @当("用户添加 SKU {long} 数量 {int} 到购物车")
     public void 用户添加SKU到购物车(long skuId, int quantity) {
-        ResponseEntity<Map> response = postAddItem(skuId, quantity);
+        ResponseEntity<Map> response = postAddItem(skuId, quantity, null);
         context.setLastStatusCode(response.getStatusCode().value());
         if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
             context.setLastCartItemResponse(response.getBody());
@@ -42,6 +42,20 @@ public class CartAddItemStepDefinitions {
     public void 用户已添加SKU到购物车(long skuId, int quantity) {
         用户添加SKU到购物车(skuId, quantity);
         assertThat(context.getLastStatusCode()).isEqualTo(200);
+    }
+
+    @当("用户添加服务 SKU {long} 关联实体 SKU {long} 数量 {int} 到购物车")
+    public void 用户添加服务SKU关联实体SKU到购物车(long serviceSkuId, long relatedSkuId, int quantity) {
+        ResponseEntity<Map> response = postAddItem(serviceSkuId, quantity, relatedSkuId);
+        context.setLastStatusCode(response.getStatusCode().value());
+        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+            context.setLastCartItemResponse(response.getBody());
+            Number cartItemId = (Number) response.getBody().get("cartItemId");
+            if (cartItemId != null) {
+                context.setLastCartItemId(cartItemId.longValue());
+                context.addCartItemId(cartItemId.longValue());
+            }
+        }
     }
 
     @并且("返回的购物车项 skuId 为 {long}")
@@ -60,13 +74,24 @@ public class CartAddItemStepDefinitions {
         assertThat(quantity.intValue()).isEqualTo(expectedQuantity);
     }
 
-    private ResponseEntity<Map> postAddItem(long skuId, int quantity) {
+    @并且("返回的购物车项 relatedSkuId 为 {long}")
+    public void 返回的购物车项relatedSkuId为(long expectedRelatedSkuId) {
+        Map<String, Object> body = context.getLastCartItemResponse();
+        assertThat(body).isNotNull();
+        Number relatedSkuId = (Number) body.get("relatedSkuId");
+        assertThat(relatedSkuId).isNotNull();
+        assertThat(relatedSkuId.longValue()).isEqualTo(expectedRelatedSkuId);
+    }
+
+    private ResponseEntity<Map> postAddItem(long skuId, int quantity, Long relatedSkuId) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         if (context.getCurrentUserId() != null) {
             headers.set("X-User-Id", context.getCurrentUserId().toString());
         }
-        Map<String, Object> body = Map.of("skuId", skuId, "quantity", quantity);
+        Map<String, Object> body = relatedSkuId == null
+            ? Map.of("skuId", skuId, "quantity", quantity)
+            : Map.of("skuId", skuId, "quantity", quantity, "relatedSkuId", relatedSkuId);
         try {
             return restTemplate.postForEntity(
                 "/api/cart/items",

@@ -949,10 +949,12 @@ cmd_test() {
   local cucumber_only=0
   local clean=0
   local bc_filter=""
+  local ui_smoke=0
   while [ $# -gt 0 ]; do
     case "$1" in
       --cucumber-only) cucumber_only=1 ;;
       --clean) clean=1 ;;
+      --ui-smoke) ui_smoke=1 ;;
       --bc)
         shift
         if [ -z "${1:-}" ]; then
@@ -980,6 +982,22 @@ cmd_test() {
     esac
     shift
   done
+
+  if [ $ui_smoke -eq 1 ] && { [ $cucumber_only -eq 1 ] || [ $clean -eq 1 ] || [ -n "$bc_filter" ]; }; then
+    echo "Error: --ui-smoke cannot be combined with --cucumber-only, --clean, or --bc" >&2
+    exit 1
+  fi
+
+  if [ $ui_smoke -eq 1 ]; then
+    echo "Preparing dependencies for frontend smoke e2e..."
+    run_start db catalog-service user-service order-service inventory-service payment-service activity-service cart-service fulfillment-service bff-web
+    echo ""
+    echo "========== Running frontend-web smoke e2e =========="
+    local ui_log="${SUMMARY_DIR}/frontend-web-smoke-e2e.log"
+    mkdir -p "$SUMMARY_DIR"
+    (cd "${ROOT}/frontend/web" && npm run test:smoke:e2e) 2>&1 | tee "$ui_log"
+    exit "${PIPESTATUS[0]}"
+  fi
 
   if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; then
     echo "DB not running. Starting DB..."
@@ -1070,7 +1088,7 @@ usage() {
   echo "  command:  start | stop | status | restart | test | seed-inventory"
   echo "  components: db | catalog-service | user-service | order-service | inventory-service | payment-service | activity-service | cart-service | fulfillment-service | smart-interaction-service | bff-web | frontend-admin | frontend-web | mcp (default: all for start/stop/restart)"
   echo "  seed-inventory: 可选 skuId 列表，不传则对 1～50 设置 available=99"
-  echo "  test options: [--cucumber-only] [--clean] [--bc catalog|user|order|inventory|payment|activity|cart|fulfillment|smart-interaction|bff|all]"
+  echo "  test options: [--cucumber-only] [--clean] [--ui-smoke] [--bc catalog|user|order|inventory|payment|activity|cart|fulfillment|smart-interaction|bff|all]"
   echo "See scripts/README.md for details."
 }
 

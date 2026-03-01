@@ -103,6 +103,6 @@ Payment BC 负责**支付单的创建、支付结果处理、退款与超时检�
 
 - **幂等**：createPayment 按 orderId 幂等；refund 按 orderId 幂等；回调按 paymentId 幂等。
 - **网关边界**：真实支付网关（支付宝/微信等）由 Payment 通过「支付网关适配器」对接；当前可用模拟网关（返回固定 payUrl，回调由测试或脚本触发）。
-- **事件总线**：PaymentCompleted / PaymentFailed / PaymentExpired 通过 Kafka 发布，跨 BC 通信统一走 Kafka（见 [architecture/integration.md](../../architecture/integration.md)）。
+- **事件总线**：PaymentCompleted / PaymentFailed / PaymentExpired 通过 Kafka 发布，跨 BC 通信统一走 Kafka（见 [context-map.md](../../context-map.md)）。
 
 以上为 Payment BC 的需求分析，可作为后续领域模型、API 契约与 ATDD 场景的输入。领域模型见 [domain-model.md](./domain-model.md)。

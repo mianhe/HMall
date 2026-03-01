@@ -18,6 +18,7 @@ public class OrderKafkaProperties {
     private String fulfillmentOrderAllocated = "fulfillment.order.allocated";
     private String fulfillmentShipped = "fulfillment.shipped";
     private String fulfillmentDelivered = "fulfillment.delivered";
+    private String serviceActivated = "fulfillment.service.activated";
 
     public String getOrderCreated() {
         return orderCreated;
@@ -97,5 +98,13 @@ public class OrderKafkaProperties {
 
     public void setFulfillmentDelivered(String fulfillmentDelivered) {
         this.fulfillmentDelivered = fulfillmentDelivered;
+    }
+
+    public String getServiceActivated() {
+        return serviceActivated;
+    }
+
+    public void setServiceActivated(String serviceActivated) {
+        this.serviceActivated = serviceActivated;
     }
 }

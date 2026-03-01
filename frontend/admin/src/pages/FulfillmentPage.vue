@@ -36,7 +36,19 @@
             <option value="ALLOCATING">配货中</option>
             <option value="SHIPPED">已发货</option>
             <option value="DELIVERED">已签收</option>
+            <option value="ACTIVATED">已激活</option>
             <option value="CANCELLED">已取消</option>
+          </select>
+        </label>
+        <label class="flex flex-col gap-1">
+          <span class="text-sm font-medium text-gray-700">履约类型</span>
+          <select
+            v-model="filterType"
+            class="min-w-[140px] px-3 py-2 rounded-lg border border-vmall-gray-border text-gray-800 bg-white"
+          >
+            <option value="">全部</option>
+            <option value="PHYSICAL">实体</option>
+            <option value="VIRTUAL">虚拟</option>
           </select>
         </label>
         <button
@@ -54,6 +66,7 @@
             <tr>
               <th class="text-left py-3 px-4 font-medium text-gray-700 w-24">履约单ID</th>
               <th class="text-left py-3 px-4 font-medium text-gray-700 w-20">订单ID</th>
+              <th class="text-left py-3 px-4 font-medium text-gray-700 w-16">类型</th>
               <th class="text-left py-3 px-4 font-medium text-gray-700 w-20">状态</th>
               <th class="text-left py-3 px-4 font-medium text-gray-700">商品摘要</th>
               <th class="text-left py-3 px-4 font-medium text-gray-700 w-20">收货人</th>
@@ -75,6 +88,11 @@
               <td class="py-2 px-4 text-gray-800">{{ row.fulfillmentOrderId }}</td>
               <td class="py-2 px-4 text-gray-800">{{ row.orderId }}</td>
               <td class="py-2 px-4">
+                <span :class="typeClass(row.fulfillmentType)" class="px-2 py-0.5 rounded text-xs font-medium">
+                  {{ typeLabel(row.fulfillmentType) }}
+                </span>
+              </td>
+              <td class="py-2 px-4">
                 <span :class="statusClass(row.status)" class="px-2 py-0.5 rounded text-xs font-medium">
                   {{ statusLabel(row.status) }}
                 </span>
@@ -89,7 +107,11 @@
               <td class="py-2 px-4 text-gray-600">{{ formatTime(row.createdAt) }}</td>
               <td class="py-2 px-4">
                 <div class="flex flex-wrap gap-2 items-center">
-                  <template v-if="row.status === 'CREATED'">
+                  <!-- 虚拟履约单无需物流操作 -->
+                  <template v-if="row.fulfillmentType === 'VIRTUAL'">
+                    <span class="text-xs text-gray-400">{{ row.status === 'ACTIVATED' ? '已自动激活' : '—' }}</span>
+                  </template>
+                  <template v-else-if="row.status === 'CREATED'">
                     <button
                       @click="doAllocate(row)"
                       :disabled="actionLoading[row.fulfillmentOrderId]"
@@ -157,6 +179,7 @@ const loading = ref(false)
 const error = ref('')
 const filterOrderId = ref('')
 const filterStatus = ref('')
+const filterType = ref('')
 const actionLoading = reactive({})
 const actionError = reactive({})
 const shipForm = reactive({})
@@ -166,7 +189,16 @@ const STATUS_LABELS = {
   ALLOCATING: '配货中',
   SHIPPED: '已发货',
   DELIVERED: '已签收',
+  ACTIVATED: '已激活',
   CANCELLED: '已取消',
+}
+
+const TYPE_LABELS = { PHYSICAL: '实体', VIRTUAL: '虚拟' }
+
+function typeLabel(t) { return TYPE_LABELS[t] ?? t }
+
+function typeClass(t) {
+  return t === 'VIRTUAL' ? 'bg-blue-100 text-blue-800' : 'bg-gray-200 text-gray-700'
 }
 
 function statusLabel(s) {
@@ -179,6 +211,7 @@ function statusClass(s) {
     ALLOCATING: 'bg-amber-100 text-amber-800',
     SHIPPED: 'bg-blue-100 text-blue-800',
     DELIVERED: 'bg-green-100 text-green-800',
+    ACTIVATED: 'bg-green-100 text-green-800',
     CANCELLED: 'bg-gray-100 text-gray-500',
   }
   return map[s] ?? 'bg-gray-100 text-gray-700'
@@ -231,7 +264,11 @@ async function load() {
       if (!Number.isNaN(n)) params.orderId = n
     }
     if (filterStatus.value) params.status = filterStatus.value
-    list.value = await listFulfillmentOrders(params)
+    let rawList = await listFulfillmentOrders(params)
+    if (filterType.value) {
+      rawList = rawList.filter((r) => r.fulfillmentType === filterType.value)
+    }
+    list.value = rawList
     list.value.forEach((r) => {
       if (!shipForm[r.fulfillmentOrderId]) {
         shipForm[r.fulfillmentOrderId] = { carrier: '', trackingNumber: '' }

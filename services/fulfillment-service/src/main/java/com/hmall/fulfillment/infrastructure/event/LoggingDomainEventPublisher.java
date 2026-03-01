@@ -5,6 +5,7 @@ import com.hmall.fulfillment.domain.FulfillmentDelivered;
 import com.hmall.fulfillment.domain.FulfillmentOrderAllocated;
 import com.hmall.fulfillment.domain.FulfillmentOrderCreated;
 import com.hmall.fulfillment.domain.FulfillmentShipped;
+import com.hmall.fulfillment.domain.ServiceActivated;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -39,5 +40,11 @@ public class LoggingDomainEventPublisher implements DomainEventPublisher {
     public void publish(FulfillmentDelivered event) {
         log.info("领域事件 FulfillmentDelivered: orderId={}, fulfillmentOrderId={}",
                 event.orderId(), event.fulfillmentOrderId());
+    }
+
+    @Override
+    public void publish(ServiceActivated event) {
+        log.info("领域事件 ServiceActivated: orderId={}, fulfillmentOrderId={}, serviceSkuId={}",
+            event.orderId(), event.fulfillmentOrderId(), event.serviceSkuId());
     }
 }

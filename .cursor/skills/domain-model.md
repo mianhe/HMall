@@ -8,24 +8,97 @@
 
 ## 领域模型图
 
-图中只展示核心概念及其一级关系。各概念的内部组成见下方「概念定义」。
+各概念的内部组成与详细定义见下方「概念定义」。
 
 ![开发领域模型](./assets/domain-model.png)
 
-**图例说明**：
+```plantuml
+@startuml domain-model
+skinparam linetype ortho
+skinparam nodesep 60
+skinparam ranksep 40
+skinparam defaultFontSize 13
+skinparam packageStyle rectangle
+skinparam packageBorderColor #999
+skinparam packageFontSize 14
 
-- **系统级**（上方）：业务需求、系统级事件流、上下文地图与系统的关系
-  - 业务需求 → 各个限界上下文协同实现需求
-  - 系统级事件流 → 编排各个限界上下文
-  - 上下文地图 → 划分边界
-- **限界上下文**（中间枢纽）：连接问题域与解决方案域
-- **问题域**（左下）：领域模型、BC 级事件流、特性——属于限界上下文内部
-- **解决方案域 / 实现**（右下）：验收测试、API 契约、代码实现——属于限界上下文内部
-  - 特性 → 验收并守护 → 验收测试
-  - 验收测试 → 调用 API → API 契约
-  - 验收测试 + API 契约 → 验收测试和接口驱动开发 → 代码实现
-  - 领域模型 → 实现 → 代码实现
-- **前端**（右侧）：与限界上下文并列，属于系统级；持有界面规格和代码实现
+skinparam rectangle {
+  BackgroundColor<<core>> #F5A623
+  FontColor<<core>> #FFFFFF
+  BorderColor<<core>> #D48806
+  BackgroundColor<<asset>> #FFFFFF
+  FontColor<<asset>> #333333
+  BorderColor<<asset>> #999999
+}
+
+' ══════ 系统级 ══════
+
+rectangle "业务需求" <<core>> as BR
+rectangle "系统" <<core>> as SYS
+rectangle "系统级事件流" <<asset>> as BEF
+rectangle "上下文地图" <<asset>> as CM
+
+BR -[dashed]-> SYS : 协同实现需求
+
+BEF --> SYS : 编排
+CM --> SYS : 划分边界
+
+' ══════ 系统下辖三大块 ══════
+
+rectangle "限界上下文" <<core>> as BC
+rectangle "前端" <<core>> as FE
+rectangle "端到端测试" <<core>> as E2E
+
+SYS *-- BC
+SYS *-- FE
+SYS *-- E2E
+
+E2E -right-> FE : 使用
+
+' ══════ 前端资产 ══════
+
+rectangle "界面规格" <<asset>> as UISpec
+rectangle "代码实现" <<asset>> as FEImpl
+
+FE *-- UISpec
+FE *-- FEImpl
+
+' ══════ 端到端测试子类 ══════
+
+rectangle "冒烟测试" <<asset>> as Smoke
+rectangle "业务需求测试" <<asset>> as BRT
+
+E2E *-- Smoke
+E2E *-- BRT
+
+' ══════ 限界上下文内部 ══════
+
+package "问题域" as PD {
+  rectangle "领域模型" <<asset>> as DM
+  rectangle "BC 级事件流" <<asset>> as EF
+  rectangle "特性" <<asset>> as FT
+}
+
+package "解决方案域（实现）" as SD {
+  rectangle "验收测试" <<asset>> as AT
+  rectangle "API / 契约" <<asset>> as API
+  rectangle "代码实现 " <<asset>> as Impl
+}
+
+BC *-- PD
+BC *-- SD
+
+' ══════ 跨域驱动关系 ══════
+
+FT .[#2196F3].> AT : 验收并守护
+AT .[#2196F3].> API : 调用 API
+AT .[#2196F3].> Impl : 验收测试和接口\n驱动开发
+DM .[#2196F3].> Impl : 指导和约束
+
+@enduml
+```
+
+> 橙色 = 核心概念；白色 = 资产/子概念。◆实线 = 组成关系；→实线 = 结构性关系；⇢蓝色虚线 = 驱动关系。
 
 ---
 
@@ -34,8 +107,9 @@
 | 层级 | 职责 |
 |------|------|
 | **系统级** | 业务需求、系统级事件流、上下文地图——系统的全局视角 |
-| **限界上下文级** | 限界上下文持有问题域与解决方案域两类资产：问题域精确定义业务（领域模型、BC 级事件流、特性）；解决方案域将定义变为可运行的软件（验收测试、API 契约、代码实现） |
-| **前端** | 前端是后端限界上下文产出的消费者，将多个 BC 的 API 契约组合为用户可交互的界面。持有界面规格和代码实现两类资产 |
+| **限界上下文** | 持有问题域与解决方案域两类资产：问题域精确定义业务（领域模型、BC 级事件流、特性）；解决方案域将定义变为可运行的软件（验收测试、API 契约、代码实现） |
+| **前端** | 后端限界上下文产出的消费者，将多个 BC 的 API 契约组合为用户可交互的界面。持有界面规格和代码实现 |
+| **端到端测试** | 通过浏览器自动化使用前端，验证系统级业务链路可用。包含冒烟测试（守护既有链路）和业务需求测试（验证新业务需求的端到端交付） |
 
 ---
 
@@ -48,6 +122,23 @@
 | **业务需求（BusinessRequirement）** | 跨 BC 的系统级业务需求，由各个限界上下文协同实现。包含全局事件流、设计决策、迭代计划。落地到各 BC 时，表现为已有特性的增量变更或新增特性 | `docs/business-requirements/<name>/overview.md` |
 | **系统级事件流（BusinessProcess）** | 系统级的端到端事件流，是系统交付价值的方式。编排多个 BC，数量有限且稳定（如交易流程、导购流程、用户发展流程、活动运营流程）。BC 内部的事件流是系统级事件流在该 BC 内的投影。不归属于任何单个 BC，是系统的一等公民 | 当前暂存于编排中心 BC 的 event-flow（如交易流程在 Order 的 `event-flow.md`），待独立为系统级文档 |
 | **上下文地图（ContextMap）** | 定义所有 BC 的边界、集成关系（上游/下游、防腐层、共享内核等）、集成方式（REST 同步 / Kafka 异步）、事件总表 | `docs/context-map.md` |
+| **端到端测试（EndToEndTest）** | 通过浏览器自动化使用前端，验证系统级业务链路可用。不归属于任何单个 BC 或前端，是系统的一等公民。包含冒烟测试和业务需求测试两种类型 | `frontend/web/tests/smoke-e2e/` |
+
+#### 端到端测试内部组成
+
+| 概念 | 说明 |
+|------|------|
+| **冒烟测试（SmokeTest）** | 守护既有核心交易链路（如主链路下单），每次前端变更必须通过。关注链路可用性而非业务细节 |
+| **业务需求测试（BusinessRequirementTest）** | 验证新业务需求的端到端交付（如虚拟商品交易链路），随业务需求迭代新增。关注该需求的端到端行为 |
+
+#### 端到端测试代码组成
+
+| 部分 | 说明 |
+|------|------|
+| **测试用例（Specs）** | 以 Given/When/Then 步骤编排的业务场景，只表达业务意图 |
+| **页面对象（Pages）** | 封装 UI 选择器与页面交互，使 Specs 与 UI 细节解耦 |
+| **夹具（Fixtures）** | 测试前置条件（如已登录用户），通过依赖注入方式注入 |
+| **辅助工具（Helpers）** | 数据探测与可复用工具 |
 
 ### 限界上下文（BoundedContext）——枢纽
 
@@ -151,9 +242,10 @@
 | 特性 → 验收测试 | 特性被验收测试**验收并守护** |
 | 验收测试 → API 契约 | 验收测试**调用 API** |
 | 验收测试 + API 契约 → 代码实现 | **验收测试和接口驱动开发** |
-| 领域模型 → 代码实现 | 领域模型**映射**为代码**实现** |
+| 领域模型 → 代码实现 | 领域模型**指导和约束**代码实现 |
 | 前端 → API 契约 | 前端**消费**后端 BC 的 API 契约 |
 | 业务需求 → 界面规格 | 业务需求落地为前端界面规格中的页面新增或变更 |
+| 端到端测试 → 前端 | 端到端测试**使用**前端验证系统级业务链路 |
 
 ---
 
@@ -169,14 +261,14 @@
 
 ### 技能的输入与产出
 
-每个技能操作限界上下文或前端中的领域对象（详见各技能的 SKILL.md）：
+每个技能操作限界上下文、前端或端到端测试中的领域对象（详见各技能的 SKILL.md）：
 
 | 技能 | 输入 | 产出 |
 |------|------|------|
 | **analyze-requirement** | 用户需求、上下文地图、已有 BC 文档 | 业务需求方案（overview）+ 各 BC 的事件流、领域模型、特性变更 |
 | **add-bounded-context** | 分析产出（领域模型、特性） | 代码实现骨架、验收测试脚手架、API 契约 |
 | **extract-bounded-context** | 已有 BC 的代码实现、拆分方案 | 独立的新限界上下文 + 清理后的宿主限界上下文 |
-| **evolve-feature** | 特性、领域模型、API 契约 | 验收测试（先红）、代码实现（后绿）；反向更新领域模型和 API 契约 |
+| **evolve-feature** | 特性、领域模型 | API 契约、验收测试（先红）、代码实现（后绿）；反向更新领域模型和 API 契约 |
 | **fix-bug-or-adjust-feature** | 缺陷/调整描述、已有验收测试 | 修复后的代码实现与验收测试 |
 | **integration** | BC 级事件流、API 契约（上下游双方） | 代码实现的基础设施层适配器（REST/Kafka） |
-| **frontend-development** | 界面规格、API 契约 | 前端代码实现 |
+| **frontend-development** | 界面规格、API 契约、测试说明（testing.md） | 前端代码实现 |

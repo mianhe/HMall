@@ -8,9 +8,25 @@
 
 ## 架构与部署
 
-- **部署形态**：上下文地图中的每个限界上下文（BC）均为**独立微服务**，各自独立部署、独立扩展。
-- **当前实现**：模块化单体（Modular Monolith），各 BC 以包/模块形式共存于同一应用，BC 边界与未来服务边界对齐。
-- **集成技术**：REST 用于同步调用；事件用于异步编排。事件总线的具体技术选型见 [integration.md](architecture/integration.md)。
+- **部署形态**：每个 BC 为独立微服务，各自独立部署、独立扩展
+- **当前实现**：模块化单体（Modular Monolith），各 BC 以包/模块共存，BC 边界与未来服务边界对齐
+
+### 集成技术
+
+| 方式 | 用途 | 技术 |
+|------|------|------|
+| **BFF** | 前端统一 API 入口，按路径前缀代理到各 BC | HTTP 透传（端口 8085），Vite proxy `/api` → BFF |
+| **REST** | BC 间同步调用（Order → Catalog/User/Inventory/Payment/Fulfillment） | HTTP + JSON |
+| **事件** | BC 间异步编排（PaymentCompleted、FulfillmentDelivered 等） | **Kafka**（支持事件持久化、重放、多消费者） |
+
+事件的完整定义（事件流、事件总表、约定）见 [business-flows.md](business-flows.md)。
+
+### 形态演进
+
+| 形态 | 前端接入 | REST（BC 间） | 事件 |
+|------|----------|---------------|------|
+| **当前** | BFF 代理 | REST/HTTP（localhost） | Kafka |
+| **微服务** | BFF + 服务发现 | HTTP + 服务发现 | Kafka |
 
 ---
 
@@ -101,110 +117,9 @@ flowchart TB
 
 ---
 
-## 交易事件流（端到端）
+## 业务流程与事件
 
-以事件风暴视角展示交易全生命周期。图中所有节点均为**领域事件**（🟧 橙色），箭头表示因果关系；触发每个事件的 Command 与 Policy 见下方「系统事件总表」的**触发**列。
-
-所有事件以 **orderId** 为关联键，贯穿 Order、Inventory、Payment、Fulfillment 四个 BC；Activity BC 作为观察者订阅全部事件。
-
-> 实线 = Happy Path　虚线 = 失败 / 超时 → 补偿路径。节点内第一行为事件名，第二行为 BC。
-
-```mermaid
-flowchart TB
-    classDef evt fill:#f47920,color:#fff,stroke:#d46010,stroke-width:2px
-
-    subgraph 补偿路径["补偿路径（仅超时触发）"]
-        direction LR
-        PE("PaymentExpired<br/>Payment"):::evt
-        OCAN("OrderCancelled<br/>Order"):::evt
-        SREL("StockReleased<br/>Inventory"):::evt
-        PE --> OCAN --> SREL
-    end
-
-    subgraph 重试路径["支付失败（可重试）"]
-        direction LR
-        PF("PaymentFailed<br/>Payment"):::evt
-    end
-
-    subgraph 主流程["主流程"]
-        direction LR
-        SR("StockReserved<br/>Inventory"):::evt
-        OC("OrderCreated<br/>Order"):::evt
-        PC("PaymentCompleted<br/>Payment"):::evt
-        FOC("FulfillmentOrderCreated<br/>Fulfillment"):::evt
-        FS("FulfillmentShipped<br/>Fulfillment"):::evt
-        FD("FulfillmentDelivered<br/>Fulfillment"):::evt
-        OCOMP("OrderCompleted<br/>Order"):::evt
-        SR --> OC --> PC --> FOC --> FS --> FD --> OCOMP
-    end
-
-    OC -.-> PE
-    OC -.-> PF
-```
-
-**上**：补偿路径（支付超时 → 取消 → 释放库存）。**下**：主流程（下单 → 支付成功 → 履约 → 完成）。PaymentFailed 不触发取消（用户可重试支付），仅 PaymentExpired 触发补偿路径。用户主动取消（⌘ CancelOrder）触发的事件与补偿路径相同。
-
----
-
-## 系统事件总表
-
-所有跨 BC 领域事件的完整目录。**设计决策：orderId 是系统级关联键**——每个 BC 发布的事件都携带 orderId，Order 是交易的中心聚合，Payment、Reservation、FulfillmentOrder 都因订单而生。Activity BC 利用 orderId 将不同来源的事件串联为同一笔交易的事件时间线。
-
-### Order 发布
-
-| 事件 | 触发 | 业务实体 | 与 Order 关系 | Topic | 订阅方 | 关键 Payload |
-|------|------|----------|---------------|-------|--------|-------------|
-| OrderCreated | ⌘ PlaceOrder | Order | 自身（聚合根） | `order.created` | Activity | orderId, items[{skuId, quantity}], occurredAt |
-| OrderCancelled | ⟳ PaymentExpired 或 ⌘ CancelOrder | Order | 自身 | `order.cancelled` | Activity | orderId, occurredAt |
-| OrderCompleted | ⟳ FulfillmentDelivered | Order | 自身 | `order.completed` | Activity | orderId, occurredAt |
-
-### Payment 发布
-
-| 事件 | 触发 | 业务实体 | 与 Order 关系 | Topic | 订阅方 | 关键 Payload |
-|------|------|----------|---------------|-------|--------|-------------|
-| PaymentCompleted | 网关支付成功回调 | Payment | 1:1（一笔订单一笔支付单） | `payment.completed` | Order, Activity | orderId, paymentId, occurredAt |
-| PaymentFailed | 网关支付失败回调 | Payment | 1:1 | `payment.failed` | Order, Activity | orderId, occurredAt（Order 收到后不变更状态，用户可重试支付） |
-| PaymentExpired | ⟳ Payment 超时检测（定时任务） | Payment | 1:1 | `payment.expired` | Order, Activity | orderId, occurredAt |
-
-### Inventory 发布
-
-| 事件 | 触发 | 业务实体 | 与 Order 关系 | Topic | 订阅方 | 关键 Payload |
-|------|------|----------|---------------|-------|--------|-------------|
-| StockReserved | ⌘ PlaceOrder → Inventory.occupy（同步） | Reservation | 1:1（一笔订单一次占用） | `inventory.stock.reserved` | Activity | orderId, items[{skuId, quantity}], occurredAt |
-| StockReleased | ⟳ 取消补偿 或 ⌘ CancelOrder → Inventory.release（同步） | Reservation | 1:1 | `inventory.stock.released` | Activity | orderId, occurredAt |
-
-### Fulfillment 发布
-
-| 事件 | 触发 | 业务实体 | 与 Order 关系 | Topic | 订阅方 | 关键 Payload |
-|------|------|----------|---------------|-------|--------|-------------|
-| FulfillmentOrderCreated | Order 同步调用创建履约单 | FulfillmentOrder | 1:N（一笔订单可拆多个履约单，MVP 1:1） | `fulfillment.order.created` | Activity | orderId, fulfillmentOrderIds, occurredAt |
-| FulfillmentOrderAllocated | 管理后台开始配货 | FulfillmentOrder | 1:N | `fulfillment.order.allocated` | Order, Activity | orderId, fulfillmentOrderId, occurredAt |
-| FulfillmentShipped | Fulfillment 内部发货流程 | FulfillmentOrder | 1:N | `fulfillment.shipped` | Order, Activity | orderId, fulfillmentOrderId, occurredAt |
-| FulfillmentDelivered | Fulfillment 内部签收确认 | FulfillmentOrder | 1:N | `fulfillment.delivered` | Order, Activity | orderId, fulfillmentOrderId, occurredAt |
-| 🔲 ServiceActivated | 虚拟履约单激活（创建后自动） | FulfillmentOrder(VIRTUAL) | 1:N | `fulfillment.service.activated` | Order, Activity | orderId, fulfillmentOrderId, serviceSkuId, activatedAt, expiresAt, occurredAt |
-
-**注意**：FulfillmentOrderCreated 事件仅 Activity 消费。Order 通过同步调用返回值获取 fulfillmentOrderIds，不再消费此事件。Allocated/Shipped/Delivered 由 Order 消费以推进状态。🔲 ServiceActivated 对 Order 等效 FulfillmentDelivered（来自业务需求 [虚拟商品](business-requirements/virtual-product/overview.md)）。
-
-### 事件通用约定
-
-| 约定 | 说明 |
-|------|------|
-| 关联键 | orderId——交易的中心聚合标识 |
-| 幂等键 | eventId（UUID），发布方生成；Activity 以此去重 |
-| 消息格式 | JSON：eventType, orderId, 业务字段, occurredAt |
-| 传输 | Kafka；Topic 命名 `<bc>.<event-type>` |
-| 消费语义 | at-least-once，消费方保证幂等 |
-
-### Activity 消费全景
-
-Activity BC 订阅全部事件，以 orderId 为维度提供事件时间线查询与统计仪表盘。
-
-| 来源 BC | 订阅 Topic | 已接入 |
-|---------|-----------|--------|
-| Order | `order.created` / `cancelled` / `completed` | ✅ |
-| Payment | `payment.completed` / `failed` / `expired` | ✅ |
-| Inventory | `inventory.stock.reserved` / `stock.released` | ✅ |
-| Fulfillment | `fulfillment.order.created` / `order.allocated` / `shipped` / `delivered` / 🔲 `service.activated` | ✅（service.activated 待实现） |
+端到端业务流程（价值流、事件流、路径枚举、测试覆盖映射）见 **[business-flows.md](business-flows.md)**。
 
 ---
 
@@ -212,23 +127,11 @@ Activity BC 订阅全部事件，以 orderId 为维度提供事件时间线查�
 
 ```
 docs/
-├── context-map.md           # 本文件 - 系统 BC 总览
-├── design-principles.md     # 系统设计原则
-├── project-status.md        # 项目状态与路线图
-├── architecture/
-│   ├── integration.md       # 集成技术选型（REST、事件总线等）
-│   └── event-driven-business-analysis.md  # 事件驱动业务分析方法
-├── bounded-contexts/
-│   ├── catalog/
-│   ├── user/
-│   ├── order/
-│   ├── inventory/
-│   ├── cart/
-│   ├── fulfillment/
-│   ├── bff/
-│   ├── smart-interaction/
-│   └── ...
-├── frontend/
-│   ├── admin/
-│   └── web/
+├── context-map.md           # 本文件 - 系统结构、集成关系、集成技术
+├── business-flows.md        # 业务流程 - 价值流、事件流、事件总表、路径枚举、测试覆盖
+├── design-principles.md     # 设计原则
+├── project-status.md        # 项目状态
+├── bounded-contexts/        # 各 BC 文档（requirements、domain-model、api.yaml 等）
+├── business-requirements/   # 跨 BC 业务需求方案
+├── frontend/                # 前端文档（ui-spec、testing）
 ```

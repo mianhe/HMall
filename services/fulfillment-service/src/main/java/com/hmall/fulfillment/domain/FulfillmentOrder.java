@@ -10,6 +10,7 @@ public class FulfillmentOrder {
 
     private Long fulfillmentOrderId;
     private final Long orderId;
+    private final FulfillmentType fulfillmentType;
     private FulfillmentOrderStatus status;
     private final List<FulfillmentItem> items;
     private final ShippingAddress shippingAddress;
@@ -17,8 +18,9 @@ public class FulfillmentOrder {
     private final Instant createdAt;
     private Instant updatedAt;
 
-    public FulfillmentOrder(Long orderId, List<FulfillmentItem> items, ShippingAddress shippingAddress) {
+    public FulfillmentOrder(Long orderId, FulfillmentType fulfillmentType, List<FulfillmentItem> items, ShippingAddress shippingAddress) {
         this.orderId = Objects.requireNonNull(orderId, "orderId");
+        this.fulfillmentType = Objects.requireNonNull(fulfillmentType, "fulfillmentType");
         if (items == null || items.isEmpty()) {
             throw new IllegalArgumentException("items must not be empty");
         }
@@ -30,11 +32,12 @@ public class FulfillmentOrder {
     }
 
     /** 从持久化还原 */
-    public FulfillmentOrder(Long fulfillmentOrderId, Long orderId, FulfillmentOrderStatus status,
+    public FulfillmentOrder(Long fulfillmentOrderId, Long orderId, FulfillmentType fulfillmentType, FulfillmentOrderStatus status,
                             List<FulfillmentItem> items, ShippingAddress shippingAddress,
                             ShippingInfo shippingInfo, Instant createdAt, Instant updatedAt) {
         this.fulfillmentOrderId = fulfillmentOrderId;
         this.orderId = orderId;
+        this.fulfillmentType = fulfillmentType;
         this.status = status;
         this.items = new ArrayList<>(items);
         this.shippingAddress = shippingAddress;
@@ -44,6 +47,9 @@ public class FulfillmentOrder {
     }
 
     public void allocate() {
+        if (fulfillmentType == FulfillmentType.VIRTUAL) {
+            throw new IllegalStateException("虚拟履约单不支持配货");
+        }
         if (status != FulfillmentOrderStatus.CREATED) {
             throw new IllegalStateException("只有 CREATED 状态可以开始配货，当前状态: " + status);
         }
@@ -52,6 +58,9 @@ public class FulfillmentOrder {
     }
 
     public void ship(String carrier, String trackingNumber) {
+        if (fulfillmentType == FulfillmentType.VIRTUAL) {
+            throw new IllegalStateException("虚拟履约单不支持发货");
+        }
         if (status != FulfillmentOrderStatus.ALLOCATING) {
             throw new IllegalStateException("只有 ALLOCATING 状态可以发货，当前状态: " + status);
         }
@@ -61,11 +70,25 @@ public class FulfillmentOrder {
     }
 
     public void confirmDelivery() {
+        if (fulfillmentType == FulfillmentType.VIRTUAL) {
+            throw new IllegalStateException("虚拟履约单不支持签收");
+        }
         if (status != FulfillmentOrderStatus.SHIPPED) {
             throw new IllegalStateException("只有 SHIPPED 状态可以签收，当前状态: " + status);
         }
         this.shippingInfo.markDelivered(Instant.now());
         this.status = FulfillmentOrderStatus.DELIVERED;
+        this.updatedAt = Instant.now();
+    }
+
+    public void activate() {
+        if (fulfillmentType != FulfillmentType.VIRTUAL) {
+            throw new IllegalStateException("只有虚拟履约单可以激活");
+        }
+        if (status != FulfillmentOrderStatus.CREATED) {
+            throw new IllegalStateException("只有 CREATED 状态可以激活，当前状态: " + status);
+        }
+        this.status = FulfillmentOrderStatus.ACTIVATED;
         this.updatedAt = Instant.now();
     }
 
@@ -79,6 +102,7 @@ public class FulfillmentOrder {
 
     public Long getFulfillmentOrderId() { return fulfillmentOrderId; }
     public Long getOrderId() { return orderId; }
+    public FulfillmentType getFulfillmentType() { return fulfillmentType; }
     public FulfillmentOrderStatus getStatus() { return status; }
     public List<FulfillmentItem> getItems() { return Collections.unmodifiableList(items); }
     public ShippingAddress getShippingAddress() { return shippingAddress; }

@@ -658,6 +658,40 @@ paths:
                 $ref: '#/components/schemas/Error'
 
   /api/skus/{skuId}/service-bindings/{bindingId}:
+    put:
+      summary: 修改 ServiceBinding 售价
+      parameters:
+        - name: skuId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: bindingId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ServiceBindingUpdate'
+      responses:
+        '200':
+          description: 修改成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceBinding'
+        '404':
+          description: ServiceBinding 不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
       summary: 删除 ServiceBinding
       parameters:
@@ -1175,6 +1209,15 @@ components:
           nullable: true
           minimum: 0
           description: 绑定售价（分）。null 或不传表示继承 SKU.priceCents 标准价
+    ServiceBindingUpdate:
+      type: object
+      properties:
+        priceCents:
+          type: integer
+          format: int64
+          nullable: true
+          minimum: 0
+          description: 新的绑定售价（分）。null 表示改回继承 SKU 标准价
     AvailableService:
       type: object
       required: [serviceSpuId, name, productType]

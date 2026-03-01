@@ -40,6 +40,7 @@ order:
       fulfillment-order-allocated: fulfillment.order.allocated
       fulfillment-shipped: fulfillment.shipped
       fulfillment-delivered: fulfillment.delivered
+      service-activated: fulfillment.service.activated
 
 catalog:
   base-url: http://localhost:8080

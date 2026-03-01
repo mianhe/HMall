@@ -27,6 +27,9 @@ public class CartItemEntity {
     @Column(name = "sku_id", nullable = false)
     private Long skuId;
 
+    @Column(name = "related_sku_id")
+    private Long relatedSkuId;
+
     @Column(nullable = false)
     private int quantity;
 
@@ -57,6 +60,14 @@ public class CartItemEntity {
 
     public void setSkuId(Long skuId) {
         this.skuId = skuId;
+    }
+
+    public Long getRelatedSkuId() {
+        return relatedSkuId;
+    }
+
+    public void setRelatedSkuId(Long relatedSkuId) {
+        this.relatedSkuId = relatedSkuId;
     }
 
     public int getQuantity() {

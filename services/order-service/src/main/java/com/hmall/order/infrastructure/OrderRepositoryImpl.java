@@ -46,6 +46,8 @@ public class OrderRepositoryImpl implements OrderRepository {
         OrderEntity entity = orderJpaRepository.findById(order.getOrderId())
                 .orElseThrow(() -> new IllegalStateException("订单不存在: " + order.getOrderId()));
         entity.setStatus(order.getStatus().name());
+        entity.setPhysicalDelivered(order.isPhysicalDelivered());
+        entity.setServiceActivated(order.isServiceActivated());
         entity.setUpdatedAt(order.getUpdatedAt());
         OrderEntity saved = orderJpaRepository.save(entity);
         List<OrderLineItemEntity> savedItems = lineItemJpaRepository.findByOrderIdOrderByIdAsc(saved.getId());
@@ -94,6 +96,8 @@ public class OrderRepositoryImpl implements OrderRepository {
         e.setCity(addr.city());
         e.setDistrict(addr.district());
         e.setDetail(addr.detail());
+        e.setPhysicalDelivered(order.isPhysicalDelivered());
+        e.setServiceActivated(order.isServiceActivated());
         e.setCreatedAt(order.getCreatedAt());
         e.setUpdatedAt(order.getUpdatedAt());
         return e;
@@ -110,6 +114,7 @@ public class OrderRepositoryImpl implements OrderRepository {
         e.setUnitPriceCents(item.getUnitPriceCents());
         e.setTotalPriceCents(item.getTotalPriceCents());
         e.setDisplayName(item.getDisplayName());
+        e.setItemType(item.getItemType().name());
         return e;
     }
 
@@ -126,6 +131,8 @@ public class OrderRepositoryImpl implements OrderRepository {
             OrderStatus.valueOf(entity.getStatus()),
             entity.getTotalAmountCents(),
             addr, lineItemsWithIds,
+            entity.isPhysicalDelivered(),
+            entity.isServiceActivated(),
             entity.getCreatedAt(), entity.getUpdatedAt()
         );
     }
@@ -134,7 +141,8 @@ public class OrderRepositoryImpl implements OrderRepository {
         return new OrderLineItem(
             e.getId(), e.getOrderId(), e.getSkuId(),
             e.getQuantity(), e.getUnitPriceCents().longValue(), e.getTotalPriceCents().longValue(),
-            e.getDisplayName()
+            e.getDisplayName(),
+            OrderItemType.valueOf(e.getItemType())
         );
     }
 }

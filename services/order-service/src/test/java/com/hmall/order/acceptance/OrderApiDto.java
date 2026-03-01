@@ -22,12 +22,19 @@ public class OrderApiDto {
     public static class LineItemCreate {
         public Long skuId;
         public Integer quantity;
+        public Long relatedSkuId;
 
         public LineItemCreate() {}
 
         public LineItemCreate(Long skuId, Integer quantity) {
             this.skuId = skuId;
             this.quantity = quantity;
+        }
+
+        public LineItemCreate(Long skuId, Integer quantity, Long relatedSkuId) {
+            this.skuId = skuId;
+            this.quantity = quantity;
+            this.relatedSkuId = relatedSkuId;
         }
     }
 
@@ -66,5 +73,6 @@ public class OrderApiDto {
         public Long unitPriceCents;
         public Long totalPriceCents;
         public String displayName;
+        public String itemType;
     }
 }

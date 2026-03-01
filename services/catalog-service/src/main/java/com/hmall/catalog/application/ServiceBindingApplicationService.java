@@ -45,6 +45,17 @@ public class ServiceBindingApplicationService {
     }
 
     @Transactional
+    public ServiceBinding updatePrice(Long serviceSkuId, Long bindingId, Long priceCents) {
+        ServiceBinding binding = bindingRepository.findById(bindingId)
+            .orElseThrow(() -> new IllegalArgumentException("ServiceBinding 不存在"));
+        if (!binding.getServiceSkuId().equals(serviceSkuId)) {
+            throw new IllegalArgumentException("ServiceBinding 不属于该服务 SKU");
+        }
+        binding.updatePrice(priceCents);
+        return bindingRepository.save(binding);
+    }
+
+    @Transactional
     public void delete(Long serviceSkuId, Long bindingId) {
         ServiceBinding binding = bindingRepository.findById(bindingId)
             .orElseThrow(() -> new IllegalArgumentException("ServiceBinding 不存在"));

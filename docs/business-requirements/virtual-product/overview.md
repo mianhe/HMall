@@ -1,11 +1,10 @@
-# Epic：虚拟商品（Virtual Product）
+# 业务需求（Business Requirement）：虚拟商品（Virtual Product）
 
 ## 一、背景与目标
 
-支持在电商平台售卖虚拟服务类商品（碎屏险、延保、维修服务等），覆盖两个核心场景：
+支持在电商平台售卖虚拟服务类商品（碎屏险、延保、维修服务等），核心场景：
 
 1. **随购**：购买实体商品时勾选附带的服务（如买手机时加购碎屏险）
-2. **补购**：针对过去已购买的实体商品，补购相关服务（如为已有手机补购延保）
 
 服务的核心定义：
 - **种类可扩展**：碎屏险、维修服务、延长保修、镭雕、上门回收等，将来可新增
@@ -42,22 +41,6 @@
   → 🟧 OrderCompleted [Order]
 ```
 
-### 场景 B：补购（为已购产品补购服务）
-
-```
-用户从已签收订单中选择补购延保服务
-  → ⌘ PlaceOrder（仅服务 items，携带 relatedOrderId + relatedSkuId）
-  → [Order] 校验原订单存在且实体商品已签收
-  → [Order] 跳过 Inventory 占用（纯服务订单，无实体商品）
-  → [Order] 同步调用 Payment 创建支付单
-  → 🟧 OrderCreated [Order]
-  → 用户支付 → 🟧 PaymentCompleted [Payment]
-  → [Order] 同步调用 Fulfillment 创建履约单
-  → [Fulfillment] 仅创建虚拟服务履约单 → 立即激活
-  → 🟧 ServiceActivated [Fulfillment]
-  → 🟧 OrderCompleted [Order]
-```
-
 ### 补偿路径
 
 与现有补偿路径一致，差异点：
@@ -81,9 +64,7 @@
 | VP2 | 服务类商品不占库存 | Order 创建时过滤 SERVICE items，仅对 PHYSICAL items 调用 Inventory。MVP 不支持服务限量售卖 |
 | VP3 | 混合订单 + Fulfillment 拆单 | 一次下单生成一个 Order（含实体+服务 items），Fulfillment 按 itemType 拆为实体履约单 + 虚拟履约单。符合已有决策 F1（拆单由 Fulfillment 负责） |
 | VP4 | ServiceActivated 等效 Delivered | 虚拟履约单激活后视为交付完成。Order 用最慢原则——实体 Delivered + 虚拟 Activated 全到达才 OrderCompleted |
-| VP5 | 补购是独立新订单 | 补购生成新 Order（仅含 SERVICE items），通过 relatedOrderId / relatedSkuId 关联原购买。不修改已完成的原订单 |
-| VP6 | 已激活服务 MVP 不可取消 | 虚拟履约单 CREATED 可取消；ACTIVATED 后不可取消（退保是未来能力） |
-| VP7 | 先做随购，后做补购 | 随购涵盖的模型变更更基础，补购在此基础上仅增加关联校验 |
+| VP5 | 已激活服务 MVP 不可取消 | 虚拟履约单 CREATED 可取消；ACTIVATED 后不可取消（退保是未来能力） |
 
 ---
 
@@ -92,7 +73,7 @@
 | BC | 影响程度 | 核心变更 |
 |----|----------|---------|
 | **Catalog** | 🔴 重大 | SPU 新增 productType；服务期限通过 SpecDimension + SpecOption 表达；新增 ServiceBinding 实体（SKU 级绑定 + 上下文定价）；新增服务查询 API |
-| **Order** | 🔴 重大 | OrderLineItem 新增 itemType / relatedSkuId / relatedOrderId；条件性库存占用；消费 ServiceActivated；补购校验 |
+| **Order** | 🔴 重大 | OrderLineItem 新增 itemType / relatedSkuId；条件性库存占用；消费 ServiceActivated |
 | **Fulfillment** | 🔴 重大 | 按类型拆单；虚拟履约单 CREATED→ACTIVATED 生命周期；ServiceActivated 事件；FulfillmentItem 新增服务属性 |
 | **Cart** | 🟡 中等 | 展示关联服务；CartItem 标记关联的实体 SKU |
 | **Activity** | 🟢 轻微 | 消费 ServiceActivated 事件 |
@@ -135,6 +116,7 @@
 
 **涉及 BC**：Order、Fulfillment、Cart、Activity
 **前置依赖**：迭代 1
+**状态**：✅ 已完成（后端 4 BC 全部到位 + 前端 web/admin 全链路集成）
 
 **后端变更**：
 - Order：OrderLineItem 新增 itemType；创建订单时条件性库存占用；消费 ServiceActivated
@@ -152,16 +134,3 @@
 
 **验收标准**：购买手机 + 碎屏险 → 下单 → 支付 → 实体走物流、碎屏险立即激活 → 全部完成后 OrderCompleted → 前端全链路可操作可查看。
 
-### 迭代 3：补购服务
-
-**涉及 BC**：Order、前端
-**前置依赖**：迭代 2
-
-**后端变更**：
-- Order：OrderLineItem 新增 relatedOrderId；补购创建逻辑（校验原订单已签收）
-
-**前端变更**（后端完成后集成）：
-- `frontend/web` 订单详情页：已签收订单展示「购买服务」入口（查询可关联的服务列表）
-- `frontend/web` 补购下单流程：选择服务 → 结账 → 支付 → 服务激活
-
-**验收标准**：查看已签收手机订单 → 选择补购延保 → 下单 → 支付 → 服务激活 → 前端可完成完整补购流程。

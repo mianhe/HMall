@@ -35,7 +35,8 @@ public class ActivityKafkaEventConsumer {
             "payment.completed", "payment.failed", "payment.expired",
             "inventory.stock.reserved", "inventory.stock.released",
             "fulfillment.order.created", "fulfillment.order.allocated",
-            "fulfillment.shipped", "fulfillment.delivered"
+            "fulfillment.shipped", "fulfillment.delivered",
+            "fulfillment.service.activated"
         },
         groupId = "${spring.kafka.consumer.group-id:activity-service}"
     )

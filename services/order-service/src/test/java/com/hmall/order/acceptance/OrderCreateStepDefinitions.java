@@ -65,6 +65,27 @@ public class OrderCreateStepDefinitions {
         executePostOrder(req);
     }
 
+    @When("用户 {string} 提交混合订单 收货地址 {string} {string} {string} {string} {string} {string} 购买 {string} 数量 {int} 和服务 {string} 数量 {int}")
+    public void 用户提交混合订单(
+            String username, String recipient, String phone,
+            String province, String city, String district, String detail,
+            String physicalProductName, int physicalQuantity,
+            String serviceProductName, int serviceQuantity) {
+        Long userId = getUserId(username);
+        assertThat(userId).isNotNull();
+        Long physicalSkuId = getSkuId(physicalProductName);
+        Long serviceSkuId = getSkuId(serviceProductName);
+        assertThat(physicalSkuId).isNotNull();
+        assertThat(serviceSkuId).isNotNull();
+
+        OrderApiDto.CreateRequest req = buildCreateRequest(userId, recipient, phone, province, city, district, detail);
+        req.items = List.of(
+            new OrderApiDto.LineItemCreate(physicalSkuId, physicalQuantity),
+            new OrderApiDto.LineItemCreate(serviceSkuId, serviceQuantity, physicalSkuId)
+        );
+        executePostOrder(req);
+    }
+
     @When("用户 {string} 提交订单 收货地址 {string} {string} {string} {string} {string} {string} 购买 skuId {long} 数量 {int}")
     public void 用户提交订单购买SkuId(String username, String recipient, String phone,
             String province, String city, String district, String detail,
@@ -183,5 +204,12 @@ public class OrderCreateStepDefinitions {
     @And("应已发布 OrderCreated")
     public void 应已发布OrderCreated() {
         assertThat(orderEventCapture.wasOrderCreatedPublished()).isTrue();
+    }
+
+    @And("返回的订单总价为 {long} 分")
+    public void 返回的订单总价为(long expectedTotalAmountCents) {
+        assertThat(lastCreateResponse).isNotNull();
+        assertThat(lastCreateResponse.getBody()).isNotNull();
+        assertThat(lastCreateResponse.getBody().totalAmountCents).isEqualTo(expectedTotalAmountCents);
     }
 }

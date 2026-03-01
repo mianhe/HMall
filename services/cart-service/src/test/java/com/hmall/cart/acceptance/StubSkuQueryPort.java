@@ -15,9 +15,18 @@ import java.util.concurrent.ConcurrentHashMap;
 public class StubSkuQueryPort implements SkuQueryPort {
 
     private final Map<Long, SkuInfo> skuStore = new ConcurrentHashMap<>();
+    private final Map<Long, List<AvailableService>> availableServicesStore = new ConcurrentHashMap<>();
 
     public void register(Long skuId, String name, BigDecimal price) {
-        skuStore.put(skuId, new SkuInfo(skuId, name, price, null, true));
+        skuStore.put(skuId, new SkuInfo(skuId, 1L, "PHYSICAL", name, price, null, true));
+    }
+
+    public void registerService(Long skuId, String name, BigDecimal price) {
+        skuStore.put(skuId, new SkuInfo(skuId, 2L, "SERVICE", name, price, null, true));
+    }
+
+    public void register(Long skuId, Long spuId, String productType, String name, BigDecimal price) {
+        skuStore.put(skuId, new SkuInfo(skuId, spuId, productType, name, price, null, true));
     }
 
     public void register(Long skuId) {
@@ -27,7 +36,10 @@ public class StubSkuQueryPort implements SkuQueryPort {
     public void markUnavailable(Long skuId) {
         SkuInfo existing = skuStore.get(skuId);
         if (existing != null) {
-            skuStore.put(skuId, new SkuInfo(skuId, existing.name(), existing.price(), existing.imageUrl(), false));
+            skuStore.put(skuId, new SkuInfo(
+                skuId, existing.spuId(), existing.productType(),
+                existing.name(), existing.price(), existing.imageUrl(), false
+            ));
         }
     }
 
@@ -37,6 +49,7 @@ public class StubSkuQueryPort implements SkuQueryPort {
 
     public void clear() {
         skuStore.clear();
+        availableServicesStore.clear();
     }
 
     @Override
@@ -55,5 +68,14 @@ public class StubSkuQueryPort implements SkuQueryPort {
     @Override
     public Optional<SkuInfo> queryById(Long skuId) {
         return Optional.ofNullable(skuStore.get(skuId));
+    }
+
+    public void registerAvailableServices(Long targetSpuId, List<AvailableService> services) {
+        availableServicesStore.put(targetSpuId, services);
+    }
+
+    @Override
+    public List<AvailableService> queryAvailableServices(Long targetSpuId) {
+        return availableServicesStore.getOrDefault(targetSpuId, List.of());
     }
 }

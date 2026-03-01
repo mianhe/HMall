@@ -31,6 +31,9 @@ function ok(text) {
 }
 
 function err(e) {
+  if (e.cause?.code === 'ECONNREFUSED' || e.message?.includes('ECONNREFUSED') || e.message?.includes('fetch failed')) {
+    return { content: [{ type: 'text', text: `错误：无法连接后端服务（${FULFILLMENT_API_BASE}），请确认服务已启动。原始错误：${e.message}` }] }
+  }
   return { content: [{ type: 'text', text: `错误：${e.message}` }] }
 }
 
@@ -38,19 +41,27 @@ const STATUS_LABELS = {
   CREATED: '待配货',
   ALLOCATING: '配货中',
   SHIPPED: '已发货',
+  ACTIVATED: '已激活',
   DELIVERED: '已签收',
   CANCELLED: '已取消',
 }
 
+const TYPE_LABELS = {
+  PHYSICAL: '实体',
+  VIRTUAL: '虚拟服务',
+}
+
 function formatFulfillmentOrder(order) {
   const status = STATUS_LABELS[order.status] || order.status
+  const type = TYPE_LABELS[order.fulfillmentType] || order.fulfillmentType || ''
   const lines = [
-    `履约单号：${order.fulfillmentOrderId}  订单号：${order.orderId}  状态：${status}`,
+    `履约单号：${order.fulfillmentOrderId}  订单号：${order.orderId}  类型：${type}  状态：${status}`,
   ]
   if (order.items && order.items.length) {
     lines.push('商品明细：')
     for (const item of order.items) {
-      lines.push(`  - SKU ${item.skuId} × ${item.quantity}`)
+      const itemType = item.itemType ? ` [${item.itemType}]` : ''
+      lines.push(`  - SKU ${item.skuId} × ${item.quantity}${itemType}`)
     }
   }
   if (order.shippingAddress) {
@@ -78,7 +89,7 @@ export function registerFulfillmentTools(server) {
       action: z.enum(['get', 'list', 'allocate', 'ship', 'deliver']).describe('get|list|allocate|ship|deliver'),
       fulfillmentOrderId: z.number().optional().describe('get/allocate/ship/deliver 时必填，履约单 ID'),
       orderId: z.number().optional().describe('list 时可选，按订单 ID 筛选'),
-      status: z.enum(['CREATED', 'ALLOCATING', 'SHIPPED', 'DELIVERED', 'CANCELLED']).optional().describe('list 时可选，按状态筛选'),
+      status: z.enum(['CREATED', 'ALLOCATING', 'SHIPPED', 'ACTIVATED', 'DELIVERED', 'CANCELLED']).optional().describe('list 时可选，按状态筛选'),
       carrier: z.string().optional().describe('ship 时必填，物流公司名称'),
       trackingNumber: z.string().optional().describe('ship 时必填，物流单号'),
     },
@@ -99,7 +110,8 @@ export function registerFulfillmentTools(server) {
           if (!orders.length) return ok('暂无履约单记录。')
           const lines = orders.map(o => {
             const s = STATUS_LABELS[o.status] || o.status
-            return `[${o.fulfillmentOrderId}] 订单 ${o.orderId}  ${s}  ${o.createdAt || ''}`
+            const t = TYPE_LABELS[o.fulfillmentType] || o.fulfillmentType || ''
+            return `[${o.fulfillmentOrderId}] 订单 ${o.orderId}  ${t}  ${s}  ${o.createdAt || ''}`
           })
           lines.push(`──────\n共 ${orders.length} 条履约单`)
           return ok(lines.join('\n'))

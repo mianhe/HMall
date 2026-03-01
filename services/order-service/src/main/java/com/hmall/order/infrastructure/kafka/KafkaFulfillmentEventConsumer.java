@@ -45,6 +45,14 @@ public class KafkaFulfillmentEventConsumer {
         orderEventService.onFulfillmentDelivered(orderId);
     }
 
+    @KafkaListener(topics = "${order.kafka.topic.service-activated:fulfillment.service.activated}",
+                   groupId = "${spring.kafka.consumer.group-id:order-service}")
+    public void onServiceActivated(Map<String, Object> message) {
+        Long orderId = toLong(message.get("orderId"));
+        log.info("收到 ServiceActivated: orderId={}", orderId);
+        orderEventService.onServiceActivated(orderId);
+    }
+
     private static Long toLong(Object value) {
         if (value instanceof Number n) {
             return n.longValue();

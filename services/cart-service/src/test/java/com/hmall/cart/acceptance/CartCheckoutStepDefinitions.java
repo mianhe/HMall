@@ -58,4 +58,12 @@ public class CartCheckoutStepDefinitions {
         Number totalPrice = (Number) lastResponse.getBody().get("totalPrice");
         assertThat(totalPrice.intValue()).isEqualTo(expectedTotal);
     }
+
+    @并且("结算预览分组数量为 {int}")
+    public void 结算预览分组数量为(int expectedGroupCount) {
+        assertThat(lastResponse.getBody()).isNotNull();
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> groups = (List<Map<String, Object>>) lastResponse.getBody().get("groups");
+        assertThat(groups).isNotNull().hasSize(expectedGroupCount);
+    }
 }

@@ -32,6 +32,10 @@ public class OrderEntity {
     private String district;
     @Column(name = "detail", nullable = false)
     private String detail;
+    @Column(name = "physical_delivered", nullable = false)
+    private boolean physicalDelivered;
+    @Column(name = "service_activated", nullable = false)
+    private boolean serviceActivated;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -60,6 +64,10 @@ public class OrderEntity {
     public void setDistrict(String district) { this.district = district; }
     public String getDetail() { return detail; }
     public void setDetail(String detail) { this.detail = detail; }
+    public boolean isPhysicalDelivered() { return physicalDelivered; }
+    public void setPhysicalDelivered(boolean physicalDelivered) { this.physicalDelivered = physicalDelivered; }
+    public boolean isServiceActivated() { return serviceActivated; }
+    public void setServiceActivated(boolean serviceActivated) { this.serviceActivated = serviceActivated; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }

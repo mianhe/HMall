@@ -11,8 +11,9 @@ public class OrderLineItem {
     private final long unitPriceCents;
     private final long totalPriceCents;
     private final String displayName;
+    private final OrderItemType itemType;
 
-    public OrderLineItem(Long skuId, int quantity, long unitPriceCents, String displayName) {
+    public OrderLineItem(Long skuId, int quantity, long unitPriceCents, String displayName, OrderItemType itemType) {
         this.lineItemId = null;
         this.orderId = null;
         this.skuId = Objects.requireNonNull(skuId, "skuId");
@@ -20,9 +21,10 @@ public class OrderLineItem {
         this.unitPriceCents = unitPriceCents;
         this.totalPriceCents = (long) quantity * unitPriceCents;
         this.displayName = displayName;
+        this.itemType = Objects.requireNonNull(itemType, "itemType");
     }
 
-    public OrderLineItem(Long lineItemId, Long orderId, Long skuId, int quantity, long unitPriceCents, long totalPriceCents, String displayName) {
+    public OrderLineItem(Long lineItemId, Long orderId, Long skuId, int quantity, long unitPriceCents, long totalPriceCents, String displayName, OrderItemType itemType) {
         this.lineItemId = lineItemId;
         this.orderId = orderId;
         this.skuId = skuId;
@@ -30,6 +32,7 @@ public class OrderLineItem {
         this.unitPriceCents = unitPriceCents;
         this.totalPriceCents = totalPriceCents;
         this.displayName = displayName;
+        this.itemType = itemType;
     }
 
     public Long getLineItemId() { return lineItemId; }
@@ -39,4 +42,5 @@ public class OrderLineItem {
     public long getUnitPriceCents() { return unitPriceCents; }
     public long getTotalPriceCents() { return totalPriceCents; }
     public String getDisplayName() { return displayName; }
+    public OrderItemType getItemType() { return itemType; }
 }

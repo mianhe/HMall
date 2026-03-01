@@ -28,3 +28,10 @@
     那么 应返回 200
     并且 返回的 cancelledCount 应为 1
     并且 该履约单状态应为 CANCELLED
+
+  场景: ACTIVATED 状态的虚拟履约单取消应失败
+    当 Order 调用创建履约单接口 orderId 9013 仅含服务商品 skuId 2003
+    那么 应返回 200
+    当 Order 调用取消履约单接口 orderId 9013
+    那么 应返回 200
+    并且 返回的 cancelledCount 应为 0

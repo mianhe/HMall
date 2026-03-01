@@ -10,6 +10,7 @@ import com.hmall.fulfillment.infrastructure.persistence.FulfillmentOrderEntity;
 import com.hmall.fulfillment.infrastructure.persistence.FulfillmentOrderJpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -50,6 +51,7 @@ public class FulfillmentOrderRepositoryImpl implements FulfillmentOrderRepositor
             e.setId(domain.getFulfillmentOrderId());
         }
         e.setOrderId(domain.getOrderId());
+        e.setFulfillmentType(domain.getFulfillmentType());
         e.setStatus(domain.getStatus());
         e.setRecipientName(domain.getShippingAddress().getRecipientName());
         e.setPhone(domain.getShippingAddress().getPhone());
@@ -73,10 +75,11 @@ public class FulfillmentOrderRepositoryImpl implements FulfillmentOrderRepositor
             }
             ie.setSkuId(item.getSkuId());
             ie.setQuantity(item.getQuantity());
+            ie.setItemType(item.getItemType());
             ie.setFulfillmentOrder(e);
             return ie;
         }).toList();
-        e.setItems(itemEntities);
+        e.setItems(new ArrayList<>(itemEntities));
 
         return e;
     }
@@ -96,11 +99,11 @@ public class FulfillmentOrderRepositoryImpl implements FulfillmentOrderRepositor
         }
 
         List<FulfillmentItem> items = entity.getItems().stream()
-            .map(ie -> new FulfillmentItem(ie.getId(), ie.getSkuId(), ie.getQuantity()))
+            .map(ie -> new FulfillmentItem(ie.getId(), ie.getSkuId(), ie.getQuantity(), ie.getItemType()))
             .toList();
 
         return new FulfillmentOrder(
-            entity.getId(), entity.getOrderId(), entity.getStatus(),
+            entity.getId(), entity.getOrderId(), entity.getFulfillmentType(), entity.getStatus(),
             items, address, shippingInfo,
             entity.getCreatedAt(), entity.getUpdatedAt()
         );

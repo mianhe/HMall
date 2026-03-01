@@ -42,10 +42,11 @@
 - **结构参考**：华为商城 VMALL 商详页（不含促销、返点、关联推荐）。
 - **面包屑**：首页 > 商品名称。
 - **左侧**：产品图廊（主图 + 缩略图切换）；`defaultDisplayImages` 作为默认图廊；选中某规格后优先展示该选项的图。
-- **右侧**：商品名称、价格（随规格选择变化）、规格维度按钮选择、已选规格摘要。
-- **可选服务**：实体商品（PHYSICAL）详情页在规格选择区下方展示「可选服务」模块，通过 `GET /api/products/{spuId}/available-services` 获取；每项显示服务名称、服务类别、有效期、价格（来自 SKU）。
+- **右侧**：商品名称、价格（随规格选择变化）、规格维度按钮选择。
+- **保障服务（简化交互）**：实体商品（PHYSICAL）详情页在规格选择区下方展示服务选项按钮（无「不选服务」按钮）；默认不选，点击选中，再次点击同项取消；不展示「适用于当前商品」提示，不做实时总价刷新。
+- **可选服务数据**：通过 `GET /api/products/{spuId}/available-services` 获取，展示服务名称 + SKU 规格 + 价格。
 - **下方 Tab**：详情（商品描述）、参数（暂无则占位）。
-- **操作**：「立即购买」跳结账页；「加入购物车」成功后提示并更新顶栏购物车件数。
+- **操作**：「立即购买」可携带实体商品 + 已选服务进入结账页；「加入购物车」可将实体商品与已选服务一并加入，服务项带 `relatedSkuId` 关联实体 SKU；成功后提示并更新顶栏购物车件数。
 
 ### 2.4 购物车页
 
@@ -207,3 +208,4 @@ Tailwind 已配置 `vmall-red`、`vmall-red-hover`、`vmall-gray-bg` 等。
 | `docs/bounded-contexts/smart-interaction/requirements.md` | Smart Interaction 需求 |
 | `docs/bounded-contexts/smart-interaction/skills-reference.md` | Skill 配置参考 |
 | `docs/frontend/admin/ui-spec.md` | 管理后台界面规格 |
+| `docs/frontend/web/testing.md` | 消费者端前端测试说明（Smoke E2E） |

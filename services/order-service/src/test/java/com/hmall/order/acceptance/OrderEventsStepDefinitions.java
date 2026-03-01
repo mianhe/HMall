@@ -88,6 +88,13 @@ public class OrderEventsStepDefinitions {
         orderEventService.onFulfillmentDelivered(orderId);
     }
 
+    @When("发布 ServiceActivated 事件 针对该订单")
+    public void 发布ServiceActivated事件针对该订单() {
+        Long orderId = lastOrderContext.getLastOrderId();
+        assertThat(orderId).isNotNull();
+        orderEventService.onServiceActivated(orderId);
+    }
+
     @Then("订单 status 应为 {word}")
     public void 订单status应为(String expectedStatus) {
         Long orderId = lastOrderContext.getLastOrderId();
@@ -110,12 +117,17 @@ public class OrderEventsStepDefinitions {
         assertThat(orderEventCapture.wasOrderCompletedPublished()).isTrue();
     }
 
+    @And("应未发布 OrderCompleted")
+    public void 应未发布OrderCompleted() {
+        assertThat(orderEventCapture.wasOrderCompletedPublished()).isFalse();
+    }
+
     @io.cucumber.java.en.Given("已存在订单状态为 FULFILLING")
     public void 已存在订单状态为FULFILLING() {
         ShippingAddress addr = new ShippingAddress("收件人", "13800138000", "上海", "上海", "浦东", "测试地址");
-        OrderLineItem item = new OrderLineItem(123L, 1, 10000L, "测试商品");
+        OrderLineItem item = new OrderLineItem(123L, 1, 10000L, "测试商品", OrderItemType.PHYSICAL);
         Order order = new Order(null, 1L, OrderStatus.FULFILLING, 10000L, addr,
-                List.of(item), Instant.now(), Instant.now());
+                List.of(item), false, false, Instant.now(), Instant.now());
         Order saved = orderRepository.save(order);
         lastOrderContext.setLastOrderId(saved.getOrderId());
     }

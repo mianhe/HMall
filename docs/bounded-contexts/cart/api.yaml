@@ -182,6 +182,11 @@ components:
         skuId:
           type: integer
           format: int64
+        relatedSkuId:
+          type: integer
+          format: int64
+          nullable: true
+          description: 服务 SKU 关联的实体 skuId（仅 SERVICE 商品需要）
         quantity:
           type: integer
           minimum: 1
@@ -223,6 +228,10 @@ components:
         skuId:
           type: integer
           format: int64
+        relatedSkuId:
+          type: integer
+          format: int64
+          nullable: true
         quantity:
           type: integer
         addedAt:
@@ -244,6 +253,18 @@ components:
           type: boolean
           nullable: true
           description: SKU 是否可用（查询时填充，添加/更新时为 null）
+        productType:
+          type: string
+          nullable: true
+          enum: [PHYSICAL, SERVICE]
+        spuId:
+          type: integer
+          format: int64
+          nullable: true
+        availableServices:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailableServiceDto'
 
     CheckoutPreviewDto:
       type: object
@@ -252,6 +273,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CheckoutPreviewItem'
+        groups:
+          type: array
+          items:
+            $ref: '#/components/schemas/CheckoutPreviewGroup'
         totalPrice:
           type: number
           description: 总价
@@ -265,6 +290,13 @@ components:
         skuId:
           type: integer
           format: int64
+        relatedSkuId:
+          type: integer
+          format: int64
+          nullable: true
+        productType:
+          type: string
+          enum: [PHYSICAL, SERVICE]
         skuName:
           type: string
         price:
@@ -272,6 +304,49 @@ components:
         quantity:
           type: integer
         subtotal:
+          type: number
+
+    CheckoutPreviewGroup:
+      type: object
+      properties:
+        primaryCartItemId:
+          type: integer
+          format: int64
+        primarySkuId:
+          type: integer
+          format: int64
+        primarySkuName:
+          type: string
+        serviceItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/CheckoutPreviewItem'
+        groupSubtotal:
+          type: number
+
+    AvailableServiceDto:
+      type: object
+      properties:
+        serviceSpuId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        bindings:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailableServiceSkuDto'
+
+    AvailableServiceSkuDto:
+      type: object
+      properties:
+        bindingId:
+          type: integer
+          format: int64
+        serviceSkuId:
+          type: integer
+          format: int64
+        price:
           type: number
 
     Error:

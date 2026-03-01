@@ -45,7 +45,7 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 
 | 顺序 | 功能 | 主要影响 BC | 前置依赖 | 状态 |
 |------|------|------------|---------|------|
-| **1** | 虚拟商品（保障服务、碎屏险等） | Catalog, Order, Fulfillment, Cart, Activity | 无 | ✅ 迭代 1（Catalog）已完成（5 feature, 63 scenario 全绿；含 SKU 级 ServiceBinding + 三种定价模式 + 前端 admin/web 集成 + MCP 工具 + AI Skill 更新）；🔲 迭代 2（交易流程）、迭代 3（补购）待开发。[业务需求方案](business-requirements/virtual-product/overview.md) |
+| **1** | 虚拟商品（保障服务、碎屏险等） | Catalog, Order, Fulfillment, Cart, Activity | 无 | ✅ 迭代 1（Catalog）已完成（5 feature, 63 scenario 全绿；含 SKU 级 ServiceBinding + 三种定价模式 + 前端 admin/web 集成 + MCP 工具 + AI Skill 更新）；✅ 迭代 2（交易流程）已完成（Order/Fulfillment/Cart/Activity 后端 + 前端 web/admin 全链路）。[业务需求方案](business-requirements/virtual-product/overview.md) |
 | **2** | 履约拆单（按仓库/商品类型拆单） | Inventory, Fulfillment, Order, Activity | 虚拟商品（提供拆分维度） | 🔲 待开发 |
 | **3** | 镭雕服务（激光雕刻定制） | Catalog, Order, Fulfillment | 虚拟商品 + 拆单 | 🔲 待开发 |
 
@@ -93,9 +93,7 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 | VP2 | 服务类商品不占库存 | Order 过滤 SERVICE items，仅 PHYSICAL 调用 Inventory | 2026-02-24 |
 | VP3 | 混合订单 + Fulfillment 拆单 | 一单含实体+服务，Fulfillment 按类型拆单 | 2026-02-24 |
 | VP4 | ServiceActivated 等效 Delivered | 最慢原则推进 OrderCompleted | 2026-02-24 |
-| VP5 | 补购是独立新订单 | 通过 relatedOrderId 关联原购买 | 2026-02-24 |
-| VP6 | 已激活服务 MVP 不可取消 | 退保是未来能力 | 2026-02-24 |
-| VP7 | 先做随购，后做补购 | 随购模型变更更基础 | 2026-02-24 |
+| VP5 | 已激活服务 MVP 不可取消 | 退保是未来能力 | 2026-02-24 |
 
 ---
 
@@ -103,13 +101,16 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 
 | 日期 | 变更内容 |
 |------|---------|
+| 2026-02-28 | Smoke E2E 分级机制（P0/P1）：P0 核心交易链路、P1 重要非核心；超时降级审查；`npm run test:smoke:e2e:p0` 仅跑 P0；Business E2E 断言深度统一为"链路能走通"；testing.md / design-principles / Skills 全面同步 |
+| 2026-02-28 | 前端测试体系升级：新增 Business E2E 层（关键业务需求前端验收），与 Smoke E2E 共享 Page Object 层（tests/shared/）；虚拟商品 2 条 Business E2E 用例（BIZ-VP-001/002） |
+| 2026-02-28 | 虚拟商品迭代 2 完成：Order/Fulfillment/Cart/Activity 后端全到位；frontend/web CartPage 分组、CheckoutPage 分组、OrderDetailPage itemType+激活状态展示；frontend/admin FulfillmentPage 虚拟单类型列+ACTIVATED 状态+隐藏物流操作；OrderDto 补 serviceActivated 字段 |
 | 2026-02-27 | 迭代 1 收尾：修复 available-services API 返回最终售价（binding.priceCents ?? sku.priceCents）；新增 5.11～5.12 验收场景（null priceCents 创建与查询），63 场景全绿；全文档一致性检查与更新 |
 | 2026-02-27 | 开发流程优化：Skill 流程强制约束写入 project-context.md；实现顺序原则写入 design-principles.md §2.4a；各 Skill 交叉引用统一 |
 | 2026-02-27 | ServiceBinding.priceCents 模型决策：从必填调整为可选（nullable），支持三种定价模式（独立售卖/统一价格限定范围/上下文差异定价） |
 | 2026-02-27 | SPU 移除 serviceCategory 属性：服务分类由类目体系表达，SPU 仅保留 productType 一个新增属性；全链路清理（后端 + 前端 + 文档 + 契约） |
 | 2026-02-26 | ServiceBinding 模型调整：从 SPU 级绑定改为 SKU 级绑定 + 上下文定价（serviceSkuId + targetSpuId + priceCents）；SPU 移除 serviceDurationDays，服务期限改用 SpecDimension + SpecOption；11 场景全绿，总 61 场景 |
 | 2026-02-26 | 虚拟商品迭代 1 完成：Catalog 支持 SERVICE 类型商品 + ServiceBinding（11 场景全绿，总 61 场景）；前端 admin/web 集成 productType 展示与可选服务列表 |
-| 2026-02-24 | 虚拟商品 Epic 需求分析完成：overview.md + 各 BC 文档增量变更；analyze-requirement Skill 演进支持 Epic 范围 |
+| 2026-02-24 | 虚拟商品业务需求分析完成：overview.md + 各 BC 文档增量变更；analyze-requirement Skill 演进支持业务需求范围 |
 | 2026-02-24 | 功能演进路线规划：虚拟商品 → 履约拆单 → 镭雕服务 |
 | 2026-02-24 | Activity 订单旅程回放 V2 完成（分组时间线 + 泳道式可视化 + 回放动画） |
 | 2026-02-23 | Smart Interaction 购物助手 V2：userId 自动注入链路打通；新增 Cart/Order MCP tools |

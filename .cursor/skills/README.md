@@ -55,9 +55,9 @@ flowchart LR
         C1 --> C2
     end
 
-    subgraph D["④ 发布 🔲"]
-        D1["端到端验证"]
-        D2["部署上线"]
+    subgraph D["④ 发布"]
+        D1["端到端验证<br/>(Smoke E2E)"]
+        D2["部署上线 🔲"]
         D1 --> D2
     end
 
@@ -65,12 +65,10 @@ flowchart LR
     B3 --> C1
     C2 --> D1
 
-    style D stroke-dasharray: 5 5
-    style D1 stroke-dasharray: 5 5
     style D2 stroke-dasharray: 5 5
 ```
 
-> **④ 发布**阶段（虚线框）为待完善部分，计划包括：端到端联调验证、容器化部署、CI/CD 流水线。
+> **端到端验证**（Smoke E2E）已落地，通过 Playwright 驱动真实浏览器验证前端核心链路。**部署上线**（虚线框）为待完善部分，计划包括：容器化部署、CI/CD 流水线。
 
 ## Skill 体系
 
@@ -98,9 +96,9 @@ flowchart LR
         INT --> FE
     end
 
-    subgraph 发布["④ 发布 🔲"]
-        E2E[端到端验证]
-        DEPLOY[部署上线]
+    subgraph 发布["④ 发布"]
+        E2E[端到端验证<br/>Smoke E2E]
+        DEPLOY[部署上线 🔲]
         E2E --> DEPLOY
     end
 
@@ -109,8 +107,6 @@ flowchart LR
     EF --> INT
     FE --> E2E
 
-    style 发布 stroke-dasharray: 5 5
-    style E2E stroke-dasharray: 5 5
     style DEPLOY stroke-dasharray: 5 5
 ```
 
@@ -124,7 +120,7 @@ flowchart LR
 | **evolve-feature** | 在已有 BC 内演进特性，严格遵循 ATDD。最常用的 Skill | ① 特性与模型确认 → ② 契约与测试先红 → ③ 实现变绿 → 清理与重构 | 通过验收的特性代码、更新的契约与文档 |
 | **integration** | 跨 BC 对接。同步调用或异步事件，由 `event-flow.md` 决定。验收用 Stub，真实适配器条件激活 | 确认契约 → 实现适配器 → 配置条件 Bean → 验收保持全绿 | REST 适配器和/或 Kafka 消费者、配置 |
 | **fix-bug-or-adjust-feature** | 已有特性的缺陷修复或场景微调。不涉及新的领域建模或跨 BC 影响分析 | 定位根因 → 测试先红 → 实现变绿 → 同步文档 | 修复后的代码、更新的测试与文档 |
-| **frontend-development** | 实现或扩展前端页面。需求优先、契约对齐、不重复后端业务规则 | 确定/更新界面规格 → 实现页面 → 验证 | 前端页面、更新的 ui-spec |
+| **frontend-development** | 实现或扩展前端页面。需求优先、契约对齐、不重复后端业务规则 | 确定/更新界面规格 → 实现页面 → 自动化验证（build + Smoke E2E） → 开发者确认 | 前端页面、更新的 ui-spec、Smoke E2E 全绿 |
 | **mcp-development** | 为 BC 设计并实现 MCP tools，暴露 AI 可调用的能力 | API 分类与暴露范围分析 → 设计 MCP tools → 实现与 schema → 验证与文档同步 | MCP Tools 实现与文档 |
 
 ### 场景与 Skill 组合

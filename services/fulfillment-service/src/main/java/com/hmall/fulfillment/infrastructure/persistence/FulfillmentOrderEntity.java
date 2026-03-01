@@ -1,6 +1,7 @@
 package com.hmall.fulfillment.infrastructure.persistence;
 
 import com.hmall.fulfillment.domain.FulfillmentOrderStatus;
+import com.hmall.fulfillment.domain.FulfillmentType;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -31,6 +32,10 @@ public class FulfillmentOrderEntity {
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private FulfillmentOrderStatus status;
+
+    @Column(name = "fulfillment_type", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private FulfillmentType fulfillmentType;
 
     @Column(name = "recipient_name", nullable = false)
     private String recipientName;
@@ -78,6 +83,8 @@ public class FulfillmentOrderEntity {
     public void setOrderId(Long orderId) { this.orderId = orderId; }
     public FulfillmentOrderStatus getStatus() { return status; }
     public void setStatus(FulfillmentOrderStatus status) { this.status = status; }
+    public FulfillmentType getFulfillmentType() { return fulfillmentType; }
+    public void setFulfillmentType(FulfillmentType fulfillmentType) { this.fulfillmentType = fulfillmentType; }
     public String getRecipientName() { return recipientName; }
     public void setRecipientName(String recipientName) { this.recipientName = recipientName; }
     public String getPhone() { return phone; }

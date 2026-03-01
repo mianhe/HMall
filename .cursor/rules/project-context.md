@@ -31,11 +31,12 @@ HMall 是 DDD + ATDD 驱动的电商系统。技术栈：Java 21 / Spring Boot 3
 ```
 特性 ──验收并守护──→ 验收测试 ──调用──→ API 契约
                                           ↓
-领域模型 ──────────映射──────────→ 代码实现（四层架构）
+领域模型 ────────指导和约束────────→ 代码实现（四层架构）
 ```
 
-**系统级**：业务需求（跨 BC）、上下文地图（`context-map.md`）、系统级事件流。
+**系统级**：业务需求（跨 BC）、上下文地图（`context-map.md`）、系统级事件流、端到端测试。
 **前端**：消费后端 API 契约；持有界面规格（`ui-spec.md`）和代码实现。
+**端到端测试**：使用前端验证系统级业务链路；包含冒烟测试和业务需求测试。
 
 ## 方法论与约定
 
@@ -48,9 +49,9 @@ HMall 是 DDD + ATDD 驱动的电商系统。技术栈：Java 21 / Spring Boot 3
 ```
 docs/
 ├── project-status.md              # 【必读】项目进度与路线图
-├── context-map.md                 # 上下文地图（BC 总览、集成关系）
+├── context-map.md                 # 系统结构（BC 总览、集成关系、集成技术）
+├── business-flows.md              # 业务流程（价值流、事件流、路径枚举、测试覆盖）
 ├── design-principles.md           # 架构与实现约定
-├── architecture/                  # 集成技术、事件分析方法
 ├── bounded-contexts/<context>/    # 各 BC 的 requirements / domain-model / event-flow / api.yaml
 ├── frontend/admin/                # 管理后台界面规格（ui-spec）
 └── frontend/web/                  # 消费者端界面规格（ui-spec）

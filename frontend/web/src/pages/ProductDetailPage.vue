@@ -46,7 +46,6 @@
           <div class="mb-6">
             <template v-if="matchedSku">
               <span class="text-2xl font-bold text-vmall-red">¥ {{ (matchedSku.priceCents / 100).toFixed(2) }}</span>
-              <p v-if="selectedSpecSummary" class="text-sm text-vmall-gray-text mt-1">已选：{{ selectedSpecSummary }}</p>
             </template>
             <template v-else>
               <span class="text-xl text-vmall-gray-text">请选择规格</span>
@@ -81,29 +80,22 @@
             当前商品暂无规格维度，默认展示首个 SKU 价格。
           </p>
 
-          <!-- 可选服务（仅 PHYSICAL 商品，有绑定服务时展示） -->
-          <div v-if="availableServices.length" class="mt-6 border border-vmall-gray-border rounded-lg p-4">
-            <p class="text-sm font-medium text-gray-700 mb-3">可选服务</p>
-            <div class="space-y-4">
-              <div
-                v-for="svc in availableServices"
-                :key="svc.serviceSpuId"
-                class="p-3 bg-blue-50/50 rounded-lg"
+          <!-- 保障服务：默认不选，点击选中/取消 -->
+          <div v-if="serviceOptions.length" class="mt-6">
+            <p class="text-sm font-medium text-gray-700 mb-3">保障服务</p>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="option in serviceOptions"
+                :key="option.key"
+                type="button"
+                class="px-4 py-2 rounded border text-sm transition-colors"
+                :class="selectedServiceKey === option.key
+                  ? 'border-vmall-red text-vmall-red bg-red-50/50'
+                  : 'border-vmall-gray-border text-gray-700 hover:border-vmall-red hover:text-vmall-red'"
+                @click="toggleService(option)"
               >
-                <div class="flex items-center gap-2 mb-2">
-                  <span class="text-sm font-medium text-gray-800">{{ svc.name }}</span>
-                </div>
-                <div v-if="svc.bindings?.length" class="space-y-1.5 ml-1">
-                  <div
-                    v-for="binding in svc.bindings"
-                    :key="binding.bindingId"
-                    class="flex items-center justify-between text-sm"
-                  >
-                    <span class="text-gray-700">{{ bindingSpecDisplay(binding) }}</span>
-                    <span class="font-medium text-vmall-red shrink-0">¥{{ (binding.priceCents / 100).toFixed(2) }}</span>
-                  </div>
-                </div>
-              </div>
+                {{ option.label }} ￥{{ (option.priceCents / 100).toFixed(0) }}
+              </button>
             </div>
           </div>
 
@@ -176,6 +168,7 @@ const product = ref(null)
 const dimensions = ref([])
 const skus = ref([])
 const availableServices = ref([])
+const selectedServiceKey = ref(null)
 const loading = ref(true)
 const error = ref('')
 const activeTab = ref('detail')
@@ -235,11 +228,19 @@ const matchedSku = computed(() => {
   }) ?? null
 })
 
-const selectedSpecSummary = computed(() => {
-  const sku = matchedSku.value
-  if (sku?.displayName) return sku.displayName
-  if (!sku?.specValues?.length) return ''
-  return sku.specValues.map((s) => s.optionValue).join('·')
+const serviceOptions = computed(() => {
+  return availableServices.value.flatMap((svc) => {
+    if (!svc.bindings?.length) return []
+    return svc.bindings.map((binding) => {
+      const spec = bindingSpecDisplay(binding)
+      return {
+        key: `${svc.serviceSpuId}-${binding.bindingId}`,
+        serviceSkuId: binding.serviceSkuId,
+        priceCents: binding.priceCents,
+        label: spec ? `${svc.name}（${spec}）` : svc.name,
+      }
+    })
+  })
 })
 
 function selectOption(dim, opt) {
@@ -255,6 +256,15 @@ function bindingSpecDisplay(binding) {
   return `SKU #${binding.serviceSkuId}`
 }
 
+function toggleService(option) {
+  selectedServiceKey.value = selectedServiceKey.value === option.key ? null : option.key
+}
+
+const selectedServiceOption = computed(() => {
+  if (!selectedServiceKey.value) return null
+  return serviceOptions.value.find((o) => o.key === selectedServiceKey.value) || null
+})
+
 function goCheckout() {
   const sku = matchedSku.value
   const p = product.value
@@ -263,17 +273,29 @@ function goCheckout() {
     router.push({ path: '/login', query: { redirect: `/products/${id.value}` } })
     return
   }
+  const items = [
+    {
+      skuId: sku.id,
+      quantity: 1,
+      displayName: sku.displayName || sku.specValues?.map((s) => s.optionValue).join('·') || p.name,
+      unitPriceCents: sku.priceCents,
+      productName: p.name,
+      spuId: p.id,
+    },
+  ]
+  if (selectedServiceOption.value) {
+    items.push({
+      skuId: selectedServiceOption.value.serviceSkuId,
+      quantity: 1,
+      unitPriceCents: selectedServiceOption.value.priceCents,
+      productName: selectedServiceOption.value.label,
+      relatedSkuId: sku.id,
+    })
+  }
   router.push({
     path: '/checkout',
     state: {
-      checkoutItem: {
-        skuId: sku.id,
-        quantity: 1,
-        displayName: sku.displayName || sku.specValues?.map((s) => s.optionValue).join('·') || p.name,
-        unitPriceCents: sku.priceCents,
-        productName: p.name,
-        spuId: p.id,
-      },
+      checkoutItems: items,
     },
   })
 }
@@ -292,6 +314,9 @@ async function addToCart() {
   addToCartMessage.value = ''
   try {
     await addCartItem(sku.id, 1)
+    if (selectedServiceOption.value) {
+      await addCartItem(selectedServiceOption.value.serviceSkuId, 1, sku.id)
+    }
     addToCartMessage.value = '已添加到购物车'
     window.dispatchEvent(new CustomEvent('cart-updated'))
     setTimeout(() => { addToCartMessage.value = '' }, 2000)
@@ -311,6 +336,7 @@ async function load() {
   skus.value = []
   availableServices.value = []
   selectedOptionIds.value = {}
+    selectedServiceKey.value = null
   currentImageIndex.value = 0
   try {
     const [p, dims, skuList] = await Promise.all([

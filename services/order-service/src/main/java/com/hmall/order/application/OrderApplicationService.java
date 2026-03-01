@@ -71,25 +71,33 @@ public class OrderApplicationService {
             if (sku.priceCents() < 0) {
                 throw new OrderBadRequestException("商品单价不能小于 0");
             }
-            items.add(new OrderLineItem(line.skuId(), line.quantity(), sku.priceCents(), sku.displayName()));
+            String productType = sku.productType() != null ? sku.productType() : "PHYSICAL";
+            OrderItemType itemType = OrderItemType.valueOf(productType);
+            long unitPriceCents = resolveUnitPriceCents(line, sku, itemType);
+            items.add(new OrderLineItem(line.skuId(), line.quantity(), unitPriceCents, sku.displayName(), itemType));
         }
 
         Order order = new Order(dto.userId(), address, items);
         Order saved = orderRepository.save(order);
 
         List<OccupyInventoryPort.ItemQuantity> occupyItems = items.stream()
+                .filter(li -> li.getItemType() == OrderItemType.PHYSICAL)
                 .map(li -> new OccupyInventoryPort.ItemQuantity(li.getSkuId(), li.getQuantity()))
                 .collect(Collectors.toList());
-        try {
-            occupyInventoryPort.occupy(saved.getOrderId(), occupyItems);
-        } catch (Exception e) {
-            throw new OrderBadRequestException("库存不足");
+        if (!occupyItems.isEmpty()) {
+            try {
+                occupyInventoryPort.occupy(saved.getOrderId(), occupyItems);
+            } catch (Exception e) {
+                throw new OrderBadRequestException("库存不足");
+            }
         }
 
         try {
             createPaymentPort.createPayment(saved.getOrderId(), saved.getTotalAmountCents());
         } catch (Exception e) {
-            releaseInventoryPort.release(saved.getOrderId());
+            if (!occupyItems.isEmpty()) {
+                releaseInventoryPort.release(saved.getOrderId());
+            }
             throw new OrderBadRequestException("创建支付失败");
         }
 
@@ -140,6 +148,8 @@ public class OrderApplicationService {
                 order.getTotalAmountCents(),
                 order.getShippingAddress(),
                 order.getItems(),
+                order.isPhysicalDelivered(),
+                order.isServiceActivated(),
                 order.getCreatedAt(),
                 Instant.now()
         );
@@ -153,13 +163,34 @@ public class OrderApplicationService {
                 || status == OrderStatus.FULFILLING;
     }
 
+    private long resolveUnitPriceCents(
+        OrderCreateDto.LineItemCreateDto line,
+        SkuInfoPort.SkuInfo sku,
+        OrderItemType itemType
+    ) {
+        if (itemType != OrderItemType.SERVICE || line.relatedSkuId() == null) {
+            return sku.priceCents();
+        }
+        SkuInfoPort.SkuInfo relatedSku;
+        try {
+            relatedSku = skuInfoPort.getById(line.relatedSkuId());
+        } catch (IllegalArgumentException e) {
+            throw new OrderBadRequestException("关联实体商品不存在");
+        }
+        if (relatedSku.spuId() == null) {
+            return sku.priceCents();
+        }
+        Long boundPrice = skuInfoPort.findBoundServicePriceCents(relatedSku.spuId(), sku.id());
+        return boundPrice != null ? boundPrice : sku.priceCents();
+    }
+
     private OrderDto toDto(Order order) {
         List<OrderDto.OrderLineItemDto> itemDtos = order.getItems().stream()
             .map(li -> {
                 String displayName = resolveDisplayName(li.getSkuId(), li.getDisplayName());
                 return new OrderDto.OrderLineItemDto(
                     li.getLineItemId(), li.getSkuId(), li.getQuantity(),
-                    li.getUnitPriceCents(), li.getTotalPriceCents(), displayName
+                    li.getUnitPriceCents(), li.getTotalPriceCents(), displayName, li.getItemType().name()
                 );
             })
             .toList();
@@ -177,7 +208,8 @@ public class OrderApplicationService {
             order.getTotalAmountCents(),
             itemDtos,
             addr,
-            order.getCreatedAt()
+            order.getCreatedAt(),
+            order.isServiceActivated()
         );
     }
 

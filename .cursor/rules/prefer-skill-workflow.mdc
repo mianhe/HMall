@@ -1,0 +1,29 @@
+---
+description: 代码改动优先使用 Skill 流程
+alwaysApply: true
+---
+
+# Prefer Skill Workflow
+
+在 HMall 中进行缺陷修复或功能改动时，默认优先使用相关 Skill，而不是直接改代码。
+
+## 执行要求
+
+1. 先判断当前任务是否匹配现有 Skill，并优先读取和遵循该 Skill。
+2. 在开始改动前，简要说明将使用哪个 Skill 以及本轮改动范围。
+3. 若没有合适 Skill，需先说明原因，再进行轻量直改，并补齐必要测试与文档同步检查。
+
+## 常见映射
+
+- 缺陷修复/小范围行为调整：`fix-bug-or-adjust-feature`
+- BC 内新增或演进特性：`evolve-feature`
+- 前端页面/交互改动：`frontend-development`
+- 跨 BC 对接：`integration`
+- MCP 工具/资源改动：`mcp-development`
+- 新增/拆分 BC：`add-bounded-context` / `extract-bounded-context`
+- 需求分析或方案澄清：`analyze-requirement`
+
+## 例外
+
+- 纯解释、纯查询、无代码改动任务可不触发本规则。
+- 用户明确要求“直接改、不要走 Skill”时可跳过。

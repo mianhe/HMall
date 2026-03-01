@@ -27,7 +27,7 @@ class Cart <<聚合根>> {
   --
   不变式: userId 必填，与用户 1:1
   --
-  + addItem(skuId, quantity): CartItem
+  + addItem(skuId, relatedSkuId, quantity): CartItem
   + updateItemQuantity(cartItemId, quantity): CartItem
   + removeItem(cartItemId): void
   + removeItems(cartItemIds): void
@@ -37,11 +37,12 @@ class Cart <<聚合根>> {
 class CartItem <<实体>> {
   - cartItemId: Long
   - skuId: Long
+  - relatedSkuId: Long?
   - quantity: Integer
   - addedAt: Instant
   --
   不变式: quantity > 0, skuId 必填
-  同一 Cart 中 skuId 唯一
+  同一 Cart 中 (skuId, relatedSkuId) 唯一
 }
 
 Cart "1" *-- "0..*" CartItem : items
@@ -75,7 +76,7 @@ end note
 **不变式**：userId 必填；一个 userId 对应一个 Cart。
 
 **领域行为**：
-- `addItem(skuId, quantity)`：若该 skuId 已在购物车中，累加 quantity；否则新增 CartItem。quantity 必须 > 0
+- `addItem(skuId, relatedSkuId, quantity)`：若该 (skuId, relatedSkuId) 组合已在购物车中，累加 quantity；否则新增 CartItem。quantity 必须 > 0。relatedSkuId 可为 null（实体商品不关联服务时）
 - `updateItemQuantity(cartItemId, quantity)`：更新指定项的数量；若 quantity = 0 则删除该项；quantity < 0 抛异常
 - `removeItem(cartItemId)`：删除指定购物车项
 - `removeItems(cartItemIds)`：批量删除（结算后清理）
@@ -86,10 +87,11 @@ end note
 |------|------|------|
 | cartItemId | Long | 唯一标识 |
 | skuId | Long | SKU ID，引用 Catalog |
+| relatedSkuId | Long? | 关联的实体 SKU ID（服务商品关联实体商品时使用），可为 null |
 | quantity | int | 数量，> 0 |
 | addedAt | Instant | 添加时间 |
 
-**不变式**：quantity > 0；skuId 必填；同一 Cart 中 skuId 唯一。
+**不变式**：quantity > 0；skuId 必填；同一 Cart 中 (skuId, relatedSkuId) 唯一——同一服务 SKU 关联不同实体商品视为不同购物车项。
 
 **内部方法**（由聚合根调用，不对外暴露）：
 - `increaseQuantity(delta)`：累加数量，delta 必须 > 0

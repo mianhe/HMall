@@ -32,6 +32,7 @@ public class McpToolBridge {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final AtomicReference<String> sessionId = new AtomicReference<>();
     private volatile List<Map<String, Object>> cachedTools;
+    private volatile List<McpResource> cachedResources;
 
     public McpToolBridge(LlmProviderConfig config) {
         HttpClient httpClient = HttpClient.create()
@@ -101,9 +102,38 @@ public class McpToolBridge {
         }
     }
 
+    public record McpResource(String uri, String name, String description) {}
+
+    public List<McpResource> getResources() {
+        if (cachedResources != null) return cachedResources;
+        synchronized (this) {
+            if (cachedResources != null) return cachedResources;
+            getTools();
+            discoverResources();
+            return cachedResources != null ? cachedResources : List.of();
+        }
+    }
+
+    public String readResource(String uri) {
+        try {
+            ObjectNode params = objectMapper.createObjectNode();
+            params.put("uri", uri);
+            JsonNode response = callWithSessionRetry("resources/read", params);
+            JsonNode contents = response.path("result").path("contents");
+            if (contents.isArray() && !contents.isEmpty()) {
+                return contents.get(0).path("text").asText("");
+            }
+            return "";
+        } catch (Exception e) {
+            log.warn("Failed to read MCP resource {}: {}", uri, e.getMessage());
+            return "";
+        }
+    }
+
     public void invalidateCache() {
         synchronized (this) {
             cachedTools = null;
+            cachedResources = null;
             sessionId.set(null);
         }
     }
@@ -111,6 +141,28 @@ public class McpToolBridge {
     public void refreshTools() {
         invalidateCache();
         getTools();
+    }
+
+    private void discoverResources() {
+        try {
+            JsonNode response = jsonRpcCall("resources/list", objectMapper.createObjectNode());
+            JsonNode resourcesArray = response.path("result").path("resources");
+            List<McpResource> resources = new ArrayList<>();
+            if (resourcesArray.isArray()) {
+                for (JsonNode r : resourcesArray) {
+                    resources.add(new McpResource(
+                        r.path("uri").asText(),
+                        r.path("name").asText(),
+                        r.path("description").asText("")
+                    ));
+                }
+            }
+            cachedResources = resources;
+            log.info("Discovered {} MCP resources", resources.size());
+        } catch (Exception e) {
+            log.warn("Failed to discover MCP resources: {}", e.getMessage());
+            cachedResources = List.of();
+        }
     }
 
     private void initializeAndDiscoverTools() {

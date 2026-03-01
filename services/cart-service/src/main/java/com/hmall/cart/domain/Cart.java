@@ -38,17 +38,17 @@ public class Cart {
      * 添加商品。若该 skuId 已在购物车中，累加 quantity；否则新增 CartItem。
      * @return 被添加或累加后的 CartItem
      */
-    public CartItem addItem(Long skuId, int quantity) {
+    public CartItem addItem(Long skuId, Long relatedSkuId, int quantity) {
         if (quantity <= 0) {
             throw new IllegalArgumentException("数量必须 > 0");
         }
-        Optional<CartItem> existing = findItemBySkuId(skuId);
+        Optional<CartItem> existing = findItemBySkuIdAndRelatedSkuId(skuId, relatedSkuId);
         if (existing.isPresent()) {
             existing.get().increaseQuantity(quantity);
             this.updatedAt = Instant.now();
             return existing.get();
         }
-        CartItem item = new CartItem(skuId, quantity);
+        CartItem item = new CartItem(skuId, relatedSkuId, quantity);
         items.add(item);
         this.updatedAt = Instant.now();
         return item;
@@ -64,26 +64,34 @@ public class Cart {
         }
         CartItem item = findItemById(cartItemId);
         if (quantity == 0) {
-            items.remove(item);
+            removeItemAndRelated(item);
             this.updatedAt = Instant.now();
             return null;
         }
         item.setQuantity(quantity);
+        syncRelatedServiceQuantitiesIfPrimary(item);
         this.updatedAt = Instant.now();
         return item;
     }
 
     public void removeItem(Long cartItemId) {
         CartItem item = findItemById(cartItemId);
-        items.remove(item);
+        removeItemAndRelated(item);
         this.updatedAt = Instant.now();
     }
 
     public void removeItems(List<Long> cartItemIds) {
+        List<CartItem> toRemove = cartItemIds.stream()
+            .map(this::findItemById)
+            .toList();
+        List<Long> removedPrimarySkuIds = toRemove.stream()
+            .map(CartItem::getSkuId)
+            .toList();
         for (Long id : cartItemIds) {
             CartItem item = findItemById(id);
             items.remove(item);
         }
+        items.removeIf(i -> i.getRelatedSkuId() != null && removedPrimarySkuIds.contains(i.getRelatedSkuId()));
         this.updatedAt = Instant.now();
     }
 
@@ -110,9 +118,28 @@ public class Cart {
             .orElseThrow(() -> new CartItemNotFoundException(cartItemId));
     }
 
-    private Optional<CartItem> findItemBySkuId(Long skuId) {
+    private Optional<CartItem> findItemBySkuIdAndRelatedSkuId(Long skuId, Long relatedSkuId) {
         return items.stream()
-            .filter(i -> i.getSkuId().equals(skuId))
+            .filter(i -> i.getSkuId().equals(skuId) && Objects.equals(i.getRelatedSkuId(), relatedSkuId))
             .findFirst();
+    }
+
+    private void syncRelatedServiceQuantitiesIfPrimary(CartItem item) {
+        if (item.getRelatedSkuId() != null) {
+            return;
+        }
+        for (CartItem relatedService : items) {
+            if (item.getSkuId().equals(relatedService.getRelatedSkuId())) {
+                relatedService.setQuantity(item.getQuantity());
+            }
+        }
+    }
+
+    private void removeItemAndRelated(CartItem item) {
+        items.remove(item);
+        if (item.getRelatedSkuId() != null) {
+            return;
+        }
+        items.removeIf(i -> item.getSkuId().equals(i.getRelatedSkuId()));
     }
 }

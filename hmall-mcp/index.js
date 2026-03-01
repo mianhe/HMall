@@ -12,6 +12,11 @@ import { registerOrderTools } from './tools/order.js'
 import { registerFulfillmentTools } from './tools/fulfillment.js'
 import { registerUserTools } from './tools/user.js'
 import { registerActivityTools } from './tools/activity.js'
+import { registerCatalogResources } from './resources/catalog-domain.js'
+import { registerInventoryResources } from './resources/inventory-domain.js'
+import { registerCartOrderResources } from './resources/cart-order-domain.js'
+import { registerFulfillmentResources } from './resources/fulfillment-domain.js'
+import { registerActivityResources } from './resources/activity-domain.js'
 
 const server = new McpServer({
   name: 'hmall-mcp',
@@ -26,6 +31,13 @@ registerOrderTools(server)
 registerFulfillmentTools(server)
 registerUserTools(server)
 registerActivityTools(server)
+
+// 注册领域知识 resources
+registerCatalogResources(server)
+registerInventoryResources(server)
+registerCartOrderResources(server)
+registerFulfillmentResources(server)
+registerActivityResources(server)
 
 // 启动
 async function main() {

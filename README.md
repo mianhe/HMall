@@ -119,8 +119,8 @@
 ```
 ├── Readme.md               # 本文件
 ├── docs/                   # 文档
-│   ├── context-map.md      # 上下文地图（BC 总览）
-│   ├── architecture/       # 架构、集成技术、事件分析方法
+│   ├── context-map.md      # 系统结构（BC 总览、集成关系、技术选型）
+│   ├── business-flows.md   # 业务流程（事件流、路径枚举、测试覆盖）
 │   ├── bounded-contexts/   # 各 BC 需求、领域模型、API 契约
 │   │   ├── catalog/
 │   │   └── user/

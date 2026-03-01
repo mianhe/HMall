@@ -63,7 +63,7 @@ public class FulfillmentController {
     public ResponseEntity<CreateFulfillmentResponseDto> create(
             @Valid @RequestBody CreateFulfillmentRequestDto dto) {
         var items = dto.items().stream()
-            .map(i -> new CreateFulfillmentItem(i.skuId(), i.quantity()))
+            .map(i -> new CreateFulfillmentItem(i.skuId(), i.quantity(), i.itemType()))
             .toList();
         var address = new CreateShippingAddress(
             dto.shippingAddress().recipientName(), dto.shippingAddress().phone(),

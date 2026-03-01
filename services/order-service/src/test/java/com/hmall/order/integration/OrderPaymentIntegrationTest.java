@@ -80,7 +80,7 @@ class OrderPaymentIntegrationTest {
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody("{\"id\":123,\"spuId\":1,\"priceCents\":599900,\"displayName\":\"iPhone 15\"}")));
+                        .withBody("{\"id\":123,\"spuId\":1,\"priceCents\":599900,\"displayName\":\"iPhone 15\",\"productType\":\"PHYSICAL\"}")));
         wireMock.stubFor(post(urlPathEqualTo("/api/inventory/occupy"))
                 .willReturn(aResponse().withStatus(200).withBody("{\"success\":true}")));
         wireMock.stubFor(post(urlPathEqualTo("/api/inventory/release"))
@@ -151,6 +151,7 @@ class OrderPaymentIntegrationTest {
         Order paidOrder = new Order(
                 order.getOrderId(), order.getUserId(), OrderStatus.PAID,
                 order.getTotalAmountCents(), order.getShippingAddress(), order.getItems(),
+                order.isPhysicalDelivered(), order.isServiceActivated(),
                 order.getCreatedAt(), Instant.now());
         orderRepository.save(paidOrder);
 

@@ -17,7 +17,30 @@
       <!-- 商品信息：单件（立即购买）或 多件（购物车） -->
       <div class="bg-white rounded-lg border border-vmall-gray-border p-4 mb-6">
         <h2 class="text-lg font-medium text-gray-800 mb-3">商品信息</h2>
-        <template v-if="checkoutPreviewData">
+        <!-- 购物车结算（有 groups 分组） -->
+        <template v-if="checkoutPreviewData?.groups?.length">
+          <div v-for="group in checkoutPreviewData.groups" :key="group.primaryCartItemId" class="border-b border-vmall-gray-border last:border-0 py-3">
+            <div class="flex gap-4">
+              <div class="w-20 h-20 shrink-0 bg-vmall-gray-bg rounded flex items-center justify-center text-2xl text-vmall-gray-text">📦</div>
+              <div class="flex-1 min-w-0">
+                <p class="font-medium text-gray-800 truncate">{{ group.primarySkuName }}</p>
+                <p class="text-vmall-red font-medium mt-1">¥ {{ formatPrice(findPreviewItem(group.primaryCartItemId)?.price) }} × {{ findPreviewItem(group.primaryCartItemId)?.quantity ?? 1 }}</p>
+              </div>
+            </div>
+            <div v-for="svc in group.serviceItems" :key="svc.cartItemId" class="flex gap-4 mt-2 ml-8">
+              <div class="w-14 h-14 shrink-0 bg-blue-50 rounded flex items-center justify-center text-blue-500 text-lg">🛡</div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">服务</span>
+                  <p class="font-medium text-gray-800 truncate">{{ svc.skuName }}</p>
+                </div>
+                <p class="text-vmall-red font-medium mt-1">¥ {{ formatPrice(svc.price) }} × {{ svc.quantity }}</p>
+              </div>
+            </div>
+          </div>
+        </template>
+        <!-- 购物车结算（无 groups，降级平铺） -->
+        <template v-else-if="checkoutPreviewData">
           <div v-for="row in checkoutPreviewData.items" :key="row.cartItemId" class="flex gap-4 py-3 border-b border-vmall-gray-border last:border-0">
             <div class="w-20 h-20 shrink-0 bg-vmall-gray-bg rounded flex items-center justify-center text-2xl text-vmall-gray-text">📦</div>
             <div class="flex-1 min-w-0">
@@ -25,6 +48,28 @@
               <p class="text-vmall-red font-medium mt-1">¥ {{ formatPrice(row.price) }} × {{ row.quantity }}</p>
             </div>
           </div>
+        </template>
+        <!-- 立即购买（含可能的服务 items） -->
+        <template v-else-if="checkoutItems?.length">
+          <template v-for="group in checkoutItemGroups" :key="group.primary.skuId">
+            <div class="flex gap-4 py-3 border-b border-vmall-gray-border last:border-0">
+              <div class="w-20 h-20 shrink-0 bg-vmall-gray-bg rounded flex items-center justify-center text-2xl text-vmall-gray-text">📦</div>
+              <div class="flex-1 min-w-0">
+                <p class="font-medium text-gray-800 truncate">{{ group.primary.productName || group.primary.displayName || ('SKU ' + group.primary.skuId) }}</p>
+                <p class="text-vmall-red font-medium mt-1">¥ {{ ((group.primary.unitPriceCents || 0) / 100).toFixed(2) }} × {{ group.primary.quantity || 1 }}</p>
+              </div>
+            </div>
+            <div v-for="(svc, sIdx) in group.services" :key="`svc-${svc.skuId}-${sIdx}`" class="flex gap-4 py-2 ml-8 border-b border-vmall-gray-border last:border-0">
+              <div class="w-14 h-14 shrink-0 bg-blue-50 rounded flex items-center justify-center text-blue-500 text-lg">🛡</div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">服务</span>
+                  <p class="font-medium text-gray-800 truncate">{{ svc.productName || svc.displayName || ('SKU ' + svc.skuId) }}</p>
+                </div>
+                <p class="text-vmall-red font-medium mt-1">¥ {{ ((svc.unitPriceCents || 0) / 100).toFixed(2) }} × {{ svc.quantity || 1 }}</p>
+              </div>
+            </div>
+          </template>
         </template>
         <template v-else-if="checkoutItem">
           <div class="flex gap-4">
@@ -137,6 +182,7 @@ const router = useRouter()
 const { userId, isLoggedIn } = useAuth()
 
 const checkoutItem = ref(null)
+const checkoutItems = ref(null)
 const cartCheckoutIds = ref(null)
 const checkoutPreviewData = ref(null)
 const previewLoading = ref(false)
@@ -153,11 +199,17 @@ const form = ref({
 const submitting = ref(false)
 const error = ref('')
 
-const hasCheckoutData = computed(() => checkoutItem.value || checkoutPreviewData.value)
+const hasCheckoutData = computed(() => checkoutItem.value || checkoutItems.value?.length || checkoutPreviewData.value)
 
 const totalDisplay = computed(() => {
   if (checkoutPreviewData.value?.totalPrice != null) {
     return Number(checkoutPreviewData.value.totalPrice).toFixed(2)
+  }
+  if (checkoutItems.value?.length) {
+    const sum = checkoutItems.value.reduce((acc, row) => {
+      return acc + ((row.unitPriceCents || 0) * (row.quantity || 1) / 100)
+    }, 0)
+    return sum.toFixed(2)
   }
   const item = checkoutItem.value
   if (!item) return '0.00'
@@ -168,6 +220,21 @@ function formatPrice(p) {
   if (p == null) return '0.00'
   return Number(p).toFixed(2)
 }
+
+function findPreviewItem(cartItemId) {
+  return checkoutPreviewData.value?.items?.find((i) => i.cartItemId === cartItemId) ?? null
+}
+
+const checkoutItemGroups = computed(() => {
+  if (!checkoutItems.value?.length) return []
+  const primaries = checkoutItems.value.filter((i) => !i.relatedSkuId)
+  const services = checkoutItems.value.filter((i) => i.relatedSkuId)
+  if (primaries.length === 0) return [{ primary: checkoutItems.value[0], services: checkoutItems.value.slice(1) }]
+  return primaries.map((p) => ({
+    primary: p,
+    services: services.filter((s) => s.relatedSkuId === p.skuId),
+  }))
+})
 
 watch(selectedAddressId, (id) => {
   if (!id) return
@@ -185,6 +252,7 @@ watch(selectedAddressId, (id) => {
 onMounted(async () => {
   const state = history.state
   const stored = sessionStorage.getItem('checkoutItem')
+  const storedItems = sessionStorage.getItem('checkoutItems')
 
   if (state?.cartCheckout?.cartItemIds?.length) {
     cartCheckoutIds.value = state.cartCheckout.cartItemIds
@@ -196,9 +264,18 @@ onMounted(async () => {
     } finally {
       previewLoading.value = false
     }
+  } else if (state?.checkoutItems?.length) {
+    checkoutItems.value = state.checkoutItems
+    sessionStorage.setItem('checkoutItems', JSON.stringify(state.checkoutItems))
   } else if (state?.checkoutItem) {
     checkoutItem.value = state.checkoutItem
     sessionStorage.setItem('checkoutItem', JSON.stringify(state.checkoutItem))
+  } else if (storedItems) {
+    try {
+      checkoutItems.value = JSON.parse(storedItems)
+    } catch {
+      sessionStorage.removeItem('checkoutItems')
+    }
   } else if (stored) {
     try {
       checkoutItem.value = JSON.parse(stored)
@@ -220,9 +297,23 @@ onMounted(async () => {
 async function submitOrder() {
   let orderItems
   if (checkoutPreviewData.value?.items?.length) {
-    orderItems = checkoutPreviewData.value.items.map((i) => ({ skuId: i.skuId, quantity: i.quantity }))
+    orderItems = checkoutPreviewData.value.items.map((i) => ({
+      skuId: i.skuId,
+      quantity: i.quantity,
+      relatedSkuId: i.relatedSkuId ?? null,
+    }))
+  } else if (checkoutItems.value?.length) {
+    orderItems = checkoutItems.value.map((i) => ({
+      skuId: i.skuId,
+      quantity: i.quantity || 1,
+      relatedSkuId: i.relatedSkuId ?? null,
+    }))
   } else if (checkoutItem.value?.skuId && checkoutItem.value?.quantity) {
-    orderItems = [{ skuId: checkoutItem.value.skuId, quantity: checkoutItem.value.quantity }]
+    orderItems = [{
+      skuId: checkoutItem.value.skuId,
+      quantity: checkoutItem.value.quantity,
+      relatedSkuId: checkoutItem.value.relatedSkuId ?? null,
+    }]
   } else {
     error.value = '商品信息不完整'
     return
@@ -261,6 +352,7 @@ async function submitOrder() {
       return
     }
     sessionStorage.removeItem('checkoutItem')
+    sessionStorage.removeItem('checkoutItems')
     if (cartCheckoutIds.value?.length) {
       await deleteCartItems(cartCheckoutIds.value)
       window.dispatchEvent(new CustomEvent('cart-updated'))

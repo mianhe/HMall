@@ -96,9 +96,9 @@ public class OrderCancelStepDefinitions {
 
     private void saveOrderWithStatus(OrderStatus status) {
         ShippingAddress addr = new ShippingAddress("收件人", "13800138000", "上海", "上海", "浦东", "测试地址");
-        OrderLineItem item = new OrderLineItem(123L, 1, 10000L, "测试商品");
+        OrderLineItem item = new OrderLineItem(123L, 1, 10000L, "测试商品", OrderItemType.PHYSICAL);
         Order order = new Order(null, 1L, status, 10000L, addr,
-                List.of(item), Instant.now(), Instant.now());
+                List.of(item), false, false, Instant.now(), Instant.now());
         Order saved = orderRepository.save(order);
         lastOrderContext.setLastOrderId(saved.getOrderId());
     }

@@ -7,17 +7,18 @@
 
 ---
 
-## 工具总览（16 个，均已实现）
+## 工具总览（18 个，均已实现）
 
-### Catalog（8 个）
+### Catalog（10 个）
 
 | 工具名 | 用途 |
 |--------|------|
 | `catalog_categories` | 类目：列表 / 树 / 详情 / 创建 / 修改 / 删除 |
 | `catalog_products` | 商品(SPU)：列表或搜索 / 详情(基础或完整) / 创建(含 productType) / 修改 / 删除 |
 | `catalog_dimensions` | 规格维度与选项：列表 / 添加维度 / 添加选项 / 删除选项 |
-| `catalog_skus` | SKU：列表 / 创建 / 修改 / 删除 |
-| `catalog_service_bindings` | 服务绑定：列表 / 创建 / 删除（将服务 SKU 绑定到实体 SPU） |
+| `catalog_skus` | SKU：列表 / 详情 / 按 skuId 查(不需 spuId) / 创建 / 修改 / 删除 |
+| `catalog_service_bindings` | 服务绑定：列表 / 创建 / 修改价格 / 删除（将服务 SKU 绑定到实体 SPU） |
+| `catalog_available_services` | 查询某实体商品的可选服务列表（从实体商品角度出发，按服务 SPU 分组） |
 | `catalog_upload_image` | 上传本地图片，返回可访问 URL |
 | `catalog_product_images` | 产品级展示图：列表 / 添加(支持 URL 或本地路径) / 删除 |
 | `catalog_option_images` | 选项级展示图：列表 / 添加(支持 URL 或本地路径) / 删除 |
@@ -47,9 +48,9 @@
 
 | 工具名 | 用途 |
 |--------|------|
-| `fulfillment_orders` | 履约单：查询详情 / 列表筛选 / 配货 / 发货 / 签收确认 |
+| `fulfillment_orders` | 履约单：查询详情 / 列表筛选 / 配货 / 发货 / 签收确认（含实体与虚拟履约单） |
 
-> **设计说明**：Fulfillment BC 的创建（create）和取消（cancel）API 属于系统协调接口（仅由 Order BC 在下单/取消流程中调用），不暴露为 MCP tool，以避免产生「有履约单无对应订单」的脏数据。
+> **设计说明**：Fulfillment BC 的创建（create）和取消（cancel）API 属于系统协调接口（仅由 Order BC 在下单/取消流程中调用），不暴露为 MCP tool。履约单分为 PHYSICAL（实体，走配货→发货→签收）和 VIRTUAL（虚拟服务，创建后即激活）两种类型。
 
 ### User（2 个）
 
@@ -147,13 +148,13 @@
 
 ## 4. catalog_skus
 
-某 SPU 下 SKU 的查询与维护。SKU 由各规格维度的选项组合 + 价格（及可选展示名）构成。
+SKU 的查询与维护。SKU 由各规格维度的选项组合 + 价格（及可选展示名）构成。
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `action` | string | 是 | `list` \| `create` \| `update` \| `delete` |
-| `spuId` | number | 是 | 商品(SPU) ID |
-| `skuId` | number | update/delete 时必填 | SKU ID |
+| `action` | string | 是 | `list` \| `get` \| `get_by_id` \| `create` \| `update` \| `delete` |
+| `spuId` | number | list/get/create/update/delete 时必填；get_by_id 不需要 | 商品(SPU) ID |
+| `skuId` | number | get/get_by_id/update/delete 时必填 | SKU ID |
 | `specOptionIds` | number[] | create 时必填 | 各必填维度所选选项 ID 列表 |
 | `priceCents` | number | create 时必填；update 时可选 | 价格，单位：分 |
 | `displayName` | string | 否 | 展示名 |
@@ -161,6 +162,8 @@
 **示例**
 
 - 查某 SPU 下所有 SKU：`action=list`, `spuId=1`
+- 查 SKU 详情（需 spuId）：`action=get`, `spuId=1`, `skuId=5`
+- 只用 skuId 查 SKU 详情：`action=get_by_id`, `skuId=5`（适用于从购物车/订单/库存拿到 skuId 后查详情）
 - 创建 SKU：`action=create`, `spuId=1`, `specOptionIds=[1,3]`, `priceCents=599900`
 - 改价格：`action=update`, `spuId=1`, `skuId=5`, `priceCents=549900`
 - 删除：`action=delete`, `spuId=1`, `skuId=5`
@@ -236,18 +239,34 @@
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `action` | string | 是 | `list` \| `create` \| `delete` |
+| `action` | string | 是 | `list` \| `create` \| `update` \| `delete` |
 | `skuId` | number | 是 | 服务 SKU ID |
-| `bindingId` | number | delete 时必填 | 绑定 ID |
+| `bindingId` | number | update/delete 时必填 | 绑定 ID |
 | `targetSpuId` | number | create 时必填 | 绑定到的实体商品(SPU) ID |
-| `priceCents` | number \| null | 否 | create 时可选：绑定价格（分），null 表示继承 SKU 标准价 |
+| `priceCents` | number \| null | 否 | create/update 时可选：绑定价格（分），null 表示继承 SKU 标准价 |
 
 **示例**
 
 - 查某服务 SKU 的绑定：`action=list`, `skuId=10`
 - 创建绑定（指定价格）：`action=create`, `skuId=10`, `targetSpuId=1`, `priceCents=29900`
 - 创建绑定（继承标准价）：`action=create`, `skuId=10`, `targetSpuId=2`
+- 修改绑定价格：`action=update`, `skuId=10`, `bindingId=5`, `priceCents=39900`
+- 改回继承标准价：`action=update`, `skuId=10`, `bindingId=5`, `priceCents=null`
 - 删除绑定：`action=delete`, `skuId=10`, `bindingId=5`
+
+---
+
+## 8b. catalog_available_services
+
+查询某实体商品(SPU)的可选服务列表（从实体商品角度出发）。返回所有已绑定到该 SPU 的服务，按服务 SPU 分组，每个服务下列出已绑定的 SKU 及其最终售价。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `spuId` | number | 是 | 实体商品(SPU) ID |
+
+**示例**
+
+- 查手机的可选服务（碎屏险、延保等）：`spuId=1`
 
 ---
 
@@ -256,7 +275,9 @@
 1. **类目**：`catalog_categories` 建树（根 → 子 → 叶子）。
 2. **商品**：在叶子类目下 `catalog_products` create；需要规格时用 `catalog_dimensions` 添加维度和选项。
 3. **SKU**：用 `catalog_dimensions` list 拿到选项 ID，再用 `catalog_skus` create 组合选项与价格。
-4. **展示图**：用 `catalog_upload_image` 得到 URL，或用 `catalog_product_images` / `catalog_option_images` 的 add + `localPath` 一步完成；list/delete 按需调用。
+4. **展示图**：用 `catalog_upload_image` 得到 URL，或用 `catalog_product_images` / `catalog_option_images` 的 add + `localPath` 一步完成。
+5. **服务绑定**：创建 SERVICE 类型 SPU → 创建 SKU → 用 `catalog_service_bindings` create 绑定到实体 SPU（可指定价格）→ 用 `catalog_available_services` 从实体商品角度查看可选服务。
+6. **服务加购**：`cart_manage` add 时传 `relatedSkuId` 将服务关联到实体商品。
 
 ---
 
@@ -306,22 +327,24 @@
 | `action` | string | 是 | `list` \| `add` \| `update_quantity` \| `remove` \| `checkout_preview` |
 | `userId` | number | 系统注入 | 用户 ID（Smart Interaction 自动注入，无需手动传递） |
 | `skuId` | number | add 时必填 | SKU ID |
+| `relatedSkuId` | number | 否 | add 时可选：服务 SKU 关联的实体 skuId（仅 SERVICE 商品加购时需要） |
 | `quantity` | number | add/update_quantity 时必填 | 数量（add ≥1；update_quantity 中 0 = 删除） |
 | `cartItemId` | number | update_quantity/remove 时必填 | 购物车项 ID |
 | `cartItemIds` | number[] | checkout_preview 时必填 | 选中的购物车项 ID 列表 |
 
 **action 说明**
 
-- `list`：查看当前用户购物车，返回商品名、数量、单价。
-- `add`：添加商品到购物车。同一 SKU 重复添加会累加数量。
+- `list`：查看当前用户购物车，返回商品名、数量、单价、商品类型（PHYSICAL/SERVICE）。
+- `add`：添加商品到购物车。同一 SKU 重复添加会累加数量。服务商品加购时需传 `relatedSkuId`。
 - `update_quantity`：修改购物车项数量。quantity=0 时删除该项。
 - `remove`：删除单个购物车项。
-- `checkout_preview`：结算预览，返回选中商品的明细和总价。
+- `checkout_preview`：结算预览，返回选中商品的明细、服务分组和总价。
 
 **示例**
 
 - 查看购物车：`action=list`
-- 加购：`action=add`, `skuId=100`, `quantity=2`
+- 加购实体商品：`action=add`, `skuId=100`, `quantity=2`
+- 加购服务商品（关联实体SKU）：`action=add`, `skuId=200`, `quantity=1`, `relatedSkuId=100`
 - 改数量：`action=update_quantity`, `cartItemId=5`, `quantity=3`
 - 删除：`action=remove`, `cartItemId=5`
 - 结算预览：`action=checkout_preview`, `cartItemIds=[5,6]`
@@ -383,17 +406,19 @@
 | `action` | string | 是 | `get` \| `list` \| `allocate` \| `ship` \| `deliver` |
 | `fulfillmentOrderId` | number | get/allocate/ship/deliver 时必填 | 履约单 ID |
 | `orderId` | number | 否 | list 时可选，按订单 ID 筛选 |
-| `status` | string | 否 | list 时可选，按状态筛选（CREATED/ALLOCATING/SHIPPED/DELIVERED/CANCELLED） |
+| `status` | string | 否 | list 时可选，按状态筛选（CREATED/ALLOCATING/SHIPPED/ACTIVATED/DELIVERED/CANCELLED） |
 | `carrier` | string | ship 时必填 | 物流公司名称 |
 | `trackingNumber` | string | ship 时必填 | 物流单号 |
 
 **action 说明**
 
-- `get`：按履约单 ID 查询详情，返回状态、商品明细、收货地址、物流信息。
-- `list`：查询履约单列表，可按 orderId 和/或 status 筛选。无参数时返回全部。
-- `allocate`：配货，将状态从「待配货」推进到「配货中」。
-- `ship`：发货，需提供物流公司和物流单号，将状态从「配货中」推进到「已发货」。
-- `deliver`：签收确认，将状态从「已发货」推进到「已签收」。
+- `get`：按履约单 ID 查询详情，返回类型（实体/虚拟）、状态、商品明细、收货地址、物流信息。
+- `list`：查询履约单列表，可按 orderId 和/或 status 筛选。无参数时返回全部。返回含履约类型。
+- `allocate`：配货（仅实体履约单），将状态从「待配货」推进到「配货中」。
+- `ship`：发货（仅实体履约单），需提供物流公司和物流单号，将状态从「配货中」推进到「已发货」。
+- `deliver`：签收确认（仅实体履约单），将状态从「已发货」推进到「已签收」。
+
+> 虚拟服务履约单创建后自动激活（CREATED → ACTIVATED），无需手动操作。
 
 **示例**
 
@@ -501,4 +526,4 @@
 - **User**：默认 API 基地址 `http://localhost:8082/api`，可通过 `HMALL_USER_API_BASE` 覆盖。
 - **Activity**：默认 API 基地址 `http://localhost:8086/api`，可通过 `HMALL_ACTIVITY_API_BASE` 覆盖。
 
-*当前实现已与本文档一致：上述 16 个 tool 均已实现。*
+*当前实现已与本文档一致：上述 18 个 tool 均已实现。*

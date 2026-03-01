@@ -4,6 +4,7 @@ import com.hmall.catalog.api.dto.AvailableServiceDto;
 import com.hmall.catalog.api.dto.AvailableServiceSkuDto;
 import com.hmall.catalog.api.dto.ServiceBindingCreateDto;
 import com.hmall.catalog.api.dto.ServiceBindingDto;
+import com.hmall.catalog.api.dto.ServiceBindingUpdateDto;
 import com.hmall.catalog.api.dto.SkuSpecValueDto;
 import com.hmall.catalog.application.ServiceBindingApplicationService;
 import com.hmall.catalog.application.ServiceBindingApplicationService.BindingWithSku;
@@ -44,6 +45,14 @@ public class ServiceBindingController {
             .map(bt -> toDto(bt.binding(), bt.targetSpuName()))
             .toList();
         return ResponseEntity.ok(result);
+    }
+
+    @PutMapping("/api/skus/{skuId}/service-bindings/{bindingId}")
+    public ResponseEntity<ServiceBindingDto> update(@PathVariable Long skuId,
+                                                    @PathVariable Long bindingId,
+                                                    @RequestBody ServiceBindingUpdateDto dto) {
+        ServiceBinding updated = bindingService.updatePrice(skuId, bindingId, dto.priceCents());
+        return ResponseEntity.ok(toDto(updated, null));
     }
 
     @DeleteMapping("/api/skus/{skuId}/service-bindings/{bindingId}")

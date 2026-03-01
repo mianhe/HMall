@@ -8,6 +8,7 @@ import java.util.List;
 public record FulfillmentOrderDto(
     Long fulfillmentOrderId,
     Long orderId,
+    String fulfillmentType,
     String status,
     List<FulfillmentItemDto> items,
     ShippingAddressDto shippingAddress,
@@ -17,7 +18,12 @@ public record FulfillmentOrderDto(
 ) {
     public static FulfillmentOrderDto from(FulfillmentOrder order) {
         List<FulfillmentItemDto> items = order.getItems().stream()
-            .map(i -> new FulfillmentItemDto(i.getFulfillmentItemId(), i.getSkuId(), i.getQuantity()))
+            .map(i -> new FulfillmentItemDto(
+                i.getFulfillmentItemId(),
+                i.getSkuId(),
+                i.getQuantity(),
+                i.getItemType().name()
+            ))
             .toList();
 
         ShippingAddressDto address = new ShippingAddressDto(
@@ -41,12 +47,13 @@ public record FulfillmentOrderDto(
 
         return new FulfillmentOrderDto(
             order.getFulfillmentOrderId(), order.getOrderId(),
+            order.getFulfillmentType().name(),
             order.getStatus().name(), items, address, shippingInfo,
             order.getCreatedAt(), order.getUpdatedAt()
         );
     }
 
-    public record FulfillmentItemDto(Long fulfillmentItemId, Long skuId, int quantity) {}
+    public record FulfillmentItemDto(Long fulfillmentItemId, Long skuId, int quantity, String itemType) {}
     public record ShippingAddressDto(String recipientName, String phone,
                                      String province, String city, String district, String detail) {}
     public record ShippingInfoDto(String carrier, String trackingNumber,

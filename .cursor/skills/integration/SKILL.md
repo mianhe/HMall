@@ -13,7 +13,7 @@ description: 跨 BC 或跨系统集成：在调用方实现出站端口的真实
 | 二、适配器与配置 | 实现真实适配器，配置下游 base URL，Profile/条件 Bean 区分测试与运行 |
 | 三、验证 | 验收仍用 Stub 全绿；可选集成测试或联调 |
 
-参考：`docs/context-map.md`、`docs/architecture/integration.md`；契约：`docs/bounded-contexts/<被调用方>/api.yaml`。
+参考：`docs/context-map.md`；契约：`docs/bounded-contexts/<被调用方>/api.yaml`。
 
 ---
 
@@ -71,6 +71,6 @@ description: 跨 BC 或跨系统集成：在调用方实现出站端口的真实
 
 ## 参考
 
-- `docs/context-map.md`、`docs/architecture/integration.md`
+- `docs/context-map.md`
 - `docs/bounded-contexts/<被调用方>/api.yaml`
 

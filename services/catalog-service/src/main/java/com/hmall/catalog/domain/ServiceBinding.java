@@ -6,14 +6,14 @@ public class ServiceBinding {
     private final Long id;
     private final Long serviceSkuId;
     private final Long targetSpuId;
-    private final Long priceCents;
+    private Long priceCents;
 
     /** 新建 */
     public ServiceBinding(Long serviceSkuId, Long targetSpuId, Long priceCents) {
         this.id = null;
         this.serviceSkuId = Objects.requireNonNull(serviceSkuId, "serviceSkuId");
         this.targetSpuId = Objects.requireNonNull(targetSpuId, "targetSpuId");
-        if (priceCents != null && priceCents < 0) throw new IllegalArgumentException("priceCents must be >= 0");
+        validatePriceCents(priceCents);
         this.priceCents = priceCents;
     }
 
@@ -25,8 +25,17 @@ public class ServiceBinding {
         this.priceCents = priceCents;
     }
 
+    public void updatePrice(Long priceCents) {
+        validatePriceCents(priceCents);
+        this.priceCents = priceCents;
+    }
+
     public Long getId() { return id; }
     public Long getServiceSkuId() { return serviceSkuId; }
     public Long getTargetSpuId() { return targetSpuId; }
     public Long getPriceCents() { return priceCents; }
+
+    private static void validatePriceCents(Long priceCents) {
+        if (priceCents != null && priceCents < 0) throw new IllegalArgumentException("priceCents must be >= 0");
+    }
 }

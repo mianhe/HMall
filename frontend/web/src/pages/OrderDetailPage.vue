@@ -110,12 +110,20 @@
           v-for="item in order.items"
           :key="item.lineItemId ?? item.skuId"
           class="flex gap-4 py-3 border-b border-vmall-gray-border last:border-0"
+          :class="item.itemType === 'SERVICE' ? 'pl-8 bg-gray-50/50' : ''"
         >
-          <div class="w-16 h-16 shrink-0 bg-vmall-gray-bg rounded flex items-center justify-center text-xl text-vmall-gray-text">📦</div>
+          <div v-if="item.itemType === 'SERVICE'" class="w-12 h-12 shrink-0 bg-blue-50 rounded flex items-center justify-center text-blue-500">🛡</div>
+          <div v-else class="w-16 h-16 shrink-0 bg-vmall-gray-bg rounded flex items-center justify-center text-xl text-vmall-gray-text">📦</div>
           <div class="flex-1 min-w-0">
-            <p class="font-medium text-gray-800">{{ item.displayName || '商品' }}</p>
+            <div class="flex items-center gap-2">
+              <span v-if="item.itemType === 'SERVICE'" class="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-medium">服务</span>
+              <p class="font-medium text-gray-800">{{ item.displayName || '商品' }}</p>
+            </div>
             <p class="text-sm text-vmall-gray-text">
               ¥{{ formatPrice(item.unitPriceCents) }} × {{ item.quantity }}
+            </p>
+            <p v-if="item.itemType === 'SERVICE'" class="text-xs mt-0.5" :class="order.serviceActivated ? 'text-green-600' : 'text-amber-500'">
+              {{ order.serviceActivated ? '已激活' : '待激活' }}
             </p>
           </div>
           <p class="text-vmall-red font-medium shrink-0">
@@ -242,6 +250,7 @@ const EVENT_DESCRIPTIONS = {
   FulfillmentOrderAllocated:  '商品正在配货中',
   FulfillmentShipped:         '商品已发货，等待签收',
   FulfillmentDelivered:       '商品已签收',
+  ServiceActivated:           '服务已激活',
 }
 
 const timeline = computed(() =>

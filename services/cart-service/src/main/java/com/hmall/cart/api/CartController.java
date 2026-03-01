@@ -9,6 +9,7 @@ import com.hmall.cart.api.dto.UpdateCartItemRequest;
 import com.hmall.cart.application.CartApplicationService;
 import com.hmall.cart.application.CartItemView;
 import com.hmall.cart.application.CheckoutPreview;
+import com.hmall.cart.application.AvailableServiceView;
 import com.hmall.cart.domain.CartItem;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -47,7 +48,7 @@ public class CartController {
             @RequestHeader(value = "X-User-Id", required = false) Long userId,
             @RequestBody AddCartItemRequest request) {
         requireUserId(userId);
-        CartItem item = applicationService.addItem(userId, request.skuId(), request.quantity());
+        CartItem item = applicationService.addItem(userId, request.skuId(), request.relatedSkuId(), request.quantity());
         return ResponseEntity.ok(toBasicDto(item));
     }
 
@@ -99,24 +100,56 @@ public class CartController {
 
     private CartItemDto toDto(CartItemView view) {
         return new CartItemDto(
-            view.cartItemId(), view.skuId(), view.quantity(), view.addedAt(),
-            view.skuName(), view.skuPrice(), view.skuImageUrl(), view.available()
+            view.cartItemId(), view.skuId(), view.relatedSkuId(), view.quantity(), view.addedAt(),
+            view.skuName(), view.skuPrice(), view.skuImageUrl(), view.available(),
+            view.productType(), view.spuId(),
+            toAvailableServiceDtos(view.availableServices())
         );
     }
 
     private CartItemDto toBasicDto(CartItem item) {
         return new CartItemDto(
-            item.getCartItemId(), item.getSkuId(), item.getQuantity(), item.getAddedAt(),
-            null, null, null, null
+            item.getCartItemId(), item.getSkuId(), item.getRelatedSkuId(), item.getQuantity(), item.getAddedAt(),
+            null, null, null, null, null, null, null
         );
     }
 
     private CheckoutPreviewDto toCheckoutDto(CheckoutPreview preview) {
         List<CheckoutPreviewDto.Item> items = preview.items().stream()
             .map(i -> new CheckoutPreviewDto.Item(
-                i.cartItemId(), i.skuId(), i.skuName(), i.price(), i.quantity(), i.subtotal()
+                i.cartItemId(), i.skuId(), i.relatedSkuId(), i.productType(),
+                i.skuName(), i.price(), i.quantity(), i.subtotal()
             ))
             .toList();
-        return new CheckoutPreviewDto(items, preview.totalPrice());
+        List<CheckoutPreviewDto.Group> groups = preview.groups().stream()
+            .map(g -> new CheckoutPreviewDto.Group(
+                g.primaryCartItemId(),
+                g.primarySkuId(),
+                g.primarySkuName(),
+                g.serviceItems().stream()
+                    .map(i -> new CheckoutPreviewDto.Item(
+                        i.cartItemId(), i.skuId(), i.relatedSkuId(), i.productType(),
+                        i.skuName(), i.price(), i.quantity(), i.subtotal()
+                    ))
+                    .toList(),
+                g.groupSubtotal()
+            ))
+            .toList();
+        return new CheckoutPreviewDto(items, groups, preview.totalPrice());
+    }
+
+    private List<CartItemDto.AvailableServiceDto> toAvailableServiceDtos(List<AvailableServiceView> services) {
+        if (services == null || services.isEmpty()) {
+            return List.of();
+        }
+        return services.stream()
+            .map(s -> new CartItemDto.AvailableServiceDto(
+                s.serviceSpuId(),
+                s.name(),
+                s.bindings().stream()
+                    .map(b -> new CartItemDto.AvailableServiceSkuDto(b.bindingId(), b.serviceSkuId(), b.price()))
+                    .toList()
+            ))
+            .toList();
     }
 }

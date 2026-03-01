@@ -1,21 +1,18 @@
 # HMall 文档
 
-所有文档统一放在 `docs/` 下，按职责分目录。限界上下文归入 `bounded-contexts/`，架构与方法论归入 `architecture/`。
+所有文档统一放在 `docs/` 下，按职责分目录。限界上下文归入 `bounded-contexts/`，跨 BC 业务需求归入 `business-requirements/`。
 
 ## 文档结构
 
 ```
 docs/
 ├── README.md                     # 本索引
-├── context-map.md                # 上下文地图（BC 总览、集成关系、部署形态）
+├── context-map.md                # 系统结构（BC 总览、集成关系、集成技术选型）
+├── business-flows.md             # 业务流程（价值流、事件流、事件总表、路径枚举、测试覆盖）
 ├── design-principles.md          # 系统设计原则（架构、分层、数据隔离、约定）
 ├── project-status.md             # 项目状态与路线图
-├── architecture/
-│   ├── integration.md            # 集成技术选型（REST、事件总线 Kafka）
-│   ├── event-driven-business-analysis.md  # 事件驱动业务分析方法
-│   └── ai-chat.md               # 智能对话交互系统设计（LLM + MCP）
 ├── business-requirements/                        # 跨 BC 业务需求的整体方案
-│   └── <epic-name>/
+│   └── <business-requirement-name>/
 │       └── overview.md           # 背景、事件流、设计决策、影响摘要、迭代计划
 ├── bounded-contexts/
 │   ├── catalog/
@@ -66,20 +63,19 @@ docs/
 │   ├── admin/
 │   │   └── ui-spec.md
 │   └── web/
-│       └── ui-spec.md
+│       ├── ui-spec.md
+│       └── testing.md            # 前端测试说明（Smoke E2E 分层、用例、维护策略）
 ```
 
 ## 文档索引
 
-| 类型 | 文档 | 说明 |
-|------|------|------|
-| **系统总览** | [context-map.md](./context-map.md) | BC 边界、集成关系、各 BC 为独立微服务 |
-| **业务需求方案** | `business-requirements/<name>/overview.md` | 跨 BC 业务需求的整体方案、设计决策、迭代计划 |
-| **设计原则** | [design-principles.md](./design-principles.md) | DDD 分层、验收约定、文档与输入 |
-| **项目进度** | [project-status.md](./project-status.md) | BC 路线图、前端进度、关键决策 |
-| **集成技术** | [architecture/integration.md](./architecture/integration.md) | REST、事件总线（Kafka） |
-| **事件分析方法** | [architecture/event-driven-business-analysis.md](./architecture/event-driven-business-analysis.md) | 事件流 → 领域建模 → Saga 设计 |
-| **智能对话** | [architecture/ai-chat.md](./architecture/ai-chat.md) | LLM + MCP 对话式操作系统设计 |
+| 文档 | 回答的问题 |
+|------|-----------|
+| [context-map.md](./context-map.md) | 系统有哪些部件、怎么连接、用什么技术 |
+| [business-flows.md](./business-flows.md) | 有哪些业务流程、怎么流转、怎么验证 |
+| [design-principles.md](./design-principles.md) | 怎么设计和实现 |
+| [project-status.md](./project-status.md) | 做到哪了 |
+| `business-requirements/<name>/overview.md` | 某个业务需求的方案、设计决策、迭代计划 |
 
 ## 各 BC 文档
 
@@ -96,7 +92,7 @@ docs/
 | Cart | [requirements.md](./bounded-contexts/cart/requirements.md) | [domain-model.md](./bounded-contexts/cart/domain-model.md) | [api.yaml](./bounded-contexts/cart/api.yaml) | — |
 | Fulfillment | [requirements.md](./bounded-contexts/fulfillment/requirements.md) | [domain-model.md](./bounded-contexts/fulfillment/domain-model.md) | [api.yaml](./bounded-contexts/fulfillment/api.yaml) | event-flow |
 | Frontend-admin | [ui-spec.md](./frontend/admin/ui-spec.md) | — | — | — |
-| Frontend-web | [ui-spec.md](./frontend/web/ui-spec.md) | — | — | — |
+| Frontend-web | [ui-spec.md](./frontend/web/ui-spec.md) | — | — | [testing.md](./frontend/web/testing.md) |
 
 ## 与设计原则的对应
 

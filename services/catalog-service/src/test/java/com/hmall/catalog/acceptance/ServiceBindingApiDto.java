@@ -12,6 +12,10 @@ public final class ServiceBindingApiDto {
         public Long priceCents;
     }
 
+    public static class Update {
+        public Long priceCents;
+    }
+
     public static class Response {
         public Long id;
         public Long serviceSkuId;

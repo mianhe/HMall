@@ -17,9 +17,11 @@ export async function getCart() {
  * 添加商品到购物车
  * @param {number} skuId
  * @param {number} quantity
+ * @param {number | null} relatedSkuId
  */
-export async function addCartItem(skuId, quantity) {
-  const { data } = await client.post('/cart/items', { skuId, quantity })
+export async function addCartItem(skuId, quantity, relatedSkuId = null) {
+  const body = relatedSkuId == null ? { skuId, quantity } : { skuId, quantity, relatedSkuId }
+  const { data } = await client.post('/cart/items', body)
   return data
 }
 

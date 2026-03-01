@@ -49,6 +49,7 @@ public class CartRepositoryImpl implements CartRepository {
             }
             itemEntity.setCart(entity);
             itemEntity.setSkuId(item.getSkuId());
+            itemEntity.setRelatedSkuId(item.getRelatedSkuId());
             itemEntity.setQuantity(item.getQuantity());
             itemEntity.setAddedAt(item.getAddedAt());
             itemEntities.add(itemEntity);
@@ -59,7 +60,7 @@ public class CartRepositoryImpl implements CartRepository {
 
     private Cart toDomain(CartEntity entity) {
         List<CartItem> items = entity.getItems().stream()
-            .map(ie -> new CartItem(ie.getId(), ie.getSkuId(), ie.getQuantity(), ie.getAddedAt()))
+            .map(ie -> new CartItem(ie.getId(), ie.getSkuId(), ie.getRelatedSkuId(), ie.getQuantity(), ie.getAddedAt()))
             .toList();
         return new Cart(entity.getId(), entity.getUserId(), entity.getUpdatedAt(), items);
     }

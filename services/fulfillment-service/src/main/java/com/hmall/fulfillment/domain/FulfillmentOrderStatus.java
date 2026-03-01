@@ -4,6 +4,7 @@ public enum FulfillmentOrderStatus {
     CREATED,
     ALLOCATING,
     SHIPPED,
+    ACTIVATED,
     DELIVERED,
     CANCELLED
 }

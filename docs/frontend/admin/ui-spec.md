@@ -100,7 +100,7 @@ AI Chat 以全局 Drawer 形式存在，从右侧滑出，所有路由页面共�
 | 结构化回复 | 区分思考过程（可折叠）、正式结论、后续建议 | — |
 | 模型切换 | 可选择不同 LLM 提供商 | `GET /api/ai/models` |
 
-后端需求见 `docs/bounded-contexts/smart-interaction/requirements.md`。技术设计见 `docs/architecture/ai-chat.md`。
+后端需求见 `docs/bounded-contexts/smart-interaction/requirements.md`。技术设计见 `docs/bounded-contexts/smart-interaction/architecture.md`。
 
 ---
 
@@ -200,5 +200,5 @@ Tailwind 已配置 `vmall-red`、`vmall-red-hover`、`vmall-gray-bg` 等，实�
 | `docs/bounded-contexts/inventory/api.yaml` | Inventory REST 契约 |
 | `docs/bounded-contexts/activity/api.yaml` | Activity BC API 契约 |
 | `docs/bounded-contexts/smart-interaction/requirements.md` | Smart Interaction 需求（AI Chat 后端） |
-| `docs/architecture/ai-chat.md` | AI Chat 技术设计（LLM + MCP） |
+| `docs/bounded-contexts/smart-interaction/architecture.md` | AI Chat 技术设计（LLM + MCP） |
 | `docs/frontend/web/ui-spec.md` | 消费者端界面规格 |

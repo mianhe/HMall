@@ -46,13 +46,16 @@ function ok(text) {
 }
 
 function err(e) {
+  if (e.cause?.code === 'ECONNREFUSED' || e.message?.includes('ECONNREFUSED') || e.message?.includes('fetch failed')) {
+    return { content: [{ type: 'text', text: `错误：无法连接后端服务，请确认服务已启动。原始错误：${e.message}` }] }
+  }
   return { content: [{ type: 'text', text: `错误：${e.message}` }] }
 }
 
 export function registerInventoryTools(server) {
   server.tool(
     'inventory_stock',
-    '库存水位查询与管理，按 SKU 粒度。每个 SKU 有 available（可用）和 reserved（已占用，由订单流程自动维护，不可手动改）。action=list 查全部库存（含 SKU 名称和汇总）；get(skuId) 查单个；update(skuId, available) 设置可用库存（不存在则自动创建）。',
+    '库存水位查询与管理，按 SKU 粒度。每个 SKU 有 available（可用）和 reserved（已占用，由订单流程自动维护，不可手动改）。\n\n⚠️ 仅 PHYSICAL 类型商品需要库存。SERVICE 类型商品（碎屏险、延保等虚拟服务）不需要库存管理——下单时系统会自动跳过服务商品的库存占用。不要为 SERVICE SKU 设置库存。\n\naction=list 查全部库存（含 SKU 名称和汇总）；get(skuId) 查单个；update(skuId, available) 设置可用库存（不存在则自动创建）。',
     {
       action: z.enum(['list', 'get', 'update']).describe('list|get|update'),
       skuId: z.number().optional().describe('get/update 时必填，SKU ID'),
@@ -80,7 +83,9 @@ export function registerInventoryTools(server) {
         }
         if (action === 'update') {
           const s = await inventoryApi('PUT', `/inventory/stock/${skuId}`, { available })
-          return ok(`SKU ${s.skuId} 库存已更新：可用 ${s.available}，已占用 ${s.reserved}`)
+          const name = await fetchSkuName(skuId)
+          const label = name ? `${name}` : `SKU ${s.skuId}`
+          return ok(`${label}（SKU ${s.skuId}）库存已更新：可用 ${s.available}，已占用 ${s.reserved}`)
         }
         return err(new Error('未知 action'))
       } catch (e) { return err(e) }

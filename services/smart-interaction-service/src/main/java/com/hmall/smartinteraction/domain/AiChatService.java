@@ -426,19 +426,66 @@ public class AiChatService {
             sb.append("\n\n").append(NO_TOOLS_DIRECTIVE);
         }
 
+        String resourceKnowledge = resolveResourceKnowledge(skills);
+        if (!resourceKnowledge.isEmpty()) {
+            sb.append("\n\n---\n以下是当前对话匹配到的领域知识（来自 MCP Resources）：\n\n");
+            sb.append(resourceKnowledge);
+        }
+
         List<String> supplements = skills.stream()
                 .map(Skill::getSystemPrompt)
                 .filter(p -> p != null && !p.isBlank())
                 .toList();
 
         if (!supplements.isEmpty()) {
-            sb.append("\n\n---\n以下是当前对话匹配到的领域知识：\n");
+            sb.append("\n\n---\n以下是当前对话匹配到的操作指引与示例：\n");
             for (String supplement : supplements) {
                 sb.append("\n").append(supplement).append("\n");
             }
         }
 
         return sb.toString();
+    }
+
+    private String resolveResourceKnowledge(List<Skill> skills) {
+        var allResources = mcpToolBridge.getResources();
+        if (allResources.isEmpty()) return "";
+
+        var toolPrefixes = new java.util.HashSet<String>();
+        for (Skill skill : skills) {
+            for (String pattern : skill.getAllowedTools()) {
+                if (pattern.endsWith("*")) {
+                    toolPrefixes.add(pattern.substring(0, pattern.length() - 1));
+                } else if (pattern.contains("_")) {
+                    toolPrefixes.add(pattern.substring(0, pattern.indexOf('_') + 1));
+                }
+            }
+        }
+
+        var matchedUris = new java.util.LinkedHashSet<String>();
+        for (var resource : allResources) {
+            String uri = resource.uri();
+            for (String prefix : toolPrefixes) {
+                String domain = prefix.replace("_", "");
+                if (uri.contains(domain) || uri.contains(prefix.replace("_", "-"))) {
+                    matchedUris.add(uri);
+                    break;
+                }
+            }
+        }
+
+        if (skills.isEmpty() || toolPrefixes.isEmpty()) {
+            allResources.forEach(r -> matchedUris.add(r.uri()));
+        }
+
+        var sb = new StringBuilder();
+        for (String uri : matchedUris) {
+            String content = mcpToolBridge.readResource(uri);
+            if (!content.isBlank()) {
+                sb.append(content).append("\n\n");
+            }
+        }
+        return sb.toString().trim();
     }
 
     private String buildDefaultSystemPrompt(ChatRequest request) {

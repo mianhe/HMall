@@ -60,8 +60,9 @@ public class AcceptanceTestConfig {
     public FulfillmentCreateStepDefinitions fulfillmentCreateStepDefinitions(
             TestRestTemplate restTemplate,
             FulfillmentTestContext context,
-            EventCapture eventCapture) {
-        return new FulfillmentCreateStepDefinitions(restTemplate, context, eventCapture);
+            EventCapture eventCapture,
+            FulfillmentOrderRepository repository) {
+        return new FulfillmentCreateStepDefinitions(restTemplate, context, eventCapture, repository);
     }
 
     @Bean

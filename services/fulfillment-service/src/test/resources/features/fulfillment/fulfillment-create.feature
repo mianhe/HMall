@@ -26,3 +26,18 @@
     那么 应返回 400
     当 Order 调用创建履约单接口且 items 为空
     那么 应返回 400
+
+  场景: items 中含 PHYSICAL 和 SERVICE 类型时应拆为实体履约单和虚拟履约单
+    当 Order 调用创建履约单接口 orderId 9011 含 1 个实体商品 skuId 1001 和 1 个服务商品 skuId 2001
+    那么 应返回 200
+    并且 返回结果包含 2 个 fulfillmentOrderId
+    并且 该订单应包含 1 个 PHYSICAL 履约单和 1 个 VIRTUAL 履约单
+    并且 虚拟履约单状态应为 ACTIVATED
+    并且 应发布 ServiceActivated 事件且 orderId 为 9011
+
+  场景: items 全部为 SERVICE 类型时应创建一个虚拟履约单并自动激活
+    当 Order 调用创建履约单接口 orderId 9012 仅含服务商品 skuId 2002
+    那么 应返回 200
+    并且 返回结果包含 1 个 fulfillmentOrderId
+    并且 该订单应仅包含 VIRTUAL 履约单
+    并且 虚拟履约单状态应为 ACTIVATED

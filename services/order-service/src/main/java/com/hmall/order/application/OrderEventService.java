@@ -7,6 +7,7 @@ import com.hmall.order.application.port.ReleaseInventoryPort;
 import com.hmall.order.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.util.List;
@@ -19,27 +20,36 @@ public class OrderEventService {
     private final CreateFulfillmentPort createFulfillmentPort;
     private final ReleaseInventoryPort releaseInventoryPort;
     private final OrderOutboundEventPublisher outboundEventPublisher;
+    private final TransactionTemplate txTemplate;
 
     public OrderEventService(
             OrderRepository orderRepository,
             CreateFulfillmentPort createFulfillmentPort,
             ReleaseInventoryPort releaseInventoryPort,
-            OrderOutboundEventPublisher outboundEventPublisher) {
+            OrderOutboundEventPublisher outboundEventPublisher,
+            TransactionTemplate txTemplate) {
         this.orderRepository = orderRepository;
         this.createFulfillmentPort = createFulfillmentPort;
         this.releaseInventoryPort = releaseInventoryPort;
         this.outboundEventPublisher = outboundEventPublisher;
+        this.txTemplate = txTemplate;
     }
 
-    @Transactional
+    /**
+     * 先提交 PAID 状态再调用 fulfillment，避免长事务导致 Lost Update：
+     * fulfillment 同步返回时可能已发布 ServiceActivated 事件，
+     * 若 PAID 事务未提交，ServiceActivated 写入的 serviceActivated=true 会被覆盖。
+     */
     public void onPaymentCompleted(Long orderId, Long paymentId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("订单不存在: " + orderId));
-
-        updateOrderStatus(order, OrderStatus.PAID);
+        Order order = txTemplate.execute(status -> {
+            Order o = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new IllegalArgumentException("订单不存在: " + orderId));
+            updateOrderStatus(o, OrderStatus.PAID);
+            return o;
+        });
 
         List<CreateFulfillmentPort.ItemQuantity> items = order.getItems().stream()
-                .map(li -> new CreateFulfillmentPort.ItemQuantity(li.getSkuId(), li.getQuantity()))
+                .map(li -> new CreateFulfillmentPort.ItemQuantity(li.getSkuId(), li.getQuantity(), li.getItemType().name()))
                 .toList();
         CreateFulfillmentPort.ShippingAddress addr = new CreateFulfillmentPort.ShippingAddress(
                 order.getShippingAddress().recipientName(),
@@ -50,7 +60,6 @@ public class OrderEventService {
                 order.getShippingAddress().detail());
 
         createFulfillmentPort.createFulfillment(orderId, items, addr);
-        // 保持 PAID；收到 FulfillmentOrderAllocated 后再置 FULFILLING
     }
 
     @Transactional
@@ -78,8 +87,25 @@ public class OrderEventService {
 
     @Transactional
     public void onFulfillmentDelivered(Long orderId) {
-        updateOrderStatus(orderId, OrderStatus.DELIVERED);
-        outboundEventPublisher.publish(new OrderCompletedEvent(orderId));
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new IllegalArgumentException("订单不存在: " + orderId));
+        Order updated = updateOrder(order, OrderStatus.DELIVERED, true, order.isServiceActivated());
+        boolean serviceReady = !updated.hasServiceItems() || updated.isServiceActivated();
+        if (serviceReady) {
+            outboundEventPublisher.publish(new OrderCompletedEvent(orderId));
+        }
+    }
+
+    @Transactional
+    public void onServiceActivated(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+            .orElseThrow(() -> new IllegalArgumentException("订单不存在: " + orderId));
+        OrderStatus newStatus = order.hasPhysicalItems() ? order.getStatus() : OrderStatus.DELIVERED;
+        Order updated = updateOrder(order, newStatus, order.isPhysicalDelivered(), true);
+        boolean physicalReady = !updated.hasPhysicalItems() || updated.isPhysicalDelivered();
+        if (physicalReady) {
+            outboundEventPublisher.publish(new OrderCompletedEvent(orderId));
+        }
     }
 
     private void updateOrderStatus(Long orderId, OrderStatus newStatus) {
@@ -89,16 +115,22 @@ public class OrderEventService {
     }
 
     private void updateOrderStatus(Order order, OrderStatus newStatus) {
+        updateOrder(order, newStatus, order.isPhysicalDelivered(), order.isServiceActivated());
+    }
+
+    private Order updateOrder(Order order, OrderStatus newStatus, boolean physicalDelivered, boolean serviceActivated) {
         Order updated = new Order(
-                order.getOrderId(),
-                order.getUserId(),
-                newStatus,
-                order.getTotalAmountCents(),
-                order.getShippingAddress(),
-                order.getItems(),
-                order.getCreatedAt(),
-                Instant.now()
+            order.getOrderId(),
+            order.getUserId(),
+            newStatus,
+            order.getTotalAmountCents(),
+            order.getShippingAddress(),
+            order.getItems(),
+            physicalDelivered,
+            serviceActivated,
+            order.getCreatedAt(),
+            Instant.now()
         );
-        orderRepository.save(updated);
+        return orderRepository.save(updated);
     }
 }

@@ -1,5 +1,6 @@
 package com.hmall.cart.application.port;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,4 +17,11 @@ public interface SkuQueryPort {
 
     /** 查询单个 SKU 信息 */
     Optional<SkuInfo> queryById(Long skuId);
+
+    /** 查询某实体 SPU 的可选服务列表 */
+    List<AvailableService> queryAvailableServices(Long targetSpuId);
+
+    record AvailableService(Long serviceSpuId, String name, List<AvailableServiceSku> bindings) {}
+
+    record AvailableServiceSku(Long bindingId, Long serviceSkuId, BigDecimal price) {}
 }

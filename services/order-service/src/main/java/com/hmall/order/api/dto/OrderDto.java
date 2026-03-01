@@ -9,7 +9,8 @@ public record OrderDto(
     Long totalAmountCents,
     List<OrderLineItemDto> items,
     OrderCreateDto.ShippingAddressDto shippingAddress,
-    Instant createdAt
+    Instant createdAt,
+    boolean serviceActivated
 ) {
     public record OrderLineItemDto(
         Long lineItemId,
@@ -17,6 +18,7 @@ public record OrderDto(
         Integer quantity,
         Long unitPriceCents,
         Long totalPriceCents,
-        String displayName
+        String displayName,
+        String itemType
     ) {}
 }

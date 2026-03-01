@@ -14,7 +14,8 @@ public record OrderCreateDto(
 ) {
     public record LineItemCreateDto(
         @NotNull Long skuId,
-        @NotNull Integer quantity
+        @NotNull Integer quantity,
+        Long relatedSkuId
     ) {}
 
     public record ShippingAddressDto(

@@ -28,6 +28,9 @@ public class OrderLineItemEntity {
     @Column(name = "display_name")
     private String displayName;
 
+    @Column(name = "item_type", nullable = false)
+    private String itemType;
+
     public OrderLineItemEntity() {}
 
     public Long getId() { return id; }
@@ -44,4 +47,6 @@ public class OrderLineItemEntity {
     public void setTotalPriceCents(Long totalPriceCents) { this.totalPriceCents = totalPriceCents; }
     public String getDisplayName() { return displayName; }
     public void setDisplayName(String displayName) { this.displayName = displayName; }
+    public String getItemType() { return itemType; }
+    public void setItemType(String itemType) { this.itemType = itemType; }
 }

@@ -5,6 +5,7 @@ import com.hmall.fulfillment.domain.FulfillmentDelivered;
 import com.hmall.fulfillment.domain.FulfillmentOrderAllocated;
 import com.hmall.fulfillment.domain.FulfillmentOrderCreated;
 import com.hmall.fulfillment.domain.FulfillmentShipped;
+import com.hmall.fulfillment.domain.ServiceActivated;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +17,7 @@ public class EventCapture implements DomainEventPublisher {
     private final List<FulfillmentOrderAllocated> allocatedEvents = new CopyOnWriteArrayList<>();
     private final List<FulfillmentShipped> shippedEvents = new CopyOnWriteArrayList<>();
     private final List<FulfillmentDelivered> deliveredEvents = new CopyOnWriteArrayList<>();
+    private final List<ServiceActivated> serviceActivatedEvents = new CopyOnWriteArrayList<>();
 
     @Override
     public void publish(FulfillmentOrderCreated event) {
@@ -37,15 +39,22 @@ public class EventCapture implements DomainEventPublisher {
         deliveredEvents.add(event);
     }
 
+    @Override
+    public void publish(ServiceActivated event) {
+        serviceActivatedEvents.add(event);
+    }
+
     public List<FulfillmentOrderCreated> getCreatedEvents() { return new ArrayList<>(createdEvents); }
     public List<FulfillmentOrderAllocated> getAllocatedEvents() { return new ArrayList<>(allocatedEvents); }
     public List<FulfillmentShipped> getShippedEvents() { return new ArrayList<>(shippedEvents); }
     public List<FulfillmentDelivered> getDeliveredEvents() { return new ArrayList<>(deliveredEvents); }
+    public List<ServiceActivated> getServiceActivatedEvents() { return new ArrayList<>(serviceActivatedEvents); }
 
     public void clear() {
         createdEvents.clear();
         allocatedEvents.clear();
         shippedEvents.clear();
         deliveredEvents.clear();
+        serviceActivatedEvents.clear();
     }
 }

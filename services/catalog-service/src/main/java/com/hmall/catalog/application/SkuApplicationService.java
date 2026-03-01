@@ -82,6 +82,13 @@ public class SkuApplicationService {
     }
 
     @Transactional(readOnly = true)
+    public String getProductType(Long spuId) {
+        return spuRepository.findById(spuId)
+            .map(spu -> spu.getProductType())
+            .orElse("PHYSICAL");
+    }
+
+    @Transactional(readOnly = true)
     public List<Sku> findBySpuId(Long spuId) {
         spuRepository.findById(spuId)
             .orElseThrow(() -> new IllegalArgumentException("SPU 不存在"));

@@ -12,5 +12,11 @@ public interface SkuInfoPort {
      */
     SkuInfo getById(Long skuId);
 
-    record SkuInfo(Long id, long priceCents, String displayName) {}
+    /**
+     * 查询某实体 SPU 上绑定的服务 SKU 价格（分）。
+     * 未绑定时返回 null。
+     */
+    Long findBoundServicePriceCents(Long targetSpuId, Long serviceSkuId);
+
+    record SkuInfo(Long id, Long spuId, long priceCents, String displayName, String productType) {}
 }

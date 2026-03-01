@@ -11,7 +11,7 @@
 | **status** | 查看各组件运行状态与端口 | `./scripts/hmall.sh status` |
 | **restart** | 重启（先停再起） | `./scripts/hmall.sh restart`、`./scripts/hmall.sh restart catalog-service` |
 | **seed-inventory** | 为 SKU 设置可用库存（经 BFF），便于提交订单 | `./scripts/hmall.sh seed-inventory`（默认 skuId 1～20）、`./scripts/hmall.sh seed-inventory 1 5 10` |
-| **test** | 执行后端用例（需数据库已启动） | `./scripts/hmall.sh test`、`./scripts/hmall.sh test --cucumber-only`、`./scripts/hmall.sh test --bc user` |
+| **test** | 执行后端用例或前端 Smoke E2E | `./scripts/hmall.sh test`、`./scripts/hmall.sh test --cucumber-only`、`./scripts/hmall.sh test --ui-smoke` |
 
 ## 组件名称
 
@@ -69,7 +69,7 @@
   - `./scripts/hmall.sh seed-inventory` — 为 1～20 设置库存
   - `./scripts/hmall.sh seed-inventory 1 2 3` — 仅为 skuId 1、2、3 设置
 
-### test [--cucumber-only] [--clean] [--bc catalog|user|order|inventory|payment|activity|cart|fulfillment|smart-interaction|bff|all]
+### test [--cucumber-only] [--clean] [--ui-smoke] [--bc catalog|user|order|inventory|payment|activity|cart|fulfillment|smart-interaction|bff|all]
 
 - 执行全部微服务测试（catalog-service + user-service + order-service + inventory-service + payment-service + activity-service + cart-service + fulfillment-service + smart-interaction-service + bff-web）；执行前会检查数据库是否已启动。
 - **测试与生产数据隔离**：验收测试使用 H2 内存库（`application-test.yml`），与 PostgreSQL 完全隔离，测试结束后不会清空生产/开发库。
@@ -77,6 +77,7 @@
   - 无参数：`mvn test`（单元 + Cucumber 验收）
   - `--cucumber-only`：仅验收测试 `mvn test -Dtest=RunCucumberTest`
   - `--clean`：先清理再测 `mvn clean test`
+  - `--ui-smoke`：执行 `frontend/web` 的 Smoke E2E（自动确保 db + 后端 + bff 依赖已启动）
   - `--bc <catalog|user|order|inventory|payment|activity|cart|fulfillment|smart-interaction|bff|all>`：仅执行指定微服务/BC 的测试
   - 示例：
   - `./scripts/hmall.sh test` — 执行全部微服务测试（含 payment-service）
@@ -92,6 +93,7 @@
   - `./scripts/hmall.sh test --cucumber-only --bc smart-interaction` — 仅 smart-interaction-service（Smart Interaction / AI Chat）
   - `./scripts/hmall.sh test --cucumber-only --bc bff` — 仅 bff-web（BFF）
   - `./scripts/hmall.sh test --clean`
+  - `./scripts/hmall.sh test --ui-smoke` — 执行消费者端前端 Smoke E2E
 
 ## 环境与约定
 

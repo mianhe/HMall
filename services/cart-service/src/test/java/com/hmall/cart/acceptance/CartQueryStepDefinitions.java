@@ -61,4 +61,48 @@ public class CartQueryStepDefinitions {
             .orElseThrow(() -> new AssertionError("未找到 skuId=" + skuId + " 的购物车项"));
         assertThat(item.get("available")).isEqualTo(false);
     }
+
+    @并且("SKU {long} 的购物车项包含 {int} 个可选服务")
+    public void sku的购物车项包含N个可选服务(long skuId, int expectedCount) {
+        assertThat(lastListResponse.getBody()).isNotNull();
+        Map<String, Object> item = lastListResponse.getBody().stream()
+            .filter(m -> ((Number) m.get("skuId")).longValue() == skuId)
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("未找到 skuId=" + skuId + " 的购物车项"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> services = (List<Map<String, Object>>) item.get("availableServices");
+        assertThat(services).isNotNull().hasSize(expectedCount);
+    }
+
+    @并且("SKU {long} 且 relatedSkuId {long} 的购物车项价格为 {int}")
+    public void sku且RelatedSkuId的购物车项价格为(long skuId, long relatedSkuId, int expectedPrice) {
+        assertThat(lastListResponse.getBody()).isNotNull();
+        Map<String, Object> item = lastListResponse.getBody().stream()
+            .filter(m -> ((Number) m.get("skuId")).longValue() == skuId)
+            .filter(m -> {
+                Number related = (Number) m.get("relatedSkuId");
+                return related != null && related.longValue() == relatedSkuId;
+            })
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("未找到 skuId=" + skuId + ", relatedSkuId=" + relatedSkuId + " 的购物车项"));
+        Number skuPrice = (Number) item.get("skuPrice");
+        assertThat(skuPrice).isNotNull();
+        assertThat(skuPrice.intValue()).isEqualTo(expectedPrice);
+    }
+
+    @并且("SKU {long} 且 relatedSkuId {long} 的购物车项数量为 {int}")
+    public void sku且RelatedSkuId的购物车项数量为(long skuId, long relatedSkuId, int expectedQuantity) {
+        assertThat(lastListResponse.getBody()).isNotNull();
+        Map<String, Object> item = lastListResponse.getBody().stream()
+            .filter(m -> ((Number) m.get("skuId")).longValue() == skuId)
+            .filter(m -> {
+                Number related = (Number) m.get("relatedSkuId");
+                return related != null && related.longValue() == relatedSkuId;
+            })
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("未找到 skuId=" + skuId + ", relatedSkuId=" + relatedSkuId + " 的购物车项"));
+        Number quantity = (Number) item.get("quantity");
+        assertThat(quantity).isNotNull();
+        assertThat(quantity.intValue()).isEqualTo(expectedQuantity);
+    }
 }
