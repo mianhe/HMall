@@ -22,6 +22,7 @@ alwaysApply: true
 - MCP 工具/资源改动：`mcp-development`
 - 新增/拆分 BC：`add-bounded-context` / `extract-bounded-context`
 - 需求分析或方案澄清：`analyze-requirement`
+- 业务需求交付编排/E2E 验收：`deliver-requirement`
 
 ## 例外
 

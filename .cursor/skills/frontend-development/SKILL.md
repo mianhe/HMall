@@ -60,21 +60,8 @@ description: 实现或扩展 HMall 前端（frontend/admin、frontend/web）。�
    - 若 Smoke P0 失败，优先排查是本次变更引入的回归还是环境问题（参考 `docs/frontend/web/testing.md`）。
    - 任何因本次变更导致的 P0 失败必须修复后才能继续。
    - P1 用例不自动运行，由开发者按需手工验证或通过 `npm run test:smoke:e2e` 全量运行。
-3. **关键业务需求验收**：若本次变更是关键业务需求的收尾（跨 BC 的新交易链路），编写 Business E2E：
-   - 在 `tests/business-e2e/specs/<需求名>/` 下新增用例。
-   - 用例命名格式：`BIZ-<需求缩写>-xxx 描述`。
-   - 断言深度：只验证链路能走通，不验证 UI 细节。
-   - 运行验证：`npm run test:business:e2e -- --grep "BIZ-<需求>"`。
-   - Business E2E 是非 Evergreen 的——写完跑绿后保留，不纳入常规回归。
-4. **评估是否进 Smoke**：从已通过的 Business E2E 中评估，该交易链路是否需要纳入 Smoke 长期守护：
-   - 核心交易链路（系统不可用级别）→ 加 `@P0`
-   - 重要但非核心链路 → 加 `@P1`
-   - 不属于系统级可用性的链路 → 仅保留 Business E2E，不进 Smoke
-   - 用例命名格式：`SMOKE-E2E-xxx @P级别 描述`，步骤使用 `test.step` + Given/When/Then。
-   - UI 选择器封装在 `tests/shared/pages/`，业务步骤在 `tests/smoke-e2e/specs/`。
-   - 详见 `docs/frontend/web/testing.md`。
 
-> **三层运行频率**：P0 Smoke 每次变更必跑（自动化基线）；P1 Smoke 按需手工运行；Business E2E 需求收尾时编写并运行，之后按需回归。
+> **Business E2E 验收与 Smoke 入选评估**由 `deliver-requirement` 在迭代所有工作项完成后统一执行（E2E 交付门禁），不在单次前端开发中执行。详见 `deliver-requirement` Skill Step 2。
 
 > **Smoke P0 时间预算**：目标 ≤ 1 分钟，硬上限 ≤ 2 分钟。P0 永不降级。
 
@@ -148,6 +135,5 @@ v0 生成多为 React；HMall 为 Vue。仅用 v0 的**布局与 Tailwind 类**�
 - [ ] **无业务逻辑硬编码**：所有业务语义（标签、分类、关系、规则）均来自后端 API，前端无硬编码映射表
 - [ ] **`npm run build` 通过**：无编译错误
 - [ ] **Smoke P0 全绿**：`npm run test:smoke:e2e:p0` 通过，核心链路未被破坏
-- [ ] **关键需求已验收**（若为业务需求收尾）：Business E2E 编写并全绿
-- [ ] **Smoke 入选已评估**（若有新交易链路）：从 Business E2E 中评估是否提升进 Smoke（P0/P1）
 - [ ] **开发者已确认**：受影响页面列出，开发者确认渲染与交互正确
+- [ ] **Business E2E 与 Smoke 入选**：由 `deliver-requirement` 在迭代收尾时统一执行，本 Skill 不负责

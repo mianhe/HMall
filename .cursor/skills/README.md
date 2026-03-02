@@ -55,20 +55,25 @@ flowchart LR
         C1 --> C2
     end
 
-    subgraph D["④ 发布"]
-        D1["端到端验证<br/>(Smoke E2E)"]
-        D2["部署上线 🔲"]
+    subgraph D["④ 交付验收"]
+        D1["E2E 交付门禁<br/>(Smoke + Business E2E)"]
+        D2["开发者确认"]
         D1 --> D2
+    end
+
+    subgraph E["⑤ 发布"]
+        E1["部署上线 🔲"]
     end
 
     A3 --> B1
     B3 --> C1
     C2 --> D1
+    D2 --> E1
 
-    style D2 stroke-dasharray: 5 5
+    style E1 stroke-dasharray: 5 5
 ```
 
-> **端到端验证**（Smoke E2E）已落地，通过 Playwright 驱动真实浏览器验证前端核心链路。**部署上线**（虚线框）为待完善部分，计划包括：容器化部署、CI/CD 流水线。
+> **交付验收**通过 `deliver-requirement` Skill 编排，包含 Smoke E2E 回归 + Business E2E 验收 + 开发者确认三道门禁。**部署上线**（虚线框）为待完善部分，计划包括：容器化部署、CI/CD 流水线。
 
 ## Skill 体系
 
@@ -80,7 +85,11 @@ flowchart LR
         AR[analyze-requirement<br/>事件流 + 领域建模 + Saga]
     end
 
-    subgraph 构建["② 构建"]
+    subgraph 交付["② 交付编排"]
+        DR[deliver-requirement<br/>编排执行 + E2E 门禁]
+    end
+
+    subgraph 构建["③ 构建"]
         ABC[add-bounded-context<br/>搭建技术骨架]
         XBC[extract-bounded-context<br/>拆分已有模块为独立 BC]
         EF[evolve-feature × N<br/>ATDD 先红后绿]
@@ -90,22 +99,22 @@ flowchart LR
         EF <-.-> FIX
     end
 
-    subgraph 集成["③ 集成"]
+    subgraph 集成["④ 集成"]
         INT[integration<br/>跨 BC 对接]
         FE[frontend-development<br/>前端页面]
         INT --> FE
     end
 
-    subgraph 发布["④ 发布"]
-        E2E[端到端验证<br/>Smoke E2E]
+    subgraph 发布["⑤ 发布"]
         DEPLOY[部署上线 🔲]
-        E2E --> DEPLOY
     end
 
-    AR --> ABC
-    AR --> XBC
+    AR --> DR
+    DR --> ABC
+    DR --> XBC
     EF --> INT
-    FE --> E2E
+    FE -->|E2E 门禁| DR
+    DR --> DEPLOY
 
     style DEPLOY stroke-dasharray: 5 5
 ```
@@ -115,6 +124,7 @@ flowchart LR
 | Skill | 定位 | 核心流程 | 产出 |
 |-------|------|---------|------|
 | **analyze-requirement** | 分析业务需求。从用户需求出发，分析对系统的影响，产出方案与各 BC 特性变更。无论影响一个还是多个 BC，流程统一 | 理解需求 → 事件流分析 → 领域建模 → 设计决策 → 产出方案（overview + 各 BC 特性变更） | `docs/business-requirements/<name>/overview.md` + 各 BC 文档增量变更 |
+| **deliver-requirement** | 编排业务需求的交付。从迭代计划出发，按依赖顺序调度各 Skill，跟踪完成进度，并通过 E2E 交付门禁确保链路可用 | 读取迭代计划 → 按序调度各 Skill → E2E 交付门禁（Smoke 回归 + Business E2E + 开发者确认）→ 迭代/需求收尾 | 交付跟踪（在 overview.md 中）、Business E2E、Smoke 评估 |
 | **add-bounded-context** | 为新 BC 搭建技术骨架。不含业务代码，仅保证 `mvn test` 可运行 | 读参考模板 → 创建四层包结构 → 测试脚手架 → API 契约 → 更新脚本与文档 | 可编译运行的空 BC，冒烟测试通过 |
 | **extract-bounded-context** | 从已有服务中拆分出独立 BC。搬迁代码与测试，清理宿主，全程双侧绿色 | 文档拆分 → 新 BC 骨架 → 代码搬迁 → 测试迁移 → 宿主清理 → 脚本与文档更新 | 独立的新 BC（测试全绿）+ 清理后的宿主（测试全绿） |
 | **evolve-feature** | 在已有 BC 内演进特性，严格遵循 ATDD。最常用的 Skill | ① 特性与模型确认 → ② 契约与测试先红 → ③ 实现变绿 → 清理与重构 | 通过验收的特性代码、更新的契约与文档 |
@@ -122,18 +132,20 @@ flowchart LR
 | **fix-bug-or-adjust-feature** | 已有特性的缺陷修复或场景微调。不涉及新的领域建模或跨 BC 影响分析 | 定位根因 → 测试先红 → 实现变绿 → 同步文档 | 修复后的代码、更新的测试与文档 |
 | **frontend-development** | 实现或扩展前端页面。需求优先、契约对齐、不重复后端业务规则 | 确定/更新界面规格 → 实现页面 → 自动化验证（build + Smoke E2E） → 开发者确认 | 前端页面、更新的 ui-spec、Smoke E2E 全绿 |
 | **mcp-development** | 为 BC 设计并实现 MCP tools，暴露 AI 可调用的能力 | API 分类与暴露范围分析 → 设计 MCP tools → 实现与 schema → 验证与文档同步 | MCP Tools 实现与文档 |
+| **bc-audit** | 审计指定 BC 的信任链完整性（问题域↔解决方案域对齐），产出分级整改清单 | 建立基线 → 三维审计（问题域完整性/链条对齐/集成边界）→ 分级输出 | 信任链评估、分级整改清单、补测建议 |
 
 ### 场景与 Skill 组合
 
 | 场景 | Skill 组合 |
 |------|-----------|
-| 新建 BC | analyze-requirement → add-bounded-context → evolve-feature × N → integration |
-| 从已有服务拆分 BC | [analyze-requirement →] extract-bounded-context → evolve-feature × N |
-| 业务需求（涉及一个或多个 BC） | analyze-requirement → evolve-feature × N → [integration] → [frontend] |
+| 新建 BC | analyze-requirement → deliver-requirement（编排：add-bounded-context → evolve-feature × N → integration → E2E 门禁） |
+| 从已有服务拆分 BC | [analyze-requirement →] deliver-requirement（编排：extract-bounded-context → evolve-feature × N → E2E 门禁） |
+| 业务需求（涉及一个或多个 BC） | analyze-requirement → deliver-requirement（编排：evolve-feature × N → [integration] → [frontend] → E2E 门禁） |
 | 演进单个特性 | evolve-feature |
 | 修复 Bug 或小幅调整 | fix-bug-or-adjust-feature |
 | 跨 BC 对接 | integration |
 | 前端页面开发 | frontend-development |
+| BC 质量巡检 / 治理盘点 | bc-audit |
 
 ### ⚠️ Skill 流程不可绕过
 
@@ -146,9 +158,11 @@ flowchart LR
 ```
 需要做什么？
   ├── 分析一个业务需求（新建 BC / 重大演进 / 跨 BC）→ analyze-requirement
+  ├── 交付一个已分析完的业务需求（编排执行 + E2E 验收）→ deliver-requirement
   ├── 从已有服务拆分模块为独立 BC → extract-bounded-context
   ├── 演进一个特性（已知改哪个 BC 的哪个 Feature）→ evolve-feature
   ├── 修 Bug 或小幅调整 → fix-bug-or-adjust-feature
   ├── 对接两个 BC → integration
-  └── 前端页面 → frontend-development
+  ├── 前端页面 → frontend-development
+  └── 做 BC 质量审计/治理盘点 → bc-audit
 ```
