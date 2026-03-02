@@ -87,6 +87,39 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/orders/{orderId}/purchasable-services:
+    get:
+      summary: 查询可补购服务列表
+      description: 已交付订单中实体商品可补购的虚拟服务；Order 内部聚合 Catalog 数据并去重已购。
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 可补购服务列表（可为空数组）
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PurchasableService'
+        '400':
+          description: 订单未交付
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 订单不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/orders/{orderId}/cancel:
     post:
       summary: 取消订单
@@ -117,7 +150,7 @@ components:
   schemas:
     OrderCreate:
       type: object
-      required: [userId, items, shippingAddress]
+      required: [userId, items]
       properties:
         userId:
           type: integer
@@ -129,6 +162,7 @@ components:
             $ref: '#/components/schemas/OrderLineItemCreate'
         shippingAddress:
           $ref: '#/components/schemas/ShippingAddress'
+          description: 纯服务订单可省略
     OrderLineItemCreate:
       type: object
       required: [skuId, quantity]
@@ -139,6 +173,25 @@ components:
         quantity:
           type: integer
           minimum: 1
+        relatedSkuId:
+          type: integer
+          format: int64
+          description: 补购时关联的实体 SKU ID
+    PurchasableService:
+      type: object
+      properties:
+        serviceSkuId:
+          type: integer
+          format: int64
+        serviceName:
+          type: string
+        priceCents:
+          type: integer
+          format: int64
+        relatedSkuId:
+          type: integer
+          format: int64
+          description: 关联的实体 SKU ID
     ShippingAddress:
       type: object
       required: [recipientName, phone, province, city, district, detail]

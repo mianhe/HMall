@@ -23,7 +23,7 @@ public class Order {
         this.userId = Objects.requireNonNull(userId, "userId");
         this.status = OrderStatus.PENDING_PAYMENT;
         this.totalAmountCents = items.stream().mapToLong(OrderLineItem::getTotalPriceCents).sum();
-        this.shippingAddress = Objects.requireNonNull(shippingAddress, "shippingAddress");
+        this.shippingAddress = shippingAddress;
         this.items = new ArrayList<>(items);
         this.physicalDelivered = false;
         this.serviceActivated = false;
@@ -57,6 +57,7 @@ public class Order {
     public boolean isServiceActivated() { return serviceActivated; }
     public boolean hasPhysicalItems() { return items.stream().anyMatch(i -> i.getItemType() == OrderItemType.PHYSICAL); }
     public boolean hasServiceItems() { return items.stream().anyMatch(i -> i.getItemType() == OrderItemType.SERVICE); }
+    public boolean isPureServiceOrder() { return !items.isEmpty() && items.stream().allMatch(i -> i.getItemType() == OrderItemType.SERVICE); }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

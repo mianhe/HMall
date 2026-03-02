@@ -81,6 +81,17 @@ public class OrderRepositoryImpl implements OrderRepository {
         return orderJpaRepository.countByUserId(userId);
     }
 
+    @Override
+    public List<Order> findDeliveredByUserId(Long userId) {
+        return orderJpaRepository.findByUserIdAndStatus(userId, OrderStatus.DELIVERED.name())
+                .stream()
+                .map(entity -> {
+                    List<OrderLineItemEntity> items = lineItemJpaRepository.findByOrderIdOrderByIdAsc(entity.getId());
+                    return toDomain(entity, items);
+                })
+                .toList();
+    }
+
     private OrderEntity toEntity(Order order) {
         OrderEntity e = new OrderEntity();
         if (order.getOrderId() != null) {
@@ -90,12 +101,14 @@ public class OrderRepositoryImpl implements OrderRepository {
         e.setStatus(order.getStatus().name());
         e.setTotalAmountCents(order.getTotalAmountCents());
         ShippingAddress addr = order.getShippingAddress();
-        e.setRecipientName(addr.recipientName());
-        e.setPhone(addr.phone());
-        e.setProvince(addr.province());
-        e.setCity(addr.city());
-        e.setDistrict(addr.district());
-        e.setDetail(addr.detail());
+        if (addr != null) {
+            e.setRecipientName(addr.recipientName());
+            e.setPhone(addr.phone());
+            e.setProvince(addr.province());
+            e.setCity(addr.city());
+            e.setDistrict(addr.district());
+            e.setDetail(addr.detail());
+        }
         e.setPhysicalDelivered(order.isPhysicalDelivered());
         e.setServiceActivated(order.isServiceActivated());
         e.setCreatedAt(order.getCreatedAt());
@@ -115,14 +128,17 @@ public class OrderRepositoryImpl implements OrderRepository {
         e.setTotalPriceCents(item.getTotalPriceCents());
         e.setDisplayName(item.getDisplayName());
         e.setItemType(item.getItemType().name());
+        e.setRelatedSkuId(item.getRelatedSkuId());
+        e.setSpuId(item.getSpuId());
         return e;
     }
 
     private Order toDomain(OrderEntity entity, List<OrderLineItemEntity> itemEntities) {
-        ShippingAddress addr = new ShippingAddress(
-            entity.getRecipientName(), entity.getPhone(),
-            entity.getProvince(), entity.getCity(), entity.getDistrict(), entity.getDetail()
-        );
+        ShippingAddress addr = entity.getRecipientName() != null
+            ? new ShippingAddress(
+                entity.getRecipientName(), entity.getPhone(),
+                entity.getProvince(), entity.getCity(), entity.getDistrict(), entity.getDetail())
+            : null;
         List<OrderLineItem> lineItemsWithIds = itemEntities.stream()
             .map(this::toLineItemDomain)
             .toList();
@@ -142,7 +158,8 @@ public class OrderRepositoryImpl implements OrderRepository {
             e.getId(), e.getOrderId(), e.getSkuId(),
             e.getQuantity(), e.getUnitPriceCents().longValue(), e.getTotalPriceCents().longValue(),
             e.getDisplayName(),
-            OrderItemType.valueOf(e.getItemType())
+            OrderItemType.valueOf(e.getItemType()),
+            e.getRelatedSkuId(), e.getSpuId()
         );
     }
 }

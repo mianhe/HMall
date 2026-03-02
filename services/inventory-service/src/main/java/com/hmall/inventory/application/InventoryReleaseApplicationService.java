@@ -1,7 +1,6 @@
 package com.hmall.inventory.application;
 
-import com.hmall.inventory.api.dto.ReleaseResponseDto;
-import com.hmall.inventory.domain.DomainEventPublisher;
+import com.hmall.inventory.application.port.InventoryEventPublisher;
 import com.hmall.inventory.domain.Reservation;
 import com.hmall.inventory.domain.ReservationRepository;
 import com.hmall.inventory.domain.ReservationStatus;
@@ -19,25 +18,25 @@ public class InventoryReleaseApplicationService {
 
     private final SkuStockRepository skuStockRepository;
     private final ReservationRepository reservationRepository;
-    private final DomainEventPublisher eventPublisher;
+    private final InventoryEventPublisher eventPublisher;
 
     public InventoryReleaseApplicationService(SkuStockRepository skuStockRepository,
                                               ReservationRepository reservationRepository,
-                                              DomainEventPublisher eventPublisher) {
+                                              InventoryEventPublisher eventPublisher) {
         this.skuStockRepository = skuStockRepository;
         this.reservationRepository = reservationRepository;
         this.eventPublisher = eventPublisher;
     }
 
     @Transactional
-    public ReleaseResponseDto release(Long orderId) {
+    public void release(Long orderId) {
         if (orderId == null) {
             throw new InventoryBadRequestException("orderId 不能为空");
         }
 
         List<Reservation> reserved = reservationRepository.findByOrderIdAndStatus(orderId, ReservationStatus.RESERVED);
         if (reserved.isEmpty()) {
-            return ReleaseResponseDto.ok();
+            return;
         }
 
         for (Reservation r : reserved) {
@@ -50,6 +49,5 @@ public class InventoryReleaseApplicationService {
         }
 
         eventPublisher.publish(new StockReleased(orderId, Instant.now()));
-        return ReleaseResponseDto.ok();
     }
 }

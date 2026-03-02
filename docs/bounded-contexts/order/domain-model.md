@@ -74,7 +74,7 @@ class FulfillmentRef <<值对象>> {
 }
 
 Order "1" *-- "1..*" OrderLineItem : items
-Order "1" *-- "1" ShippingAddress
+Order "1" *-- "0..1" ShippingAddress
 Order "1" *-- "0..1" PaymentRef
 Order "1" *-- "0..1" FulfillmentRef
 
@@ -99,7 +99,7 @@ end note
 | userId | Long | 用户 ID，引用 User BC |
 | status | OrderStatus | 订单状态 |
 | totalAmountCents | Long | 总金额（分），≥0 |
-| shippingAddress | ShippingAddress | 收货地址 |
+| shippingAddress | ShippingAddress | 收货地址（🔄 纯服务订单可选） |
 | paymentRef | PaymentRef | 支付引用（可选） |
 | fulfillmentRef | FulfillmentRef | 履约引用（可选） |
 | createdAt | Instant | 创建时间 |
@@ -107,7 +107,7 @@ end note
 
 **OrderStatus**：PENDING_PAYMENT | PAID | FULFILLING | SHIPPED | DELIVERED | COMPLETED | CANCELLED
 
-**不变式**：userId、totalAmountCents≥0 必填；status 合法流转。
+**不变式**：userId、totalAmountCents≥0 必填；status 合法流转。🔲 补购校验：SERVICE items 的 relatedSkuId 必须在用户已交付订单（DELIVERED/COMPLETED）中存在；同一 relatedSkuId + 同一 skuId 不允许重复购买（来自业务需求 [保障服务补购](../../business-requirements/supplementary-purchase/overview.md)）。
 
 ### OrderLineItem — 实体
 
@@ -121,12 +121,14 @@ end note
 | totalPriceCents | Long | 小计（分） |
 | displayName | String | 商品展示名，快照 |
 | itemType | ItemType | 🔲 PHYSICAL / SERVICE，创建时从 Catalog SPU.productType 带入 |
-| relatedSkuId | Long | 🔲 SERVICE 类型关联的实体 SKU ID（随购时为同单实体 SKU） |
+| relatedSkuId | Long | 🔲 SERVICE 类型关联的实体 SKU ID（随购时为同单实体 SKU；补购时为历史订单中的实体 SKU） |
+| spuId | Long | 🔲 SPU ID，创建时从 Catalog 快照（用于补购查询时 SKU→SPU 映射） |
 | serviceAttributes | Map | 增值服务（如 engravingText） |
 
 **不变式**：quantity>0；unitPriceCents、totalPriceCents≥0；itemType 必填。
 
-> 🔲 新增属性来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)
+> 🔲 itemType、relatedSkuId 来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)
+> 🔲 spuId、补购校验不变式来自业务需求 [保障服务补购](../../business-requirements/supplementary-purchase/overview.md)
 
 ### ShippingAddress — 值对象
 
@@ -139,7 +141,7 @@ end note
 | district | String | 区 |
 | detail | String | 详细地址 |
 
-**不变式**：收件人、电话、省市区、详细地址必填。
+**不变式**：收件人、电话、省市区、详细地址必填。🔄 纯服务订单（全部 items 为 SERVICE）时 ShippingAddress 整体可选（来自业务需求 [保障服务补购](../../business-requirements/supplementary-purchase/overview.md)）。
 
 ### PaymentRef — 值对象
 

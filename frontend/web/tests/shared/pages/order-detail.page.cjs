@@ -35,6 +35,32 @@ class OrderDetailPage {
   async assertServiceActivated() {
     await expect(this.page.getByText('已激活', { exact: true })).toBeVisible()
   }
+
+  async assertPurchasableServicesVisible() {
+    await expect(this.page.getByText('可补购服务')).toBeVisible()
+  }
+
+  async assertNoPurchasableServices() {
+    await expect(this.page.getByText('可补购服务')).not.toBeVisible()
+  }
+
+  async getFirstPurchasableServiceName() {
+    const section = this.page.getByText('可补购服务').locator('..')
+    const firstItem = section.locator('p.font-medium.text-gray-800').first()
+    return firstItem.textContent()
+  }
+
+  async clickFirstPurchaseButton() {
+    const section = this.page.getByText('可补购服务').locator('..')
+    const btn = section.getByRole('button', { name: '补购' }).first()
+    await btn.click()
+  }
+
+  getOrderIdFromUrl() {
+    const url = this.page.url()
+    const match = url.match(/\/orders\/(\d+)/)
+    return match ? Number(match[1]) : null
+  }
 }
 
 module.exports = { OrderDetailPage }

@@ -99,7 +99,7 @@ flowchart TB
 | BFF | Cart | REST | 代理 /api/cart |
 | BFF | Fulfillment | REST | 代理 /api/fulfillment |
 | Smart Interaction | Catalog (via MCP) | LLM + MCP Tool Calling | Smart Interaction 调 LLM API → MCP Server → Catalog REST API |
-| Catalog | Order | REST | Order 创建时按 skuId 拉取 SKU 与价格 |
+| Catalog | Order | REST | Order 创建时按 skuId 拉取 SKU 与价格；🔲 补购查询时按 spuId 查可选服务 |
 | User | Order | REST | userId、收货地址 |
 | Catalog | Cart | REST | 添加时校验 SKU 存在性；查询时拉取展示信息（名称、价格、图片） |
 | User | Cart | userId | 购物车按用户隔离 |

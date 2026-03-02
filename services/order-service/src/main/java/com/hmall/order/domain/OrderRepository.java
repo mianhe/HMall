@@ -12,4 +12,6 @@ public interface OrderRepository {
     List<Order> findByUserId(Long userId, int page, int size);
 
     long countByUserId(Long userId);
+
+    List<Order> findDeliveredByUserId(Long userId);
 }

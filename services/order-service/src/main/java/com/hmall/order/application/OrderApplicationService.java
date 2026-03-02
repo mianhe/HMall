@@ -6,6 +6,7 @@ import com.hmall.order.application.port.*;
 import com.hmall.order.api.dto.OrderCreateDto;
 import com.hmall.order.api.dto.OrderDto;
 import com.hmall.order.api.dto.OrderListPageDto;
+import com.hmall.order.api.dto.PurchasableServiceDto;
 import com.hmall.order.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,13 +29,15 @@ public class OrderApplicationService {
     private final RefundPaymentPort refundPaymentPort;
     private final CancelFulfillmentPort cancelFulfillmentPort;
     private final OrderOutboundEventPublisher outboundEventPublisher;
+    private final CatalogServiceQueryPort catalogServiceQueryPort;
 
     public OrderApplicationService(OrderRepository orderRepository, SkuInfoPort skuInfoPort,
             UserExistsPort userExistsPort,
             OccupyInventoryPort occupyInventoryPort, CreatePaymentPort createPaymentPort,
             ReleaseInventoryPort releaseInventoryPort, RefundPaymentPort refundPaymentPort,
             CancelFulfillmentPort cancelFulfillmentPort,
-            OrderOutboundEventPublisher outboundEventPublisher) {
+            OrderOutboundEventPublisher outboundEventPublisher,
+            CatalogServiceQueryPort catalogServiceQueryPort) {
         this.orderRepository = orderRepository;
         this.skuInfoPort = skuInfoPort;
         this.userExistsPort = userExistsPort;
@@ -43,6 +47,7 @@ public class OrderApplicationService {
         this.refundPaymentPort = refundPaymentPort;
         this.cancelFulfillmentPort = cancelFulfillmentPort;
         this.outboundEventPublisher = outboundEventPublisher;
+        this.catalogServiceQueryPort = catalogServiceQueryPort;
     }
 
     @Transactional
@@ -52,15 +57,6 @@ public class OrderApplicationService {
         if (dto.items() == null || dto.items().isEmpty()) {
             throw new OrderBadRequestException("商品明细不能为空");
         }
-
-        ShippingAddress address = new ShippingAddress(
-            dto.shippingAddress().recipientName(),
-            dto.shippingAddress().phone(),
-            dto.shippingAddress().province(),
-            dto.shippingAddress().city(),
-            dto.shippingAddress().district(),
-            dto.shippingAddress().detail()
-        );
 
         List<OrderLineItem> items = new ArrayList<>();
         for (OrderCreateDto.LineItemCreateDto line : dto.items()) {
@@ -74,8 +70,28 @@ public class OrderApplicationService {
             String productType = sku.productType() != null ? sku.productType() : "PHYSICAL";
             OrderItemType itemType = OrderItemType.valueOf(productType);
             long unitPriceCents = resolveUnitPriceCents(line, sku, itemType);
-            items.add(new OrderLineItem(line.skuId(), line.quantity(), unitPriceCents, sku.displayName(), itemType));
+            items.add(new OrderLineItem(line.skuId(), line.quantity(), unitPriceCents,
+                    sku.displayName(), itemType, line.relatedSkuId(), sku.spuId()));
         }
+
+        boolean pureService = items.stream().allMatch(i -> i.getItemType() == OrderItemType.SERVICE);
+
+        ShippingAddress address = null;
+        if (dto.shippingAddress() != null) {
+            address = new ShippingAddress(
+                dto.shippingAddress().recipientName(),
+                dto.shippingAddress().phone(),
+                dto.shippingAddress().province(),
+                dto.shippingAddress().city(),
+                dto.shippingAddress().district(),
+                dto.shippingAddress().detail()
+            );
+        }
+        if (!pureService && address == null) {
+            throw new OrderBadRequestException("含实体商品的订单必须提供收货地址");
+        }
+
+        validateSupplementaryPurchase(dto.userId(), items);
 
         Order order = new Order(dto.userId(), address, items);
         Order saved = orderRepository.save(order);
@@ -157,6 +173,78 @@ public class OrderApplicationService {
         outboundEventPublisher.publish(new OrderCancelledEvent(orderId));
     }
 
+    @Transactional(readOnly = true)
+    public List<PurchasableServiceDto> getPurchasableServices(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("订单不存在"));
+
+        if (order.getStatus() != OrderStatus.DELIVERED) {
+            throw new OrderBadRequestException("订单未交付，无法查询可补购服务");
+        }
+
+        Set<Long> alreadyPurchasedKeys = collectAlreadyPurchasedServiceKeys(order.getUserId());
+
+        List<PurchasableServiceDto> result = new ArrayList<>();
+        for (OrderLineItem item : order.getItems()) {
+            if (item.getItemType() != OrderItemType.PHYSICAL || item.getSpuId() == null) {
+                continue;
+            }
+            List<CatalogServiceQueryPort.AvailableService> services =
+                    catalogServiceQueryPort.findAvailableServices(item.getSpuId());
+            for (CatalogServiceQueryPort.AvailableService svc : services) {
+                long key = supplementaryKey(item.getSkuId(), svc.serviceSkuId());
+                if (!alreadyPurchasedKeys.contains(key)) {
+                    result.add(new PurchasableServiceDto(
+                            svc.serviceSkuId(), svc.serviceName(), svc.priceCents(), item.getSkuId()));
+                }
+            }
+        }
+        return result;
+    }
+
+    private void validateSupplementaryPurchase(Long userId, List<OrderLineItem> items) {
+        for (OrderLineItem item : items) {
+            if (item.getItemType() != OrderItemType.SERVICE || item.getRelatedSkuId() == null) {
+                continue;
+            }
+            boolean inSameOrder = items.stream()
+                    .anyMatch(i -> i.getItemType() == OrderItemType.PHYSICAL
+                            && i.getSkuId().equals(item.getRelatedSkuId()));
+            if (inSameOrder) {
+                continue;
+            }
+
+            List<Order> deliveredOrders = orderRepository.findDeliveredByUserId(userId);
+            boolean relatedSkuDelivered = deliveredOrders.stream()
+                    .flatMap(o -> o.getItems().stream())
+                    .anyMatch(li -> li.getItemType() == OrderItemType.PHYSICAL
+                            && li.getSkuId().equals(item.getRelatedSkuId()));
+            if (!relatedSkuDelivered) {
+                throw new OrderBadRequestException("关联实体商品未在已交付订单中");
+            }
+
+            Set<Long> alreadyPurchased = collectAlreadyPurchasedServiceKeys(userId);
+            long key = supplementaryKey(item.getRelatedSkuId(), item.getSkuId());
+            if (alreadyPurchased.contains(key)) {
+                throw new OrderBadRequestException("不允许重复补购同一服务");
+            }
+        }
+    }
+
+    private Set<Long> collectAlreadyPurchasedServiceKeys(Long userId) {
+        List<Order> allOrders = orderRepository.findByUserId(userId, 0, Integer.MAX_VALUE);
+        return allOrders.stream()
+                .flatMap(o -> o.getItems().stream())
+                .filter(li -> li.getItemType() == OrderItemType.SERVICE && li.getRelatedSkuId() != null)
+                .map(li -> supplementaryKey(li.getRelatedSkuId(), li.getSkuId()))
+                .collect(Collectors.toSet());
+    }
+
+    /** 用 relatedSkuId 和 serviceSkuId 构造唯一键，用于去重 */
+    private static long supplementaryKey(Long relatedSkuId, Long serviceSkuId) {
+        return relatedSkuId * 1_000_000L + serviceSkuId;
+    }
+
     private static boolean isCancellable(OrderStatus status) {
         return status == OrderStatus.PENDING_PAYMENT
                 || status == OrderStatus.PAID
@@ -194,14 +282,17 @@ public class OrderApplicationService {
                 );
             })
             .toList();
-        OrderCreateDto.ShippingAddressDto addr = new OrderCreateDto.ShippingAddressDto(
-            order.getShippingAddress().recipientName(),
-            order.getShippingAddress().phone(),
-            order.getShippingAddress().province(),
-            order.getShippingAddress().city(),
-            order.getShippingAddress().district(),
-            order.getShippingAddress().detail()
-        );
+        OrderCreateDto.ShippingAddressDto addr = null;
+        if (order.getShippingAddress() != null) {
+            addr = new OrderCreateDto.ShippingAddressDto(
+                order.getShippingAddress().recipientName(),
+                order.getShippingAddress().phone(),
+                order.getShippingAddress().province(),
+                order.getShippingAddress().city(),
+                order.getShippingAddress().district(),
+                order.getShippingAddress().detail()
+            );
+        }
         return new OrderDto(
             order.getOrderId(),
             order.getStatus().name(),

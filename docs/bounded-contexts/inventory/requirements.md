@@ -40,6 +40,8 @@
 - ✅ 3.1 按 skuId 初始化/更新库存
 - ✅ 3.2 按 skuId 查询库存（available、reserved）
 - ✅ 3.3 查询全部库存列表，返回所有已初始化的 SkuStock（skuId、available、reserved）
+- ✅ 3.4 查询不存在的 skuId 时应返回 404
+- ✅ 3.5 设置 available 为负数时应返回 400
 
 ---
 
@@ -49,4 +51,4 @@
 |------|----------------|------|-------------|
 | 1. 占用库存 | inventory-occupy.feature | ✅ 已实现 | 5 |
 | 2. 释放库存 | inventory-release.feature | ✅ 已实现 | 4 |
-| 3. 库存管理 | inventory-stock.feature | ✅ 已实现 | 3 |
+| 3. 库存管理 | inventory-stock.feature | ✅ 已实现 | 5 |

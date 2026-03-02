@@ -37,3 +37,12 @@ export async function getOrders(userId, page = 0, size = 20) {
 export async function cancelOrder(orderId) {
   await client.post(`/orders/${orderId}/cancel`)
 }
+
+/**
+ * 查询已交付订单的可补购服务列表
+ * @returns {Promise<Array<{serviceSkuId: number, serviceName: string, priceCents: number, relatedSkuId: number}>>}
+ */
+export async function getPurchasableServices(orderId) {
+  const { data } = await client.get(`/orders/${orderId}/purchasable-services`)
+  return data
+}

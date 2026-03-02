@@ -31,6 +31,12 @@ public class OrderLineItemEntity {
     @Column(name = "item_type", nullable = false)
     private String itemType;
 
+    @Column(name = "related_sku_id")
+    private Long relatedSkuId;
+
+    @Column(name = "spu_id")
+    private Long spuId;
+
     public OrderLineItemEntity() {}
 
     public Long getId() { return id; }
@@ -49,4 +55,8 @@ public class OrderLineItemEntity {
     public void setDisplayName(String displayName) { this.displayName = displayName; }
     public String getItemType() { return itemType; }
     public void setItemType(String itemType) { this.itemType = itemType; }
+    public Long getRelatedSkuId() { return relatedSkuId; }
+    public void setRelatedSkuId(Long relatedSkuId) { this.relatedSkuId = relatedSkuId; }
+    public Long getSpuId() { return spuId; }
+    public void setSpuId(Long spuId) { this.spuId = spuId; }
 }

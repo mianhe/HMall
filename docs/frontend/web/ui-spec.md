@@ -74,6 +74,11 @@
 
 - **内容**：订单完整信息（明细、收货地址、状态文案映射）。
 - **操作**：待支付时可「取消订单」；可「模拟支付」（纯前端 Mock，toast 提示后跳转订单列表）。
+- **补购服务**：已交付订单（DELIVERED / COMPLETED）在商品明细下方显示「可补购服务」区域。
+  - 调用 `GET /api/orders/{orderId}/purchasable-services` 获取可补购服务列表。
+  - 列表为空时不显示该区域。
+  - 每项展示服务名、价格，右侧「补购」按钮。
+  - 点击「补购」→ `POST /api/orders`（纯 SERVICE items，无 shippingAddress）→ 成功跳转新订单详情页。
 
 ### 2.8 我的页
 

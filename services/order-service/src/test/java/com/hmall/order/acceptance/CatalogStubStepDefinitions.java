@@ -35,11 +35,16 @@ public class CatalogStubStepDefinitions {
 
     @Given("Catalog 已有商品 {string} skuId {long} 价格 {long} 分")
     public void catalog已有商品(String productName, long skuId, long priceCents) {
+        catalog已有商品WithSpuId(productName, skuId, priceCents, 1);
+    }
+
+    @Given("Catalog 已有商品 {string} skuId {long} 价格 {long} 分 spuId {long}")
+    public void catalog已有商品WithSpuId(String productName, long skuId, long priceCents, long spuId) {
         productNameToSkuId.put(productName, skuId);
         String escaped = productName.replace("\\", "\\\\").replace("\"", "\\\"");
         String json = """
-            {"id":%d,"spuId":1,"priceCents":%d,"displayName":"%s","spuName":"%s","specValues":[],"productType":"PHYSICAL"}
-            """.formatted(skuId, priceCents, escaped, escaped);
+            {"id":%d,"spuId":%d,"priceCents":%d,"displayName":"%s","spuName":"%s","specValues":[],"productType":"PHYSICAL"}
+            """.formatted(skuId, spuId, priceCents, escaped, escaped);
         wireMock.stubFor(
             WireMock.get(WireMock.urlPathEqualTo("/api/skus/" + skuId))
                 .willReturn(WireMock.aResponse()
@@ -76,8 +81,23 @@ public class CatalogStubStepDefinitions {
     @Given("Catalog 中实体 spuId {long} 绑定服务 skuId {long} 价格 {long} 分")
     public void catalog中实体SpuId绑定服务SkuId价格(long targetSpuId, long serviceSkuId, long priceCents) {
         String json = """
-            [{"serviceSpuId":21,"name":"延保服务","bindings":[{"bindingId":1,"serviceSkuId":%d,"priceCents":%d}]}]
+            [{"serviceSpuId":21,"name":"延保服务","productType":"SERVICE","bindings":[{"bindingId":1,"serviceSkuId":%d,"priceCents":%d}]}]
             """.formatted(serviceSkuId, priceCents);
+        wireMock.stubFor(
+            WireMock.get(WireMock.urlPathEqualTo("/api/products/" + targetSpuId + "/available-services"))
+                .willReturn(WireMock.aResponse()
+                    .withStatus(200)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody(json))
+        );
+    }
+
+    @Given("Catalog 中实体 spuId {long} 有可选服务 skuId {long} 名称 {string} 价格 {long} 分")
+    public void catalog中实体SpuId有可选服务(long targetSpuId, long serviceSkuId, String serviceName, long priceCents) {
+        String escaped = serviceName.replace("\\", "\\\\").replace("\"", "\\\"");
+        String json = """
+            [{"serviceSpuId":21,"name":"%s","productType":"SERVICE","bindings":[{"bindingId":1,"serviceSkuId":%d,"priceCents":%d}]}]
+            """.formatted(escaped, serviceSkuId, priceCents);
         wireMock.stubFor(
             WireMock.get(WireMock.urlPathEqualTo("/api/products/" + targetSpuId + "/available-services"))
                 .willReturn(WireMock.aResponse()

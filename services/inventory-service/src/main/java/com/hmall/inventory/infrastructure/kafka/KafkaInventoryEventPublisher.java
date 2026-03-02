@@ -1,29 +1,23 @@
-package com.hmall.inventory.infrastructure;
+package com.hmall.inventory.infrastructure.kafka;
 
-import com.hmall.inventory.domain.DomainEventPublisher;
+import com.hmall.inventory.application.port.InventoryEventPublisher;
 import com.hmall.inventory.domain.StockReleased;
 import com.hmall.inventory.domain.StockReserved;
-import com.hmall.inventory.infrastructure.kafka.InventoryKafkaProperties;
-import com.hmall.inventory.infrastructure.kafka.StockReleasedMessage;
-import com.hmall.inventory.infrastructure.kafka.StockReservedMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
-/**
- * 领域事件只发往 Kafka，供进程外/其他应用订阅。测试时由 EventCapture 替身注入，不连 Kafka。
- */
 @Component
-public class SpringDomainEventPublisher implements DomainEventPublisher {
+public class KafkaInventoryEventPublisher implements InventoryEventPublisher {
 
-    private static final Logger log = LoggerFactory.getLogger(SpringDomainEventPublisher.class);
+    private static final Logger log = LoggerFactory.getLogger(KafkaInventoryEventPublisher.class);
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final InventoryKafkaProperties kafkaProperties;
 
-    public SpringDomainEventPublisher(
+    public KafkaInventoryEventPublisher(
             @Autowired(required = false) KafkaTemplate<String, Object> kafkaTemplate,
             @Autowired(required = false) InventoryKafkaProperties kafkaProperties) {
         this.kafkaTemplate = kafkaTemplate;

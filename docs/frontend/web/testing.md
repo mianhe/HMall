@@ -133,9 +133,11 @@ frontend/web/tests/
 │
 └── business-e2e/                       # Business E2E：需求验收（非 Evergreen）
     ├── specs/
-    │   └── virtual-product/
-    │       ├── purchase-with-service.spec.cjs
-    │       └── cart-service-grouping.spec.cjs
+    │   ├── virtual-product/
+    │   │   ├── purchase-with-service.spec.cjs
+    │   │   └── cart-service-grouping.spec.cjs
+    │   └── supplementary-purchase/
+    │       └── supplementary-purchase.spec.cjs
     └── playwright.config.cjs
 ```
 
@@ -155,6 +157,7 @@ frontend/web/tests/
 |------|---------|------|----------|
 | `BIZ-VP-001` | 虚拟商品 | 随购服务：选服务 → 下单 → 订单含服务明细 | N2O-3 |
 | `BIZ-VP-002` | 虚拟商品 | 购物车含服务：加购 → 购物车可见 → 结算成功 | N2O-4 |
+| `BIZ-SP-001` | 补购服务 | 已交付订单 → 可补购服务列表 → 补购下单 | N2O-5 |
 
 > 路径编号定义见 [业务流程全景](../../business-flows.md) §四。
 

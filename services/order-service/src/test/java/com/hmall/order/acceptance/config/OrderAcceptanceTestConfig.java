@@ -9,6 +9,7 @@ import com.hmall.order.acceptance.OrderCreateStepDefinitions;
 import com.hmall.order.acceptance.OrderEventCapture;
 import com.hmall.order.acceptance.OrderEventsStepDefinitions;
 import com.hmall.order.acceptance.OrderQueryStepDefinitions;
+import com.hmall.order.acceptance.SupplementaryPurchaseStepDefinitions;
 import com.hmall.order.acceptance.UserStubStepDefinitions;
 import com.hmall.order.application.OrderEventService;
 import com.hmall.order.domain.OrderRepository;
@@ -92,6 +93,19 @@ public class OrderAcceptanceTestConfig {
     @Primary
     public CatalogStubStepDefinitions catalogStubStepDefinitions(WireMockServer catalogWireMock) {
         return new CatalogStubStepDefinitions(catalogWireMock);
+    }
+
+    @Bean
+    @Primary
+    public SupplementaryPurchaseStepDefinitions supplementaryPurchaseStepDefinitions(
+            TestRestTemplate restTemplate,
+            UserStubStepDefinitions userStub,
+            CatalogStubStepDefinitions catalogStub,
+            LastResponseContext lastResponseContext,
+            LastOrderContext lastOrderContext,
+            OrderRepository orderRepository) {
+        return new SupplementaryPurchaseStepDefinitions(
+                restTemplate, userStub, catalogStub, lastResponseContext, lastOrderContext, orderRepository);
     }
 
     @Bean

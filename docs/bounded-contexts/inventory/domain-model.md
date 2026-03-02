@@ -58,7 +58,7 @@ class StockReleased <<领域事件>> {
   occurredAt: Instant
 }
 
-SkuStock "1" *-- "0..*" Reservation : reservations
+SkuStock "1" -- "0..*" Reservation : 应用层协调
 Reservation --> SkuStock : skuId
 Reservation ..> ReservationStatus : status
 SkuStock ..> StockReserved : occupy 成功时发布

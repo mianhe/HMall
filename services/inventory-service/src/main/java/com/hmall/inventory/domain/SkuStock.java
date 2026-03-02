@@ -9,12 +9,13 @@ public class SkuStock {
     private int available;
     private int reserved;
 
-    /** 新建（尚未持久化） */
     public SkuStock(Long skuId, int available, int reserved) {
+        if (available < 0 || reserved < 0) {
+            throw new IllegalArgumentException("available and reserved must be >= 0");
+        }
         this.skuId = skuId;
         this.available = available;
         this.reserved = reserved;
-        assert available >= 0 && reserved >= 0;
     }
 
     public Long getSkuId() {

@@ -39,15 +39,12 @@ public class FulfillmentCommonStepDefinitions {
     @假如("已存在 ALLOCATING 状态的履约单 orderId {long}")
     public void 已存在ALLOCATING状态的履约单(long orderId) {
         createFulfillmentOrder(orderId);
-        Long foId = context.getLastFulfillmentOrderId();
-        allocateFulfillmentOrder(foId);
     }
 
     @假如("已存在 SHIPPED 状态的履约单 orderId {long}")
     public void 已存在SHIPPED状态的履约单(long orderId) {
         createFulfillmentOrder(orderId);
         Long foId = context.getLastFulfillmentOrderId();
-        allocateFulfillmentOrder(foId);
         shipFulfillmentOrder(foId);
     }
 

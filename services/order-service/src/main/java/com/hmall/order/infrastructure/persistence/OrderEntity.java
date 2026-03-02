@@ -20,17 +20,17 @@ public class OrderEntity {
     @Column(name = "total_amount_cents", nullable = false)
     private Long totalAmountCents;
 
-    @Column(name = "recipient_name", nullable = false)
+    @Column(name = "recipient_name")
     private String recipientName;
-    @Column(name = "phone", nullable = false)
+    @Column(name = "phone")
     private String phone;
-    @Column(name = "province", nullable = false)
+    @Column(name = "province")
     private String province;
-    @Column(name = "city", nullable = false)
+    @Column(name = "city")
     private String city;
-    @Column(name = "district", nullable = false)
+    @Column(name = "district")
     private String district;
-    @Column(name = "detail", nullable = false)
+    @Column(name = "detail")
     private String detail;
     @Column(name = "physical_delivered", nullable = false)
     private boolean physicalDelivered;

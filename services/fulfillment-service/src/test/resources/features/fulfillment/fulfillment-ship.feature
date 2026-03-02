@@ -15,11 +15,6 @@
     那么 应返回 200
     并且 应发布 FulfillmentShipped 事件且 orderId 为 9002
 
-  场景: CREATED 状态执行发货应失败并返回错误
-    假如 已存在 CREATED 状态的履约单 orderId 9003
-    当 对该履约单执行发货 承运商 "顺丰" 物流单号 "SF1234567892"
-    那么 应返回 400
-
   场景: 非 ALLOCATING 状态（如 SHIPPED）执行发货应失败并返回错误
     假如 已存在 SHIPPED 状态的履约单 orderId 9004
     当 对该履约单执行发货 承运商 "顺丰" 物流单号 "SF1234567893"

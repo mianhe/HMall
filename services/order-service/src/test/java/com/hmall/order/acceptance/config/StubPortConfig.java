@@ -1,12 +1,7 @@
 package com.hmall.order.acceptance.config;
 
 import com.hmall.order.acceptance.OrderEventCapture;
-import com.hmall.order.application.port.CancelFulfillmentPort;
-import com.hmall.order.application.port.CreateFulfillmentPort;
-import com.hmall.order.application.port.OccupyInventoryPort;
-import com.hmall.order.application.port.OrderOutboundEventPublisher;
-import com.hmall.order.application.port.RefundPaymentPort;
-import com.hmall.order.application.port.ReleaseInventoryPort;
+import com.hmall.order.application.port.*;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;

@@ -60,6 +60,21 @@
 
 ---
 
+## 5. 补购服务
+`order-supplementary-purchase.feature`
+
+> 以下需求来自业务需求 [保障服务补购](../../business-requirements/supplementary-purchase/overview.md)
+
+- 🔲 5.1 查询已交付订单（DELIVERED/COMPLETED）的可补购服务列表时，应返回该订单实体商品关联的可选服务（调用 Catalog），排除用户已补购的
+- 🔲 5.2 订单未交付（非 DELIVERED/COMPLETED）时查询可补购服务应返回错误
+- 🔲 5.3 已交付订单的实体商品无可补购服务（全部已补购或无关联服务）时应返回空列表
+- 🔲 5.4 创建补购订单（纯 SERVICE items + relatedSkuId 指向已购实体 SKU）时应成功，不调用库存占用
+- 🔲 5.5 补购订单不需要收货地址（ShippingAddress 可选）
+- 🔲 5.6 relatedSkuId 指向的 SKU 不在用户任何已交付订单中时创建应失败并返回错误
+- 🔲 5.7 同一 relatedSkuId + 同一服务 skuId 已购买时创建应失败并返回错误（不允许重复补购）
+
+---
+
 ## 功能与 feature 对应
 
 | 功能 | .feature 文件 | 状态 | Scenario 数 | 备注 |
@@ -68,6 +83,7 @@
 | 2. 取消订单 | order-cancel.feature | ✅ 已完成 | 8 | PAID/FULFILLING 取消调用 CancelFulfillmentPort；SHIPPED/DELIVERED 不可取消；ACTIVATED 虚拟单 MVP 不可取消 |
 | 3. 查询订单 | order-query.feature | ✅ 已完成 | 3 | — |
 | 4. 事件驱动 | order-events.feature | 🔄 需变更 | 6 + 1 | 4.6 消费 ServiceActivated 来自虚拟商品业务需求 |
+| 5. 补购服务 | order-supplementary-purchase.feature | 🔲 待实现 | 7 | 来自保障服务补购业务需求；前置依赖虚拟商品 1.7/1.8/4.6 |
 
 ---
 

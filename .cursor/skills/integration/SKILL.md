@@ -37,7 +37,7 @@ description: 跨 BC 或跨系统集成：在调用方实现出站端口的真实
 
 | 步骤 | 动作 |
 |------|------|
-| 3 | 在调用方新增 Port 的**真实适配器**（如 `RestXxxAdapter`）：RestTemplate/WebClient 调 base URL + path，按 api.yaml 序列化请求/解析响应；失败按契约抛异常。 |
+| 3 | 在调用方新增 Port 的**真实适配器**（如 `RestXxxAdapter`）：RestTemplate/WebClient 调 base URL + path，按 api.yaml 序列化请求/解析响应；失败按契约抛异常。**若被调用方返回的 payload 比 Port 语义更宽**（如返回多种类型但 Port 只关心其中一种），在适配器中做过滤/映射，确保 Port 返回值严格符合其语义契约。 |
 | 4 | 调用方增加配置（base URL 等）。用 **Profile 或条件 Bean**：验收注入 Stub，本地/生产注入真实适配器。 |
 
 ### 阶段三：验证
@@ -57,14 +57,15 @@ description: 跨 BC 或跨系统集成：在调用方实现出站端口的真实
 | 契约以被调用方为准 | Adapter 只做转换与调用，不发明新字段。 |
 | 不因集成改领域 | 仅替换端口实现；Port 与契约不匹配时优先在适配层做 DTO 转换。 |
 | 验收用 Stub | 集成/联调验证真实调用。 |
+| Stub 与真实响应对齐 | 适配器中若新增了过滤/映射逻辑，需同步检查验收 Stub 的 JSON 响应是否包含适配器依赖的字段（如 `productType`），避免 Stub 缺字段导致测试假绿。 |
 
 ---
 
 ## 检查清单
 
 - [ ] context-map 与 api.yaml 已确认；Port 与契约一致
-- [ ] 真实适配器已实现并配置（base URL、Profile/条件 Bean）
-- [ ] 验收仍用 Stub 全绿；可选集成/联调
+- [ ] 真实适配器已实现并配置（base URL、Profile/条件 Bean）；若有响应过滤/映射，已确认 Port 语义严格满足
+- [ ] 验收仍用 Stub 全绿；Stub JSON 已与适配器依赖的字段对齐；可选集成/联调
 - [ ] project-status 已更新（若适用）
 
 ---

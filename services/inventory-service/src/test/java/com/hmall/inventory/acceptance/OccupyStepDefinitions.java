@@ -98,15 +98,6 @@ public class OccupyStepDefinitions {
         assertThat(responseContext.getLastStatusCode()).isGreaterThanOrEqualTo(400);
     }
 
-    @And("应返回 200")
-    public void 应返回200() {
-        assertThat(responseContext.getLastStatusCode()).isEqualTo(200);
-    }
-
-    @Then("应返回 400")
-    public void 应返回400() {
-        assertThat(responseContext.getLastStatusCode()).isEqualTo(400);
-    }
 
     @And("错误信息包含 {string}")
     public void 错误信息包含(String expected) {

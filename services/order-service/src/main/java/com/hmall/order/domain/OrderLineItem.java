@@ -12,8 +12,15 @@ public class OrderLineItem {
     private final long totalPriceCents;
     private final String displayName;
     private final OrderItemType itemType;
+    private final Long relatedSkuId;
+    private final Long spuId;
 
     public OrderLineItem(Long skuId, int quantity, long unitPriceCents, String displayName, OrderItemType itemType) {
+        this(skuId, quantity, unitPriceCents, displayName, itemType, null, null);
+    }
+
+    public OrderLineItem(Long skuId, int quantity, long unitPriceCents, String displayName,
+                          OrderItemType itemType, Long relatedSkuId, Long spuId) {
         this.lineItemId = null;
         this.orderId = null;
         this.skuId = Objects.requireNonNull(skuId, "skuId");
@@ -22,9 +29,13 @@ public class OrderLineItem {
         this.totalPriceCents = (long) quantity * unitPriceCents;
         this.displayName = displayName;
         this.itemType = Objects.requireNonNull(itemType, "itemType");
+        this.relatedSkuId = relatedSkuId;
+        this.spuId = spuId;
     }
 
-    public OrderLineItem(Long lineItemId, Long orderId, Long skuId, int quantity, long unitPriceCents, long totalPriceCents, String displayName, OrderItemType itemType) {
+    public OrderLineItem(Long lineItemId, Long orderId, Long skuId, int quantity,
+                          long unitPriceCents, long totalPriceCents, String displayName,
+                          OrderItemType itemType, Long relatedSkuId, Long spuId) {
         this.lineItemId = lineItemId;
         this.orderId = orderId;
         this.skuId = skuId;
@@ -33,6 +44,8 @@ public class OrderLineItem {
         this.totalPriceCents = totalPriceCents;
         this.displayName = displayName;
         this.itemType = itemType;
+        this.relatedSkuId = relatedSkuId;
+        this.spuId = spuId;
     }
 
     public Long getLineItemId() { return lineItemId; }
@@ -43,4 +56,6 @@ public class OrderLineItem {
     public long getTotalPriceCents() { return totalPriceCents; }
     public String getDisplayName() { return displayName; }
     public OrderItemType getItemType() { return itemType; }
+    public Long getRelatedSkuId() { return relatedSkuId; }
+    public Long getSpuId() { return spuId; }
 }

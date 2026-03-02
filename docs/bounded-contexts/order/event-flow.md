@@ -8,7 +8,7 @@
 
 | BC | 关系 |
 |----|------|
-| Catalog | 上游：SKU、价格 |
+| Catalog | 上游：SKU、价格；🔲 可选服务查询（补购聚合用） |
 | User | 上游：userId、收货地址 |
 | Order | 编排中心 |
 | Inventory | 下游：**同步**占用/释放库存（Order 直接调用） |
@@ -153,6 +153,20 @@ Order 通过 `KafkaFulfillmentEventConsumer` 消费 Fulfillment 的 Allocated / 
 
 **说明**：支付完成由支付网关回调 Payment，Payment 发布 PaymentCompleted/Failed/Expired 到 Kafka，Order 通过 `KafkaPaymentEventConsumer` 消费后调用 `OrderEventService`。创建履约单在 `onPaymentCompleted` 中同步调用。
 
+### 🔲 补购服务查询（来自业务需求 [保障服务补购](../../business-requirements/supplementary-purchase/overview.md)）
+
+| 调用 | 时机 | 说明 |
+|------|------|------|
+| queryCatalogAvailableServices(spuId) | QueryPurchasableServices | 🔲 查询实体 SPU 的可选服务列表（`CatalogServiceQueryPort` → Catalog REST API） |
+
+`GET /api/orders/{orderId}/purchasable-services` 聚合查询 API：
+
+1. 校验订单存在且 status 为 DELIVERED 或 COMPLETED
+2. 提取订单中 PHYSICAL items 的 spuId
+3. 对每个 spuId 调用 Catalog 查可选服务（`CatalogServiceQueryPort`）
+4. 查询用户所有订单中已购买的 SERVICE items（按 relatedSkuId + skuId 去重）
+5. 排除已购服务，返回可补购列表
+
 ---
 
 ## 五、命令
@@ -161,3 +175,4 @@ Order 通过 `KafkaFulfillmentEventConsumer` 消费 Fulfillment 的 Allocated / 
 |------|----------|
 | PlaceOrder | OrderCreated（仅在库存占用成功时） |
 | CancelOrder | OrderCancelled |
+| 🔲 QueryPurchasableServices | 无（查询，不产生事件） |

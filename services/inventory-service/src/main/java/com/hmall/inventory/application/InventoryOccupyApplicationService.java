@@ -1,7 +1,6 @@
 package com.hmall.inventory.application;
 
-import com.hmall.inventory.api.dto.OccupyResponseDto;
-import com.hmall.inventory.domain.DomainEventPublisher;
+import com.hmall.inventory.application.port.InventoryEventPublisher;
 import com.hmall.inventory.domain.Reservation;
 import com.hmall.inventory.domain.ReservationRepository;
 import com.hmall.inventory.domain.ReservationStatus;
@@ -22,18 +21,18 @@ public class InventoryOccupyApplicationService {
 
     private final SkuStockRepository skuStockRepository;
     private final ReservationRepository reservationRepository;
-    private final DomainEventPublisher eventPublisher;
+    private final InventoryEventPublisher eventPublisher;
 
     public InventoryOccupyApplicationService(SkuStockRepository skuStockRepository,
                                              ReservationRepository reservationRepository,
-                                             DomainEventPublisher eventPublisher) {
+                                             InventoryEventPublisher eventPublisher) {
         this.skuStockRepository = skuStockRepository;
         this.reservationRepository = reservationRepository;
         this.eventPublisher = eventPublisher;
     }
 
     @Transactional
-    public OccupyResponseDto occupy(Long orderId, List<OccupyItem> items) {
+    public void occupy(Long orderId, List<OccupyItem> items) {
         if (orderId == null) {
             throw new InventoryBadRequestException("orderId 不能为空");
         }
@@ -41,12 +40,10 @@ public class InventoryOccupyApplicationService {
             throw new InventoryBadRequestException("items 不能为空");
         }
 
-        // 幂等：该订单已有占用记录则直接成功
         if (reservationRepository.existsByOrderIdAndStatus(orderId, ReservationStatus.RESERVED)) {
-            return OccupyResponseDto.ok();
+            return;
         }
 
-        // 按 skuId 汇总数量，校验并占用
         Map<Long, Integer> qtyBySku = new HashMap<>();
         for (OccupyItem item : items) {
             if (item.skuId() == null || item.quantity() <= 0) {
@@ -69,7 +66,6 @@ public class InventoryOccupyApplicationService {
             skuStockRepository.save(stock);
         }
 
-        // 按请求项创建占用记录（释放时按 orderId 查并逐条 release）
         List<StockReserved.OccupyItemPayload> payloads = new ArrayList<>();
         for (OccupyItem item : items) {
             Reservation reservation = new Reservation(orderId, item.skuId(), item.quantity());
@@ -78,6 +74,5 @@ public class InventoryOccupyApplicationService {
         }
 
         eventPublisher.publish(new StockReserved(orderId, payloads, Instant.now()));
-        return OccupyResponseDto.ok();
     }
 }

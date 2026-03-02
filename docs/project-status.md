@@ -24,8 +24,8 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 |----|------|------|------|
 | **Catalog** | 类目、SPU、规格维度、SKU、展示图、商品类型与服务绑定 | ✅ 已完成 | 5 feature，63 scenario |
 | **User** | 注册、登录(JWT)、收货地址 | ✅ 已完成 | 3 feature，19 scenario |
-| **Order** | 创建、取消、查询、事件驱动状态流转 | ✅ 已完成 | 4 feature，25 scenario |
-| **Inventory** | 同步占用/释放、库存管理 | ✅ 已完成 | 3 feature，12 scenario |
+| **Order** | 创建、取消、查询、事件驱动状态流转、补购服务 | ✅ 已完成 | 5 feature，32 scenario |
+| **Inventory** | 同步占用/释放、库存管理 | ✅ 已完成 | 3 feature，14 scenario |
 | **Payment** | 扣款/退款/超时检测 | ✅ 已完成 | 5 feature，19 scenario |
 | **Activity** | 事件消费、活动查询、统计仪表盘、订单旅程回放 | ✅ 已完成 | 3 feature，16 scenario |
 | **Cart** | 增删改查、结算预览 | ✅ 已完成 | 5 feature，17 scenario |
@@ -46,10 +46,11 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 | 顺序 | 功能 | 主要影响 BC | 前置依赖 | 状态 |
 |------|------|------------|---------|------|
 | **1** | 虚拟商品（保障服务、碎屏险等） | Catalog, Order, Fulfillment, Cart, Activity | 无 | ✅ 迭代 1（Catalog）已完成（5 feature, 63 scenario 全绿；含 SKU 级 ServiceBinding + 三种定价模式 + 前端 admin/web 集成 + MCP 工具 + AI Skill 更新）；✅ 迭代 2（交易流程）已完成（Order/Fulfillment/Cart/Activity 后端 + 前端 web/admin 全链路）。[业务需求方案](business-requirements/virtual-product/overview.md) |
+| **1a** | 保障服务补购 | Order | 虚拟商品迭代 1+2 | ✅ 迭代 1 已完成（后端 7 scenario 全绿 + 前端订单详情页补购区域）。[业务需求方案](business-requirements/supplementary-purchase/overview.md) |
 | **2** | 履约拆单（按仓库/商品类型拆单） | Inventory, Fulfillment, Order, Activity | 虚拟商品（提供拆分维度） | 🔲 待开发 |
 | **3** | 镭雕服务（激光雕刻定制） | Catalog, Order, Fulfillment | 虚拟商品 + 拆单 | 🔲 待开发 |
 
-> 三者存在耦合：虚拟商品引入商品类型区分（实物/虚拟），是拆单的基本维度之一；拆单引擎支撑不同履约方式的分流；镭雕服务的建模方式及履约流程依赖前两者的基础设施。
+> 三者存在耦合：虚拟商品引入商品类型区分（实物/虚拟），是拆单的基本维度之一；拆单引擎支撑不同履约方式的分流；镭雕服务的建模方式及履约流程依赖前两者的基础设施。补购（1a）是虚拟商品的延伸场景，仅影响 Order BC，可与拆单并行推进。
 
 #### 其他待推进
 
@@ -94,6 +95,12 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 | VP3 | 混合订单 + Fulfillment 拆单 | 一单含实体+服务，Fulfillment 按类型拆单 | 2026-02-24 |
 | VP4 | ServiceActivated 等效 Delivered | 最慢原则推进 OrderCompleted | 2026-02-24 |
 | VP5 | 已激活服务 MVP 不可取消 | 退保是未来能力 | 2026-02-24 |
+| SP1 | 补购入口在订单详情页 | 已交付订单的实体商品旁显示可补购服务 | 2026-03-01 |
+| SP2 | 补购不走购物车 | 直接下单，降低复杂度 | 2026-03-01 |
+| SP3 | 实体商品必须已交付才能补购 | DELIVERED/COMPLETED 状态；服务在商品到手后才有意义 | 2026-03-01 |
+| SP4 | 不允许重复补购 | 同一 relatedSkuId + 同一服务 SKU 不允许重复购买 | 2026-03-01 |
+| SP5 | Order BC 提供补购聚合查询 API | Order 内部调用 Catalog 获取可选服务并去重已购 | 2026-03-01 |
+| SP6 | 纯服务订单 ShippingAddress 可选 | 补购订单无物理配送，收货地址非必填 | 2026-03-01 |
 
 ---
 
@@ -101,6 +108,8 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 
 | 日期 | 变更内容 |
 |------|---------|
+| 2026-03-01 | 保障服务补购迭代 1 完成：后端全链路（域对象+基础设施+应用服务+API+验收测试 7 scenario 全绿，总 41 test）；前端订单详情页补购区域（查询可补购服务 + 一键补购下单）；api.yaml/ui-spec.md 同步更新 |
+| 2026-03-01 | 保障服务补购业务需求分析完成：overview.md + Order BC 文档增量变更（requirements/domain-model/event-flow）；新增 N2O-5 路径；仅影响 Order BC（🟡 中等），其余 BC 无变更 |
 | 2026-02-28 | Smoke E2E 分级机制（P0/P1）：P0 核心交易链路、P1 重要非核心；超时降级审查；`npm run test:smoke:e2e:p0` 仅跑 P0；Business E2E 断言深度统一为"链路能走通"；testing.md / design-principles / Skills 全面同步 |
 | 2026-02-28 | 前端测试体系升级：新增 Business E2E 层（关键业务需求前端验收），与 Smoke E2E 共享 Page Object 层（tests/shared/）；虚拟商品 2 条 Business E2E 用例（BIZ-VP-001/002） |
 | 2026-02-28 | 虚拟商品迭代 2 完成：Order/Fulfillment/Cart/Activity 后端全到位；frontend/web CartPage 分组、CheckoutPage 分组、OrderDetailPage itemType+激活状态展示；frontend/admin FulfillmentPage 虚拟单类型列+ACTIVATED 状态+隐藏物流操作；OrderDto 补 serviceActivated 字段 |

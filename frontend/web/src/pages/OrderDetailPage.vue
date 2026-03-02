@@ -135,6 +135,30 @@
         </div>
       </div>
 
+      <!-- 可补购服务 -->
+      <div
+        v-if="purchasableServices.length > 0"
+        class="bg-white rounded-lg border border-vmall-gray-border p-6 mb-6"
+      >
+        <h2 class="text-base font-bold text-gray-900 mb-4">可补购服务</h2>
+        <div
+          v-for="svc in purchasableServices"
+          :key="`${svc.serviceSkuId}-${svc.relatedSkuId}`"
+          class="flex items-center gap-4 py-3 border-b border-vmall-gray-border last:border-0"
+        >
+          <div class="w-10 h-10 shrink-0 bg-blue-50 rounded flex items-center justify-center text-blue-500">🛡</div>
+          <div class="flex-1 min-w-0">
+            <p class="font-medium text-gray-800">{{ svc.serviceName }}</p>
+            <p class="text-sm text-vmall-gray-text">¥{{ formatPrice(svc.priceCents) }}</p>
+          </div>
+          <button
+            @click="handleSupplementaryPurchase(svc)"
+            :disabled="purchasingSkuId === svc.serviceSkuId"
+            class="px-4 py-1.5 rounded bg-vmall-red text-white text-sm hover:bg-vmall-red-hover disabled:opacity-60 transition-colors font-medium"
+          >{{ purchasingSkuId === svc.serviceSkuId ? '下单中…' : '补购' }}</button>
+        </div>
+      </div>
+
       <!-- 收货信息 -->
       <div v-if="order.shippingAddress" class="bg-white rounded-lg border border-vmall-gray-border p-6 mb-6">
         <h2 class="text-base font-bold text-gray-900 mb-4">收货信息</h2>
@@ -176,7 +200,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getOrder, cancelOrder } from '../shared/api/order.js'
+import { getOrder, cancelOrder, getPurchasableServices, createOrder } from '../shared/api/order.js'
 import { getPaymentByOrderId, createPayment } from '../shared/api/payment.js'
 import { getActivitiesByOrderId } from '../shared/api/activity.js'
 
@@ -194,6 +218,8 @@ const actionError = ref('')
 const toast = ref('')
 const countdown = ref('')
 const paymentExpiredAt = ref(null)
+const purchasableServices = ref([])
+const purchasingSkuId = ref(null)
 let countdownTimer = null
 
 const fullAddress = computed(() => {
@@ -331,6 +357,12 @@ async function load() {
     order.value = orderData
     activities.value = activityData
 
+    if (orderData.status === 'DELIVERED' || orderData.status === 'COMPLETED') {
+      purchasableServices.value = await getPurchasableServices(orderId.value).catch(() => [])
+    } else {
+      purchasableServices.value = []
+    }
+
     if (orderData.status === 'PENDING_PAYMENT') {
       try {
         const payment = await getPaymentByOrderId(orderId.value)
@@ -406,6 +438,24 @@ async function handlePay() {
     }
   } finally {
     payLoading.value = false
+  }
+}
+
+async function handleSupplementaryPurchase(svc) {
+  actionError.value = ''
+  purchasingSkuId.value = svc.serviceSkuId
+  try {
+    const { useAuth } = await import('../shared/auth.js')
+    const { userId } = useAuth()
+    const newOrder = await createOrder({
+      userId: userId.value,
+      items: [{ skuId: svc.serviceSkuId, quantity: 1, relatedSkuId: svc.relatedSkuId }],
+    })
+    router.push(`/orders/${newOrder.orderId}`)
+  } catch (e) {
+    actionError.value = e.response?.data?.message || e.message || '补购下单失败'
+  } finally {
+    purchasingSkuId.value = null
   }
 }
 

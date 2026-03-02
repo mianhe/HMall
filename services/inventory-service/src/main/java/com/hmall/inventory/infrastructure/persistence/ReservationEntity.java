@@ -9,6 +9,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+import com.hmall.inventory.domain.ReservationStatus;
+
 import java.time.Instant;
 
 @Entity
@@ -30,7 +32,7 @@ public class ReservationEntity {
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
-    private com.hmall.inventory.domain.ReservationStatus status;
+    private ReservationStatus status;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -69,11 +71,11 @@ public class ReservationEntity {
         this.quantity = quantity;
     }
 
-    public com.hmall.inventory.domain.ReservationStatus getStatus() {
+    public ReservationStatus getStatus() {
         return status;
     }
 
-    public void setStatus(com.hmall.inventory.domain.ReservationStatus status) {
+    public void setStatus(ReservationStatus status) {
         this.status = status;
     }
 

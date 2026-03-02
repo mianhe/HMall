@@ -4,6 +4,7 @@ import com.hmall.fulfillment.domain.DomainEventPublisher;
 import com.hmall.fulfillment.domain.FulfillmentItem;
 import com.hmall.fulfillment.domain.FulfillmentItemType;
 import com.hmall.fulfillment.domain.FulfillmentOrder;
+import com.hmall.fulfillment.domain.FulfillmentOrderAllocated;
 import com.hmall.fulfillment.domain.FulfillmentOrderCreated;
 import com.hmall.fulfillment.domain.FulfillmentOrderRepository;
 import com.hmall.fulfillment.domain.FulfillmentType;
@@ -78,7 +79,11 @@ public class FulfillmentCreateApplicationService {
                 orderId, FulfillmentType.PHYSICAL, physicalItems, shippingAddress
             );
             FulfillmentOrder saved = repository.save(physicalOrder);
+            saved.allocate();
+            saved = repository.save(saved);
             ids.add(saved.getFulfillmentOrderId());
+            eventPublisher.publish(new FulfillmentOrderAllocated(
+                orderId, saved.getFulfillmentOrderId(), Instant.now()));
         }
 
         if (!serviceItems.isEmpty()) {

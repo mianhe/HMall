@@ -6,7 +6,7 @@ import com.hmall.inventory.acceptance.LastResponseContext;
 import com.hmall.inventory.acceptance.OccupyStepDefinitions;
 import com.hmall.inventory.acceptance.ReleaseStepDefinitions;
 import com.hmall.inventory.acceptance.StockStepDefinitions;
-import com.hmall.inventory.domain.DomainEventPublisher;
+import com.hmall.inventory.application.port.InventoryEventPublisher;
 import com.hmall.inventory.domain.SkuStockRepository;
 import com.hmall.inventory.infrastructure.persistence.ReservationJpaRepository;
 import com.hmall.inventory.infrastructure.persistence.SkuStockJpaRepository;
@@ -30,7 +30,7 @@ public class AcceptanceTestConfig {
 
     @Bean
     @Primary
-    public DomainEventPublisher domainEventPublisher(EventCapture eventCapture) {
+    public InventoryEventPublisher inventoryEventPublisher(EventCapture eventCapture) {
         return eventCapture;
     }
 

@@ -10,6 +10,7 @@ import com.hmall.inventory.application.InventoryOccupyApplicationService;
 import com.hmall.inventory.application.InventoryReleaseApplicationService;
 import com.hmall.inventory.application.InventoryStockApplicationService;
 import com.hmall.inventory.application.OccupyItem;
+import com.hmall.inventory.domain.SkuStock;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,35 +41,41 @@ public class InventoryController {
 
     @PostMapping("/occupy")
     public ResponseEntity<OccupyResponseDto> occupy(@Valid @RequestBody OccupyRequestDto dto) {
-        OccupyResponseDto result = occupyApplicationService.occupy(dto.orderId(), dto.items().stream()
+        occupyApplicationService.occupy(dto.orderId(), dto.items().stream()
             .map(item -> new OccupyItem(item.skuId(), item.quantity()))
             .toList());
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(OccupyResponseDto.ok());
     }
 
     @PostMapping("/release")
     public ResponseEntity<ReleaseResponseDto> release(@Valid @RequestBody ReleaseRequestDto dto) {
-        ReleaseResponseDto result = releaseApplicationService.release(dto.orderId());
-        return ResponseEntity.ok(result);
+        releaseApplicationService.release(dto.orderId());
+        return ResponseEntity.ok(ReleaseResponseDto.ok());
     }
 
     @GetMapping("/stock")
     public ResponseEntity<List<StockResponseDto>> listStock() {
-        List<StockResponseDto> result = stockApplicationService.listAll();
+        List<StockResponseDto> result = stockApplicationService.listAll().stream()
+            .map(this::toStockResponse)
+            .toList();
         return ResponseEntity.ok(result);
     }
 
     @GetMapping("/stock/{skuId}")
     public ResponseEntity<StockResponseDto> getStock(@PathVariable Long skuId) {
-        StockResponseDto result = stockApplicationService.getBySkuId(skuId);
-        return ResponseEntity.ok(result);
+        SkuStock stock = stockApplicationService.getBySkuId(skuId);
+        return ResponseEntity.ok(toStockResponse(stock));
     }
 
     @PutMapping("/stock/{skuId}")
     public ResponseEntity<StockResponseDto> setStock(
             @PathVariable Long skuId,
             @Valid @RequestBody StockUpdateRequestDto dto) {
-        StockResponseDto result = stockApplicationService.setAvailable(skuId, dto.available());
-        return ResponseEntity.ok(result);
+        SkuStock stock = stockApplicationService.setAvailable(skuId, dto.available());
+        return ResponseEntity.ok(toStockResponse(stock));
+    }
+
+    private StockResponseDto toStockResponse(SkuStock stock) {
+        return new StockResponseDto(stock.getSkuId(), stock.getAvailable(), stock.getReserved());
     }
 }

@@ -1,6 +1,5 @@
 package com.hmall.inventory.application;
 
-import com.hmall.inventory.api.dto.StockResponseDto;
 import com.hmall.inventory.domain.SkuStock;
 import com.hmall.inventory.domain.SkuStockRepository;
 import org.springframework.stereotype.Service;
@@ -18,28 +17,24 @@ public class InventoryStockApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public List<StockResponseDto> listAll() {
-        return skuStockRepository.findAll().stream()
-            .map(s -> new StockResponseDto(s.getSkuId(), s.getAvailable(), s.getReserved()))
-            .toList();
+    public List<SkuStock> listAll() {
+        return skuStockRepository.findAll();
     }
 
     @Transactional(readOnly = true)
-    public StockResponseDto getBySkuId(Long skuId) {
-        SkuStock stock = skuStockRepository.findBySkuId(skuId)
+    public SkuStock getBySkuId(Long skuId) {
+        return skuStockRepository.findBySkuId(skuId)
             .orElseThrow(() -> new StockNotFoundException("skuId=" + skuId));
-        return new StockResponseDto(stock.getSkuId(), stock.getAvailable(), stock.getReserved());
     }
 
     @Transactional
-    public StockResponseDto setAvailable(Long skuId, int available) {
+    public SkuStock setAvailable(Long skuId, int available) {
         if (available < 0) {
             throw new InventoryBadRequestException("available 不能为负");
         }
         SkuStock stock = skuStockRepository.findBySkuId(skuId)
             .orElseGet(() -> new SkuStock(skuId, 0, 0));
         stock.setAvailable(available);
-        SkuStock saved = skuStockRepository.save(stock);
-        return new StockResponseDto(saved.getSkuId(), saved.getAvailable(), saved.getReserved());
+        return skuStockRepository.save(stock);
     }
 }

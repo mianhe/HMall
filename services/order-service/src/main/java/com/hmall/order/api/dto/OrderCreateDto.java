@@ -10,7 +10,7 @@ import java.util.List;
 public record OrderCreateDto(
     @NotNull Long userId,
     @NotEmpty(message = "商品明细不能为空") @Valid List<LineItemCreateDto> items,
-    @NotNull @Valid ShippingAddressDto shippingAddress
+    @Valid ShippingAddressDto shippingAddress
 ) {
     public record LineItemCreateDto(
         @NotNull Long skuId,

@@ -1,6 +1,7 @@
 package com.hmall.inventory.acceptance;
 
 import io.cucumber.java.en.And;
+import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.core.ParameterizedTypeReference;
@@ -9,6 +10,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.List;
 import java.util.Map;
@@ -36,26 +38,39 @@ public class StockStepDefinitions {
     public void 管理端设置可用库存(long skuId, int available) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        ResponseEntity<Map<String, Object>> res = restTemplate.exchange(
-            baseUrl() + "/api/inventory/stock/" + skuId,
-            HttpMethod.PUT,
-            new HttpEntity<>(Map.of("available", available), headers),
-            new ParameterizedTypeReference<Map<String, Object>>() {}
-        );
-        responseContext.setLastStatusCode(res.getStatusCode().value());
-        responseContext.setLastStockBody(res.getBody());
+        try {
+            ResponseEntity<Map<String, Object>> res = restTemplate.exchange(
+                baseUrl() + "/api/inventory/stock/" + skuId,
+                HttpMethod.PUT,
+                new HttpEntity<>(Map.of("available", available), headers),
+                new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+            responseContext.setLastStatusCode(res.getStatusCode().value());
+            responseContext.setLastStockBody(res.getBody());
+        } catch (RestClientResponseException e) {
+            responseContext.setLastStatusCode(e.getStatusCode().value());
+        }
     }
 
     @When("管理端 查询 skuId {long} 的库存")
     public void 管理端查询库存(long skuId) {
-        ResponseEntity<Map<String, Object>> res = restTemplate.exchange(
-            baseUrl() + "/api/inventory/stock/" + skuId,
-            HttpMethod.GET,
-            null,
-            new ParameterizedTypeReference<Map<String, Object>>() {}
-        );
-        responseContext.setLastStatusCode(res.getStatusCode().value());
-        responseContext.setLastStockBody(res.getBody());
+        try {
+            ResponseEntity<Map<String, Object>> res = restTemplate.exchange(
+                baseUrl() + "/api/inventory/stock/" + skuId,
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+            responseContext.setLastStatusCode(res.getStatusCode().value());
+            responseContext.setLastStockBody(res.getBody());
+        } catch (RestClientResponseException e) {
+            responseContext.setLastStatusCode(e.getStatusCode().value());
+        }
+    }
+
+    @Then("应返回 {int}")
+    public void 应返回(int expectedStatus) {
+        assertThat(responseContext.getLastStatusCode()).isEqualTo(expectedStatus);
     }
 
     @And("skuId {long} 的库存应为 available {int}、reserved {int}")
