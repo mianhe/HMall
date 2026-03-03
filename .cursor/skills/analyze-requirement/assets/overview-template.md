@@ -1,6 +1,6 @@
 # overview.md 模板
 
-> 本文件是 `analyze-requirement` Skill 的参考资产。Phase A Step 5 产出 overview.md 时，按此模板组织内容。
+> 本文件是 `analyze-requirement` Skill 的参考资产。Phase A Step 4 产出 overview.md 时，按此模板组织内容。
 
 写入路径：`docs/business-requirements/<name>/overview.md`
 
@@ -67,7 +67,20 @@
    - **L2 场景**：关键事件 + 状态变化
    - **L1 场景**：步骤描述 + 影响边界
 
-3. **查询影响**——有查询逻辑变化时，附在相关场景之后
+3. **数据依赖验证**（仅 L3）——事件流表完成后，对涉及**决策/分支/门禁**的步骤做数据可达性检查：
+
+```markdown
+#### 数据依赖验证
+
+| 步骤# | 决策/分支 | 所需数据 | 数据来源 | 现有模型 |
+|-------|----------|---------|---------|---------|
+| 6 | Fulfillment 按类型拆单 | 区分保险 vs 镭雕 | Catalog.Spu.productType → Order.itemType → Fulfillment | ❌ 仅 PHYSICAL/SERVICE |
+| 12 | ship() 门禁 | 是否含镭雕且已完成 | Fulfillment.engravingCompletedAt | ❌ 新增字段 |
+```
+
+❌ 项驱动 Step 3 新增模型字段或概念。不需要每步都列——只检查有**决策、分支、类型判断、门禁**的步骤。
+
+4. **查询影响**——有查询逻辑变化时，附在相关场景之后
 
 ### 事件流表列说明
 
@@ -115,23 +128,21 @@
 
 #### 领域模型变更
 - FulfillmentOrder 聚合新增 `engravingInfo: EngravingInfo`（可选值对象）
-  - EngravingInfo: { iconUrl: String?, text: String?, completedAt: Instant? }
-- FulfillmentOrderStatus 新增 `ENGRAVING_COMPLETED` 状态
-  - ALLOCATING → ENGRAVING_COMPLETED → SHIPPED
-- 新增不变式：含镭雕时，ship() 要求 status = ENGRAVING_COMPLETED
+  - EngravingInfo: { patternId: Long?, patternName: String?, text: String? }
+- 新增 `engravingCompletedAt: Instant`（可选，非空表示雕刻已完成）
+- 新增不变式：engravingInfo 非空时，ship() 要求 engravingCompletedAt 已设
 - 新增领域事件：EngravingCompleted
 
 #### 事件流变更
-- createFulfillment API 扩展：items 携带 serviceMode + serviceAttributes
+- createFulfillment API 扩展：items 携带 itemType（PHYSICAL/INSURANCE/PRODUCTION）+ serviceAttributes
 - 新增 API：POST /api/fulfillment/{id}/complete-engraving
 - 新增事件：EngravingCompleted → topic: fulfillment.engraving.completed
-  - payload: { orderId, fulfillmentOrderId, engravingInfo, occurredAt }
+  - payload: { orderId, fulfillmentOrderId, completedAt, occurredAt }
 
 #### 需求场景变更
 - 🔲 新增 1.8：创建含镭雕的履约单 → 提取 engravingInfo
 - 🔲 新增 2a：完成雕刻 feature（2a.1-2a.5）
-- 🔄 修改 3.3：发货前置条件扩展
-- 🔲 新增 5.5：ENGRAVING_COMPLETED 状态可取消
+- 🔄 修改 3.3：发货前置条件扩展（engravingInfo 非空时需先完成雕刻）
 ```
 
 ### §四 与 §二 的关系
@@ -146,8 +157,8 @@
 | BC | 现有能力 | 关系 | 说明 |
 |----|---------|------|------|
 | Order | OrderLineItem.serviceAttributes | ✅ 可复用 | 已有虚拟服务随购的 serviceAttributes 机制 |
-| Fulfillment | 拆单策略 | 🔄 需调整 | 需要扩展以识别 PRODUCTION 服务 |
-| Catalog | serviceMode | 🔲 全新 | SPU 新增 serviceMode 枚举 |
+| Fulfillment | 拆单策略 | 🔄 需调整 | 需要根据 itemType 区分 INSURANCE 与 PRODUCTION |
+| Catalog | productType | 🔄 需调整 | 从二分（PHYSICAL/SERVICE）改为三分（PHYSICAL/INSURANCE/PRODUCTION） |
 ```
 
 标注 ✅ 可复用 / 🔄 需调整 / 🔲 全新，并说明前置依赖（如"依赖虚拟商品迭代 1 已完成"）。
@@ -159,8 +170,9 @@
 ```markdown
 ### BC 间数据流
 
-- Catalog `Spu.serviceMode` → Order `OrderLineItem.serviceMode`（创建订单时从 Catalog 快照）
+- Catalog `Spu.productType` → Order `OrderLineItem.itemType`（创建订单时从 Catalog 快照）
 - Order `OrderLineItem.serviceAttributes` → Fulfillment `EngravingInfo`（创建履约单时传递）
+- Fulfillment `EngravingCompleted` → Order 雕刻进度（订单明细展示）
 - Fulfillment `EngravingCompleted` → Activity 事件时间线（订单旅程回放）
 ```
 
@@ -179,19 +191,18 @@
 ### 迭代示例
 
 ```markdown
-### 迭代 1：Catalog 支持 serviceMode
+### 迭代 0：productType 三分重构
 
-**涉及 BC**：Catalog
+**涉及 BC**：Catalog、Order、Fulfillment
 **前置依赖**：无
 
 **后端变更**：
-- SPU 新增 serviceMode（INSTANT / PRODUCTION），仅 SERVICE 类型有效
-- 已有 SERVICE SPU 默认 serviceMode = INSTANT
-- 创建/查询 SPU 的 API 返回 serviceMode
+- ProductType 枚举由 PHYSICAL | SERVICE 改为 PHYSICAL | INSURANCE | PRODUCTION
+- 既有 SERVICE 数据迁移为 INSURANCE
+- Order/Fulfillment 的 ItemType 同步调整
 
 **前端变更**：
-- `frontend/admin` CatalogPage：SERVICE 商品展示 serviceMode 标签
-- `frontend/web` 商品详情页：PRODUCTION 服务展示定制面板
+- `frontend/admin`：productType 展示适配（INSURANCE/PRODUCTION 标签）
 
-**验收标准**：管理员创建服务 SPU（serviceMode=PRODUCTION）→ 绑定目标商品 → 查询返回含 serviceMode。
+**验收标准**：既有流程不变，仅类型名变化；mvn test 全绿。
 ```
