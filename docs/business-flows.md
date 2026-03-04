@@ -59,7 +59,7 @@ PlaceOrder 之前，用户经历"选品与决策"阶段——浏览商品、选�
 商品详情页 → 选规格/服务 → 加购 → 购物车页 → 结算 → 结账页 → ⌘ PlaceOrder
 ```
 
-各步骤的数据依赖：
+路径 A / B 各步骤的数据依赖：
 
 | 步骤 | 做什么 | 数据依赖 | 来源 BC |
 |------|--------|---------|---------|
@@ -69,7 +69,21 @@ PlaceOrder 之前，用户经历"选品与决策"阶段——浏览商品、选�
 | **购物车页**（路径 B） | 展示已加购商品，服务项与实体商品分组，实时价格 | CartItem 列表；SKU 实时价格与名称 | Cart、Catalog |
 | **结账页** | 汇总待下单商品、选择地址、确认服务内容 | 选中项（SKU + 服务 + 数量）；用户地址列表 | Cart（路径 B）或前端直传（路径 A）、User |
 
-> **需求分析检查点**：新需求是否在上述任一步骤引入了新的数据需求（新的展示字段、新的用户输入、新的 BC 查询）？若是，该步骤应作为独立场景盘点。
+**路径 C：补购服务**
+
+```
+已交付订单详情页 → 查看可补购服务 → 选择服务 → 结账页 → ⌘ PlaceOrder
+```
+
+补购的入口不是商品详情页，而是已交付订单——用户对已购实体商品追加服务。订单仅含服务类商品，O2F 走纯虚拟履约路径（O2F-3）。
+
+| 步骤 | 做什么 | 数据依赖 | 来源 BC |
+|------|--------|---------|---------|
+| **已交付订单详情页** | 展示已购商品、可补购的增值服务列表 | 订单详情（orderId、已购 SKU）；ServiceBinding → 该 SPU 可补购的服务 SKU | Order、Catalog |
+| **选择服务** | 选择服务、填写服务相关内容 | 服务 SKU 信息（名称、价格）；服务特有配置数据（如图案库列表） | Catalog |
+| **结账页** | 确认服务内容与价格 | 所选服务 SKU + 数量；关联的原订单信息 | 前端直传 |
+
+> **需求分析检查点**：新需求是否在上述任一步骤（路径 A/B/C）引入了新的数据需求（新的展示字段、新的用户输入、新的 BC 查询）？若是，该步骤应作为独立场景盘点。
 
 ### 2.2 下单与支付（事件流）
 
@@ -106,6 +120,7 @@ flowchart LR
 - **主流程**：⌘ PlaceOrder → 同步占库存 → StockReserved → 同步创建支付单 → OrderCreated → 用户支付 → PaymentCompleted
 - **补偿**：支付超时 → PaymentExpired ⟳ 取消订单 → OrderCancelled ⟳ 释放库存 → StockReleased
 - **重试**：PaymentFailed 不触发取消，用户可重试支付
+- **补购**：补购进入 PlaceOrder 后的事件流与上述主流程相同。区别仅在入口（已交付订单详情页）和订单内容（纯服务商品，无实体库存占用）。
 
 ---
 
@@ -148,42 +163,70 @@ flowchart LR
 
 ---
 
-## 四、事件总表
+## 四、后台管理流程
+
+后台管理操作为 N2O 和 O2F 提供配置与流程推进能力。管理操作通常为 CRUD 或状态推进，部分操作会产生领域事件。
+
+### 4.1 商品与库存管理（支撑 N2O）
+
+| 操作 | BC | 说明 | 产生事件 |
+|------|-----|------|---------|
+| SPU/SKU 管理 | Catalog | 创建、编辑商品与规格；管理商品图片 | — |
+| 上下架 | Catalog | 控制商品在前端的可见性 | — |
+| 规格维度与选项 | Catalog | 管理 SPU 的规格维度（如颜色、尺寸）与选项 | — |
+| 服务绑定 | Catalog | 配置实体 SPU 可选的增值服务（ServiceBinding） | — |
+| 库存初始化/调整 | Inventory | 设置或调整 SKU 的可用库存数量 | — |
+
+### 4.2 履约管理（驱动 O2F）
+
+| 操作 | BC | 说明 | 产生事件 |
+|------|-----|------|---------|
+| 配货 | Fulfillment | 为履约单分配库存/拣货 | FulfillmentAllocated |
+| 发货 | Fulfillment | 填写物流信息、标记发货 | FulfillmentShipped |
+| 签收确认 | Fulfillment | 标记签收完成 | FulfillmentDelivered |
+
+> **需求分析检查点**：新需求是否引入新的管理操作？是否修改已有操作的前置条件（如发货前必须完成某步骤）？若是，该操作应作为独立场景盘点。
+
+---
+
+## 五、事件总表
 
 所有跨 BC 领域事件。**orderId** 是系统级关联键，贯穿所有 BC。
+
+> **Activity BC** 订阅全量事件，作为系统级事件存储（时间线/动态流）。以下各表的「订阅方」仅列出有业务反应（触发命令或策略）的 BC，不重复列出 Activity。
 
 ### Order 发布
 
 | 事件 | 触发 | Topic | 订阅方 | 关键 Payload |
 |------|------|-------|--------|-------------|
-| OrderCreated | ⌘ PlaceOrder | `order.created` | Activity | orderId, items[{skuId, quantity}], occurredAt |
-| OrderCancelled | ⟳ PaymentExpired 或 ⌘ CancelOrder | `order.cancelled` | Activity | orderId, occurredAt |
-| OrderCompleted | ⟳ 全部履约单完成 | `order.completed` | Activity | orderId, occurredAt |
+| OrderCreated | ⌘ PlaceOrder | `order.created` | — | orderId, items[{skuId, quantity}], occurredAt |
+| OrderCancelled | ⟳ PaymentExpired 或 ⌘ CancelOrder | `order.cancelled` | — | orderId, occurredAt |
+| OrderCompleted | ⟳ 全部履约单完成 | `order.completed` | — | orderId, occurredAt |
 
 ### Payment 发布
 
 | 事件 | 触发 | Topic | 订阅方 | 关键 Payload |
 |------|------|-------|--------|-------------|
-| PaymentCompleted | 网关支付成功回调 | `payment.completed` | Order, Activity | orderId, paymentId, occurredAt |
-| PaymentFailed | 网关支付失败回调 | `payment.failed` | Order, Activity | orderId, occurredAt（不触发取消，用户可重试） |
-| PaymentExpired | 超时检测 | `payment.expired` | Order, Activity | orderId, occurredAt |
+| PaymentCompleted | 网关支付成功回调 | `payment.completed` | Order | orderId, paymentId, occurredAt |
+| PaymentFailed | 网关支付失败回调 | `payment.failed` | Order | orderId, occurredAt（不触发取消，用户可重试） |
+| PaymentExpired | 超时检测 | `payment.expired` | Order | orderId, occurredAt |
 
 ### Inventory 发布
 
 | 事件 | 触发 | Topic | 订阅方 | 关键 Payload |
 |------|------|-------|--------|-------------|
-| StockReserved | ⌘ PlaceOrder → 同步占用 | `inventory.stock.reserved` | Activity | orderId, items[{skuId, quantity}], occurredAt |
-| StockReleased | ⟳ 取消补偿 → 同步释放 | `inventory.stock.released` | Activity | orderId, occurredAt |
+| StockReserved | ⌘ PlaceOrder → 同步占用 | `inventory.stock.reserved` | — | orderId, items[{skuId, quantity}], occurredAt |
+| StockReleased | ⟳ 取消补偿 → 同步释放 | `inventory.stock.released` | — | orderId, occurredAt |
 
 ### Fulfillment 发布
 
 | 事件 | 触发 | Topic | 订阅方 | 关键 Payload |
 |------|------|-------|--------|-------------|
-| FulfillmentOrderCreated | ⟳ PaymentCompleted → 同步创建 | `fulfillment.order.created` | Activity | orderId, fulfillmentOrderIds, occurredAt |
-| FulfillmentAllocated | 管理后台配货 | `fulfillment.order.allocated` | Order, Activity | orderId, fulfillmentOrderId, occurredAt |
-| FulfillmentShipped | 发货 | `fulfillment.shipped` | Order, Activity | orderId, fulfillmentOrderId, occurredAt |
-| FulfillmentDelivered | 签收确认 | `fulfillment.delivered` | Order, Activity | orderId, fulfillmentOrderId, occurredAt |
-| ServiceActivated | 虚拟履约单激活 | `fulfillment.service.activated` | Order, Activity | orderId, fulfillmentOrderId, serviceSkuId, activatedAt, expiresAt, occurredAt |
+| FulfillmentOrderCreated | ⟳ PaymentCompleted → 同步创建 | `fulfillment.order.created` | — | orderId, fulfillmentOrderIds, occurredAt |
+| FulfillmentAllocated | 管理后台配货 | `fulfillment.order.allocated` | Order | orderId, fulfillmentOrderId, occurredAt |
+| FulfillmentShipped | 发货 | `fulfillment.shipped` | Order | orderId, fulfillmentOrderId, occurredAt |
+| FulfillmentDelivered | 签收确认 | `fulfillment.delivered` | Order | orderId, fulfillmentOrderId, occurredAt |
+| ServiceActivated | 虚拟履约单激活 | `fulfillment.service.activated` | Order | orderId, fulfillmentOrderId, serviceSkuId, activatedAt, expiresAt, occurredAt |
 
 ### 事件约定
 
@@ -197,7 +240,7 @@ flowchart LR
 
 ---
 
-## 五、路径枚举与测试覆盖
+## 六、路径枚举与测试覆盖
 
 ### N2O 路径
 
@@ -225,23 +268,24 @@ flowchart LR
 
 ---
 
-## 六、需求分析检查清单
+## 七、需求分析检查清单
 
 新需求分析时（`analyze-requirement`），对照上方流程和路径回答：
 
 1. **影响哪段？** N2O、O2F、还是两段？
 2. **影响选品与决策阶段吗？** 新需求是否在详情页、加购、购物车、结账任一步骤引入新的数据需求或交互（新的展示字段、新的用户输入、新的 BC 查询）？若是，该步骤应作为独立场景盘点。（对照第二章 2.1 数据依赖表逐行检查。）
-3. **影响哪些事件？** 是否新增事件、修改现有事件的触发条件或 payload？（对照第四章事件总表。）
-4. **新增路径还是影响现有路径？** 若新增，补充到第五章路径表。
-5. **是否打破 N2O ⊥ O2F？** 例如某种入口决定了特殊履约方式。
-6. **测试覆盖是否仍完整？** 新路径是否需要 Smoke / Business E2E？
+3. **影响后台管理流程吗？** 是否需要新增管理操作、修改已有操作的前置条件或流程？（对照第四章后台管理流程。）
+4. **影响哪些事件？** 是否新增事件、修改现有事件的触发条件或 payload？（对照第五章事件总表。）
+5. **新增路径还是影响现有路径？** 若新增，补充到第六章路径表。
+6. **是否打破 N2O ⊥ O2F？** 例如某种入口决定了特殊履约方式。
+7. **测试覆盖是否仍完整？** 新路径是否需要 Smoke / Business E2E？
 
 ---
 
-## 七、维护规则
+## 八、维护规则
 
 | 时机 | 动作 |
 |------|------|
-| 新业务需求分析完成 | 更新路径枚举（第五章）；若新增事件则更新对应段的事件流（第二/三章）和事件总表（第四章） |
+| 新业务需求分析完成 | 更新路径枚举（第六章）；若新增管理操作则更新第四章；若新增事件则更新对应段的事件流（第二/三章）和事件总表（第五章） |
 | E2E 测试新增/调整 | 更新路径表中的测试覆盖列 |
 | 价值流范围扩展 | 更新第一章 |

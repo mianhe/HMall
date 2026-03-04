@@ -63,7 +63,7 @@ overview.md 由四章组成：**需求概述与场景 → 场景分析（事件�
 开始分析前，读取以下文档建立上下文：
 
 - `docs/context-map.md`、`docs/project-status.md`——系统结构与 BC 集成关系
-- `docs/business-flows.md`——现有业务流程；按其第六章「需求分析检查清单」逐一回答检查问题，初判影响面
+- `docs/business-flows.md`——现有业务流程；按其第七章「需求分析检查清单」逐一回答检查问题，初判影响面
 - 若为扩展型需求，读取关联的已有业务需求 overview（如镭雕依赖虚拟商品，应先读 `virtual-product/overview.md`）
 - 所有可能受影响 BC 的文档（requirements.md、domain-model.md、event-flow.md）
 - 关联 BC 的已有代码（Port 接口、事件消费者、状态枚举等）
