@@ -123,7 +123,7 @@ flowchart LR
 
 | Skill | 定位 | 核心流程 | 产出 |
 |-------|------|---------|------|
-| **analyze-requirement** | 文档驱动的渐进式需求分析。逐章节写入 overview.md，每步写完即与用户基于文档确认——设计过程即文档编写过程 | 背景与目标 → 场景盘点 → 事件分析与设计决策 → BC 变更规格 → 迭代计划（每步写入 overview 对应章节并确认） | `docs/business-requirements/<name>/overview.md` + 各 BC 文档增量变更（Phase B） |
+| **analyze-requirement** | 文档驱动的渐进式需求分析。逐章节写入 overview.md，每章写完即轻量确认——设计过程即文档编写过程 | 需求概述与场景 → 场景分析（事件流） → 变更分析 → 迭代计划（每章写入 overview 对应章节并确认） | `docs/business-requirements/<name>/overview.md` + 各 BC 文档增量变更（Phase B） |
 | **deliver-requirement** | 编排业务需求的交付。从迭代计划出发，按依赖顺序调度各 Skill，跟踪完成进度，并通过 E2E 交付门禁确保链路可用 | 读取迭代计划 → 按序调度各 Skill → E2E 交付门禁（Smoke 回归 + Business E2E + 开发者确认）→ 迭代/需求收尾 | 交付跟踪（在 overview.md 中）、Business E2E、Smoke 评估 |
 | **add-bounded-context** | 为新 BC 搭建技术骨架。不含业务代码，仅保证 `mvn test` 可运行 | 读参考模板 → 创建四层包结构 → 测试脚手架 → API 契约 → 更新脚本与文档 | 可编译运行的空 BC，冒烟测试通过 |
 | **extract-bounded-context** | 从已有服务中拆分出独立 BC。搬迁代码与测试，清理宿主，全程双侧绿色 | 文档拆分 → 新 BC 骨架 → 代码搬迁 → 测试迁移 → 宿主清理 → 脚本与文档更新 | 独立的新 BC（测试全绿）+ 清理后的宿主（测试全绿） |
