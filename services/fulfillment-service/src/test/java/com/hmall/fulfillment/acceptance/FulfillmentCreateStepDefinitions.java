@@ -128,6 +128,23 @@ public class FulfillmentCreateStepDefinitions {
         postCreate(body);
     }
 
+    @当("Order 调用创建履约单接口 orderId {long} 含 1 个实体商品 skuId {long} 和 1 个镭雕服务 skuId {long} 关联 skuId {long} 雕刻 图案 {long} 名称 {string} 文字 {string}")
+    public void order调用创建履约单含镭雕(long orderId, long physicalSkuId, long engravingSkuId, long relatedSkuId, long patternId, String patternName, String text) {
+        Map<String, Object> body = Map.of(
+            "orderId", orderId,
+            "items", List.of(
+                Map.of("skuId", physicalSkuId, "quantity", 1, "itemType", "PHYSICAL"),
+                Map.of("skuId", engravingSkuId, "quantity", 1, "itemType", "SERVICE", "relatedSkuId", relatedSkuId,
+                    "serviceAttributes", Map.of("engravingPatternId", patternId, "engravingPatternName", patternName, "engravingText", text))
+            ),
+            "shippingAddress", Map.of(
+                "recipientName", "测试", "phone", "13600000000",
+                "province", "上海", "city", "上海", "district", "浦东新区", "detail", "测试地址"
+            )
+        );
+        postCreate(body);
+    }
+
     @当("Order 调用创建履约单接口 orderId {long} 仅含服务商品 skuId {long}")
     public void order调用创建履约单仅含服务(long orderId, long serviceSkuId) {
         Map<String, Object> body = Map.of(
@@ -177,6 +194,26 @@ public class FulfillmentCreateStepDefinitions {
         assertThat(orders).hasSize(2);
         assertThat(orders.stream().filter(o -> o.getFulfillmentType() == FulfillmentType.PHYSICAL).count()).isEqualTo(1);
         assertThat(orders.stream().filter(o -> o.getFulfillmentType() == FulfillmentType.VIRTUAL).count()).isEqualTo(1);
+    }
+
+    @并且("该订单应仅包含 1 个 PHYSICAL 履约单")
+    public void 该订单应仅包含1个PHYSICAL履约单() {
+        Long orderId = ((Number) context.getLastResponseBody().get("orderId")).longValue();
+        var orders = repository.findByOrderId(orderId);
+        assertThat(orders).hasSize(1);
+        assertThat(orders.get(0).getFulfillmentType()).isEqualTo(FulfillmentType.PHYSICAL);
+    }
+
+    @并且("该 PHYSICAL 履约单应含 engravingInfo 图案 {long} 名称 {string} 文字 {string}")
+    public void 该PHYSICAL履约单应含engravingInfo(long patternId, String patternName, String text) {
+        Long orderId = ((Number) context.getLastResponseBody().get("orderId")).longValue();
+        var orders = repository.findByOrderId(orderId);
+        assertThat(orders).hasSize(1);
+        var fo = orders.get(0);
+        assertThat(fo.getEngravingInfo()).isNotNull();
+        assertThat(fo.getEngravingInfo().getPatternId()).isEqualTo(patternId);
+        assertThat(fo.getEngravingInfo().getPatternName()).isEqualTo(patternName);
+        assertThat(fo.getEngravingInfo().getText()).isEqualTo(text);
     }
 
     @并且("该订单应仅包含 VIRTUAL 履约单")

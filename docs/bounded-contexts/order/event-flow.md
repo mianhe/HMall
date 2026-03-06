@@ -148,7 +148,7 @@ Order 通过 `KafkaFulfillmentEventConsumer` 消费 Fulfillment 的 Allocated / 
 | release(orderId) | CancelOrder | 同步释放该订单的库存占用 |
 | createPayment(orderId, amount) | PlaceOrder 库存占用成功后 | 同步创建支付单、获取支付链接；返回给前端跳转 |
 | refund(orderId) | CancelOrder（若已支付） | 同步调用退款 |
-| createFulfillment(orderId, items, shippingAddress) | PaymentCompleted 后 | 同步创建履约单；返回 fulfillmentOrderIds，Order 保持 PAID |
+| createFulfillment(orderId, items, shippingAddress) | PaymentCompleted 后 | 同步创建履约单；items 含 itemType、relatedSkuId、serviceAttributes（🔲 镭雕：engravingPatternId、engravingPatternName、engravingText），供 Fulfillment 合并 engravingInfo 到实体履约单；返回 fulfillmentOrderIds，Order 保持 PAID（来自业务需求 [镭雕服务](../../business-requirements/laser-engraving/overview.md)） |
 | cancelFulfillment(orderId) | CancelOrder（若 status 为 PAID 或 FULFILLING） | 同步取消该订单的未发货履约单（CREATED/ALLOCATING） |
 
 **说明**：支付完成由支付网关回调 Payment，Payment 发布 PaymentCompleted/Failed/Expired 到 Kafka，Order 通过 `KafkaPaymentEventConsumer` 消费后调用 `OrderEventService`。创建履约单在 `onPaymentCompleted` 中同步调用。

@@ -7,5 +7,6 @@ public record AvailableServiceDto(
     String name,
     String description,
     String productType,
+    String serviceKind,
     List<AvailableServiceSkuDto> bindings
 ) {}

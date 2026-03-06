@@ -1,6 +1,7 @@
 package com.hmall.fulfillment.infrastructure.event;
 
 import com.hmall.fulfillment.domain.DomainEventPublisher;
+import com.hmall.fulfillment.domain.EngravingCompleted;
 import com.hmall.fulfillment.domain.FulfillmentDelivered;
 import com.hmall.fulfillment.domain.FulfillmentOrderAllocated;
 import com.hmall.fulfillment.domain.FulfillmentOrderCreated;
@@ -46,5 +47,11 @@ public class LoggingDomainEventPublisher implements DomainEventPublisher {
     public void publish(ServiceActivated event) {
         log.info("领域事件 ServiceActivated: orderId={}, fulfillmentOrderId={}, serviceSkuId={}",
             event.orderId(), event.fulfillmentOrderId(), event.serviceSkuId());
+    }
+
+    @Override
+    public void publish(EngravingCompleted event) {
+        log.info("领域事件 EngravingCompleted: orderId={}, fulfillmentOrderId={}",
+            event.orderId(), event.fulfillmentOrderId());
     }
 }

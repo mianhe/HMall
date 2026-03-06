@@ -101,3 +101,30 @@ export async function deleteOptionImage(spuId, dimensionId, optionId, imageId) {
     `/products/${spuId}/dimensions/${dimensionId}/options/${optionId}/images/${imageId}`
   )
 }
+
+// ---------- 镭雕图案库（EngravingPattern） ----------
+
+export async function getEngravingPatterns(enabled = null) {
+  const params = enabled != null ? { enabled } : {}
+  const { data } = await client.get('/engraving-patterns', { params })
+  return data
+}
+
+export async function getEngravingPattern(id) {
+  const { data } = await client.get(`/engraving-patterns/${id}`)
+  return data
+}
+
+export async function createEngravingPattern(body) {
+  const { data } = await client.post('/engraving-patterns', body)
+  return data
+}
+
+export async function updateEngravingPattern(id, body) {
+  const { data } = await client.put(`/engraving-patterns/${id}`, body)
+  return data
+}
+
+export async function deleteEngravingPattern(id) {
+  await client.delete(`/engraving-patterns/${id}`)
+}

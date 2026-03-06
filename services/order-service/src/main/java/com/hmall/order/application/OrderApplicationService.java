@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -70,8 +71,9 @@ public class OrderApplicationService {
             String productType = sku.productType() != null ? sku.productType() : "PHYSICAL";
             OrderItemType itemType = OrderItemType.valueOf(productType);
             long unitPriceCents = resolveUnitPriceCents(line, sku, itemType);
+            validateEngravingIfApplicable(line, itemType);
             items.add(new OrderLineItem(line.skuId(), line.quantity(), unitPriceCents,
-                    sku.displayName(), itemType, line.relatedSkuId(), sku.spuId()));
+                    sku.displayName(), itemType, line.relatedSkuId(), sku.spuId(), line.serviceAttributes()));
         }
 
         boolean pureService = items.stream().allMatch(i -> i.getItemType() == OrderItemType.SERVICE);
@@ -202,6 +204,24 @@ public class OrderApplicationService {
         return result;
     }
 
+    private void validateEngravingIfApplicable(OrderCreateDto.LineItemCreateDto line, OrderItemType itemType) {
+        if (itemType != OrderItemType.SERVICE || line.relatedSkuId() == null) return;
+        Map<String, Object> attrs = line.serviceAttributes();
+        if (attrs == null || attrs.isEmpty()) return;
+        Long patternId = null;
+        if (attrs.get("engravingPatternId") != null) {
+            Object v = attrs.get("engravingPatternId");
+            patternId = v instanceof Number ? ((Number) v).longValue() : Long.parseLong(v.toString());
+        }
+        String text = attrs.get("engravingText") != null ? attrs.get("engravingText").toString() : null;
+        if (patternId == null && (text == null || text.isBlank())) {
+            throw new OrderBadRequestException("镭雕服务须至少提供图案或文字其一");
+        }
+        if (text != null && text.length() > 20) {
+            throw new OrderBadRequestException("镭雕文字不能超过20字");
+        }
+    }
+
     private void validateSupplementaryPurchase(Long userId, List<OrderLineItem> items) {
         for (OrderLineItem item : items) {
             if (item.getItemType() != OrderItemType.SERVICE || item.getRelatedSkuId() == null) {
@@ -278,7 +298,8 @@ public class OrderApplicationService {
                 String displayName = resolveDisplayName(li.getSkuId(), li.getDisplayName());
                 return new OrderDto.OrderLineItemDto(
                     li.getLineItemId(), li.getSkuId(), li.getQuantity(),
-                    li.getUnitPriceCents(), li.getTotalPriceCents(), displayName, li.getItemType().name()
+                    li.getUnitPriceCents(), li.getTotalPriceCents(), displayName, li.getItemType().name(),
+                    li.getServiceAttributes()
                 );
             })
             .toList();

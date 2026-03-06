@@ -15,10 +15,16 @@ public class FulfillmentOrder {
     private final List<FulfillmentItem> items;
     private final ShippingAddress shippingAddress;
     private ShippingInfo shippingInfo;
+    private final EngravingInfo engravingInfo;
+    private Instant engravingCompletedAt;
     private final Instant createdAt;
     private Instant updatedAt;
 
     public FulfillmentOrder(Long orderId, FulfillmentType fulfillmentType, List<FulfillmentItem> items, ShippingAddress shippingAddress) {
+        this(orderId, fulfillmentType, items, shippingAddress, null);
+    }
+
+    public FulfillmentOrder(Long orderId, FulfillmentType fulfillmentType, List<FulfillmentItem> items, ShippingAddress shippingAddress, EngravingInfo engravingInfo) {
         this.orderId = Objects.requireNonNull(orderId, "orderId");
         this.fulfillmentType = Objects.requireNonNull(fulfillmentType, "fulfillmentType");
         if (items == null || items.isEmpty()) {
@@ -26,6 +32,8 @@ public class FulfillmentOrder {
         }
         this.items = new ArrayList<>(items);
         this.shippingAddress = Objects.requireNonNull(shippingAddress, "shippingAddress");
+        this.engravingInfo = engravingInfo;
+        this.engravingCompletedAt = null;
         this.status = FulfillmentOrderStatus.CREATED;
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
@@ -34,7 +42,8 @@ public class FulfillmentOrder {
     /** 从持久化还原 */
     public FulfillmentOrder(Long fulfillmentOrderId, Long orderId, FulfillmentType fulfillmentType, FulfillmentOrderStatus status,
                             List<FulfillmentItem> items, ShippingAddress shippingAddress,
-                            ShippingInfo shippingInfo, Instant createdAt, Instant updatedAt) {
+                            ShippingInfo shippingInfo, EngravingInfo engravingInfo, Instant engravingCompletedAt,
+                            Instant createdAt, Instant updatedAt) {
         this.fulfillmentOrderId = fulfillmentOrderId;
         this.orderId = orderId;
         this.fulfillmentType = fulfillmentType;
@@ -42,6 +51,8 @@ public class FulfillmentOrder {
         this.items = new ArrayList<>(items);
         this.shippingAddress = shippingAddress;
         this.shippingInfo = shippingInfo;
+        this.engravingInfo = engravingInfo;
+        this.engravingCompletedAt = engravingCompletedAt;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -57,12 +68,29 @@ public class FulfillmentOrder {
         this.updatedAt = Instant.now();
     }
 
+    public void completeEngraving() {
+        if (fulfillmentType == FulfillmentType.VIRTUAL) {
+            throw new IllegalStateException("虚拟履约单无镭雕");
+        }
+        if (engravingInfo == null) {
+            throw new IllegalStateException("无镭雕内容，无法执行完成镭雕");
+        }
+        if (engravingCompletedAt != null) {
+            throw new IllegalStateException("镭雕已完成，无法重复操作");
+        }
+        this.engravingCompletedAt = Instant.now();
+        this.updatedAt = this.engravingCompletedAt;
+    }
+
     public void ship(String carrier, String trackingNumber) {
         if (fulfillmentType == FulfillmentType.VIRTUAL) {
             throw new IllegalStateException("虚拟履约单不支持发货");
         }
         if (status != FulfillmentOrderStatus.ALLOCATING) {
             throw new IllegalStateException("只有 ALLOCATING 状态可以发货，当前状态: " + status);
+        }
+        if (engravingInfo != null && engravingCompletedAt == null) {
+            throw new IllegalStateException("有镭雕内容，须先完成镭雕后才能发货");
         }
         this.shippingInfo = new ShippingInfo(carrier, trackingNumber, Instant.now());
         this.status = FulfillmentOrderStatus.SHIPPED;
@@ -107,6 +135,8 @@ public class FulfillmentOrder {
     public List<FulfillmentItem> getItems() { return Collections.unmodifiableList(items); }
     public ShippingAddress getShippingAddress() { return shippingAddress; }
     public ShippingInfo getShippingInfo() { return shippingInfo; }
+    public EngravingInfo getEngravingInfo() { return engravingInfo; }
+    public Instant getEngravingCompletedAt() { return engravingCompletedAt; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

@@ -36,6 +36,7 @@ public final class ServiceBindingApiDto {
         public String name;
         public String description;
         public String productType;
+        public String serviceKind;
         public List<AvailableServiceSku> bindings;
     }
 

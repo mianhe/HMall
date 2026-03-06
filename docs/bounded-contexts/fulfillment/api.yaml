@@ -57,6 +57,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/fulfillment/{fulfillmentOrderId}/complete-engraving:
+    post:
+      summary: 完成镭雕
+      description: 标记镭雕已完成。仅当 engravingInfo 非空且 engravingCompletedAt 未设时可用。
+      parameters:
+        - name: fulfillmentOrderId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 完成成功
+        '400':
+          description: 无镭雕内容或已完成
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 履约单不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/fulfillment/{fulfillmentOrderId}/ship:
     post:
       summary: 发货
@@ -196,6 +223,19 @@ components:
           format: int64
         quantity:
           type: integer
+        itemType:
+          type: string
+          enum: [PHYSICAL, SERVICE]
+          description: 商品类型，创建时从 Order 带入
+        relatedSkuId:
+          type: integer
+          format: int64
+          nullable: true
+          description: SERVICE 关联的实体 SKU
+        serviceAttributes:
+          type: object
+          nullable: true
+          description: 镭雕等增值服务（engravingPatternId、engravingPatternName、engravingText）
 
     ShippingAddressRequest:
       type: object
@@ -263,7 +303,31 @@ components:
           format: int64
         status:
           type: string
-          enum: [CREATED, SHIPPED, DELIVERED, CANCELLED]
+          enum: [CREATED, ALLOCATING, SHIPPED, DELIVERED, ACTIVATED, CANCELLED]
+        fulfillmentType:
+          type: string
+          enum: [PHYSICAL, VIRTUAL]
+          description: 履约单类型
+        engravingInfo:
+          type: object
+          nullable: true
+          description: 镭雕内容（若有）
+          properties:
+            patternId:
+              type: integer
+              format: int64
+              nullable: true
+            patternName:
+              type: string
+              nullable: true
+            text:
+              type: string
+              nullable: true
+        engravingCompletedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 镭雕完成时间
         items:
           type: array
           items:

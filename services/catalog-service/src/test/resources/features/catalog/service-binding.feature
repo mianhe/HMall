@@ -123,3 +123,19 @@
     那么 应返回 1 个可选服务
     并且 可选服务 "镭雕服务" 包含 1 个绑定
     并且 可选服务 "镭雕服务" 的第一个绑定售价为 19900 分
+
+  # 5.13 镭雕服务：创建时指定 serviceKind=ENGRAVING
+  场景: 创建镭雕服务 SPU 时指定 serviceKind 为 ENGRAVING 应成功
+    当 用户在类目 "服务" 下创建镭雕服务商品 "镭雕" 描述 "激光雕刻"
+    那么 镭雕服务商品应创建成功
+    并且 返回的 serviceKind 为 "ENGRAVING"
+
+  # 5.14 镭雕服务：available-services 返回 serviceKind
+  场景: 查询可选服务列表时镭雕服务应返回 serviceKind 为 ENGRAVING
+    假如 已存在实体商品 "iPhone 16" 属于类目 "手机"
+    并且 已存在镭雕服务商品 "镭雕" 属于类目 "服务"
+    并且 服务商品 "镭雕" 有 SKU 价格 19900 分 命名为 "镭雕-标准"
+    并且 服务 SKU "镭雕-标准" 已绑定到实体商品 "iPhone 16" 售价 19900 分
+    当 用户查询实体商品 "iPhone 16" 的可选服务列表
+    那么 应返回 1 个可选服务
+    并且 可选服务 "镭雕" 的 serviceKind 为 "ENGRAVING"

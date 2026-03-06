@@ -1,6 +1,7 @@
 package com.hmall.fulfillment.acceptance;
 
 import com.hmall.fulfillment.domain.DomainEventPublisher;
+import com.hmall.fulfillment.domain.EngravingCompleted;
 import com.hmall.fulfillment.domain.FulfillmentDelivered;
 import com.hmall.fulfillment.domain.FulfillmentOrderAllocated;
 import com.hmall.fulfillment.domain.FulfillmentOrderCreated;
@@ -18,6 +19,7 @@ public class EventCapture implements DomainEventPublisher {
     private final List<FulfillmentShipped> shippedEvents = new CopyOnWriteArrayList<>();
     private final List<FulfillmentDelivered> deliveredEvents = new CopyOnWriteArrayList<>();
     private final List<ServiceActivated> serviceActivatedEvents = new CopyOnWriteArrayList<>();
+    private final List<EngravingCompleted> engravingCompletedEvents = new CopyOnWriteArrayList<>();
 
     @Override
     public void publish(FulfillmentOrderCreated event) {
@@ -44,11 +46,17 @@ public class EventCapture implements DomainEventPublisher {
         serviceActivatedEvents.add(event);
     }
 
+    @Override
+    public void publish(EngravingCompleted event) {
+        engravingCompletedEvents.add(event);
+    }
+
     public List<FulfillmentOrderCreated> getCreatedEvents() { return new ArrayList<>(createdEvents); }
     public List<FulfillmentOrderAllocated> getAllocatedEvents() { return new ArrayList<>(allocatedEvents); }
     public List<FulfillmentShipped> getShippedEvents() { return new ArrayList<>(shippedEvents); }
     public List<FulfillmentDelivered> getDeliveredEvents() { return new ArrayList<>(deliveredEvents); }
     public List<ServiceActivated> getServiceActivatedEvents() { return new ArrayList<>(serviceActivatedEvents); }
+    public List<EngravingCompleted> getEngravingCompletedEvents() { return new ArrayList<>(engravingCompletedEvents); }
 
     public void clear() {
         createdEvents.clear();
@@ -56,5 +64,6 @@ public class EventCapture implements DomainEventPublisher {
         shippedEvents.clear();
         deliveredEvents.clear();
         serviceActivatedEvents.clear();
+        engravingCompletedEvents.clear();
     }
 }

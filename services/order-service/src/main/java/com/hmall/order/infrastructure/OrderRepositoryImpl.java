@@ -1,5 +1,7 @@
 package com.hmall.order.infrastructure;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hmall.order.domain.*;
 import com.hmall.order.infrastructure.persistence.OrderEntity;
 import com.hmall.order.infrastructure.persistence.OrderJpaRepository;
@@ -12,6 +14,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Repository
@@ -19,10 +22,13 @@ public class OrderRepositoryImpl implements OrderRepository {
 
     private final OrderJpaRepository orderJpaRepository;
     private final OrderLineItemJpaRepository lineItemJpaRepository;
+    private final ObjectMapper objectMapper;
 
-    public OrderRepositoryImpl(OrderJpaRepository orderJpaRepository, OrderLineItemJpaRepository lineItemJpaRepository) {
+    public OrderRepositoryImpl(OrderJpaRepository orderJpaRepository, OrderLineItemJpaRepository lineItemJpaRepository,
+                               ObjectMapper objectMapper) {
         this.orderJpaRepository = orderJpaRepository;
         this.lineItemJpaRepository = lineItemJpaRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -130,6 +136,13 @@ public class OrderRepositoryImpl implements OrderRepository {
         e.setItemType(item.getItemType().name());
         e.setRelatedSkuId(item.getRelatedSkuId());
         e.setSpuId(item.getSpuId());
+        if (item.getServiceAttributes() != null && !item.getServiceAttributes().isEmpty()) {
+            try {
+                e.setServiceAttributesJson(objectMapper.writeValueAsString(item.getServiceAttributes()));
+            } catch (Exception ex) {
+                throw new IllegalStateException("Failed to serialize serviceAttributes", ex);
+            }
+        }
         return e;
     }
 
@@ -154,12 +167,20 @@ public class OrderRepositoryImpl implements OrderRepository {
     }
 
     private OrderLineItem toLineItemDomain(OrderLineItemEntity e) {
+        Map<String, Object> attrs = null;
+        if (e.getServiceAttributesJson() != null && !e.getServiceAttributesJson().isBlank()) {
+            try {
+                attrs = objectMapper.readValue(e.getServiceAttributesJson(), new TypeReference<Map<String, Object>>() {});
+            } catch (Exception ex) {
+                throw new IllegalStateException("Failed to deserialize serviceAttributes", ex);
+            }
+        }
         return new OrderLineItem(
             e.getId(), e.getOrderId(), e.getSkuId(),
             e.getQuantity(), e.getUnitPriceCents().longValue(), e.getTotalPriceCents().longValue(),
             e.getDisplayName(),
             OrderItemType.valueOf(e.getItemType()),
-            e.getRelatedSkuId(), e.getSpuId()
+            e.getRelatedSkuId(), e.getSpuId(), attrs
         );
     }
 }

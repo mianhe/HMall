@@ -11,4 +11,6 @@ public interface DomainEventPublisher {
     void publish(FulfillmentDelivered event);
 
     void publish(ServiceActivated event);
+
+    void publish(EngravingCompleted event);
 }

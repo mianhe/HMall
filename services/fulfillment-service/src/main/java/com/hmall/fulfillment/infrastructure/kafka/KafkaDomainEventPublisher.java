@@ -1,6 +1,7 @@
 package com.hmall.fulfillment.infrastructure.kafka;
 
 import com.hmall.fulfillment.domain.DomainEventPublisher;
+import com.hmall.fulfillment.domain.EngravingCompleted;
 import com.hmall.fulfillment.domain.FulfillmentDelivered;
 import com.hmall.fulfillment.domain.FulfillmentOrderAllocated;
 import com.hmall.fulfillment.domain.FulfillmentOrderCreated;
@@ -61,5 +62,12 @@ public class KafkaDomainEventPublisher implements DomainEventPublisher {
         kafkaTemplate.send(props.getServiceActivated(), String.valueOf(event.orderId()), msg);
         log.info("Kafka 发布 ServiceActivated: orderId={}, fulfillmentOrderId={}, serviceSkuId={}",
             event.orderId(), event.fulfillmentOrderId(), event.serviceSkuId());
+    }
+
+    @Override
+    public void publish(EngravingCompleted event) {
+        var msg = EngravingCompletedMessage.from(event);
+        kafkaTemplate.send(props.getEngravingCompleted(), String.valueOf(event.orderId()), msg);
+        log.info("Kafka 发布 EngravingCompleted: orderId={}, fulfillmentOrderId={}", event.orderId(), event.fulfillmentOrderId());
     }
 }

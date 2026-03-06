@@ -125,6 +125,9 @@
             <p v-if="item.itemType === 'SERVICE'" class="text-xs mt-0.5" :class="order.serviceActivated ? 'text-green-600' : 'text-amber-500'">
               {{ order.serviceActivated ? '已激活' : '待激活' }}
             </p>
+            <p v-if="hasEngravingContent(item)" class="text-xs mt-0.5 text-gray-600">
+              镭雕：{{ engravingPreview(item.serviceAttributes) }}
+            </p>
           </div>
           <p class="text-vmall-red font-medium shrink-0">
             ¥{{ formatPrice(item.totalPriceCents || item.unitPriceCents * item.quantity) }}
@@ -274,6 +277,7 @@ const EVENT_DESCRIPTIONS = {
   StockReleased:              '库存已释放',
   FulfillmentOrderCreated:    '履约单已创建，等待配货',
   FulfillmentOrderAllocated:  '商品正在配货中',
+  EngravingCompleted:         '镭雕已完成',
   FulfillmentShipped:         '商品已发货，等待签收',
   FulfillmentDelivered:       '商品已签收',
   ServiceActivated:           '服务已激活',
@@ -296,6 +300,25 @@ function findEventTime(eventTypes) {
 
 function formatPrice(cents) {
   return ((cents || 0) / 100).toFixed(2)
+}
+
+function hasEngravingContent(item) {
+  const attrs = item?.serviceAttributes
+  if (!attrs) return false
+  const patternId = attrs.engravingPatternId ?? attrs.engraving_pattern_id
+  const patternName = attrs.engravingPatternName ?? attrs.engraving_pattern_name
+  const text = attrs.engravingText ?? attrs.engraving_text
+  return (patternId != null || patternName) || (text != null && String(text).trim() !== '')
+}
+
+function engravingPreview(attrs) {
+  if (!attrs) return ''
+  const patternName = attrs.engravingPatternName ?? attrs.engraving_pattern_name
+  const text = attrs.engravingText ?? attrs.engraving_text
+  const parts = []
+  if (patternName) parts.push(`图案「${patternName}」`)
+  if (text != null && String(text).trim() !== '') parts.push(`文字「${text}」`)
+  return parts.join(' ')
 }
 
 function formatShortTime(iso) {

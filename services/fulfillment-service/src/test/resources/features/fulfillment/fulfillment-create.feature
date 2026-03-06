@@ -41,3 +41,10 @@
     并且 返回结果包含 1 个 fulfillmentOrderId
     并且 该订单应仅包含 VIRTUAL 履约单
     并且 虚拟履约单状态应为 ACTIVATED
+
+  场景: items 中含镭雕 SERVICE 时应将 engravingInfo 合并到实体履约单且不单独拆成 VIRTUAL
+    当 Order 调用创建履约单接口 orderId 9020 含 1 个实体商品 skuId 1001 和 1 个镭雕服务 skuId 2001 关联 skuId 1001 雕刻 图案 101 名称 "竹子" 文字 "刻名"
+    那么 应返回 200
+    并且 返回结果包含 1 个 fulfillmentOrderId
+    并且 该订单应仅包含 1 个 PHYSICAL 履约单
+    并且 该 PHYSICAL 履约单应含 engravingInfo 图案 101 名称 "竹子" 文字 "刻名"

@@ -121,7 +121,7 @@ export function registerCatalogTools(server) {
     '商品(SPU)查询与管理。action=list：按 categoryId 过滤类目下商品，或按 keyword 模糊搜索商品名称（仅名称匹配，不支持语义搜索；搜不到时建议换同义词或改用类目浏览）。get + detail=full：返回完整信息含规格维度、选项和全部 SKU 列表（含价格，单位：分，如 599900=¥5999）。create/update/delete：管理操作。create 时可传 productType（PHYSICAL 默认 / SERVICE 服务类商品）。',
     {
       action: actionProducts,
-      categoryId: z.number().optional().describe('list 时按类目过滤；create 时必填'),
+      categoryId: z.number().optional().describe('list 时按类目过滤；create 时必填；update 时可选，传则修改所属类目'),
       keyword: z.string().optional().describe('list 时按关键词搜索'),
       productId: z.number().optional().describe('get/update/delete 时必填'),
       detail: z.enum(['basic', 'full']).optional().describe('get 时：full 含规格与 SKU'),
@@ -177,8 +177,11 @@ export function registerCatalogTools(server) {
           return ok(`创建成功：ID=${p.id}，名称="${p.name}"，类型=${p.productType || 'PHYSICAL'}`)
         }
         if (action === 'update') {
-          const p = await api('PUT', `/products/${productId}`, { name, description: description ?? null })
-          return ok(`修改成功：ID=${p.id}，名称="${p.name}"，描述="${p.description || '—'}"`)
+          const body = { name, description: description ?? null }
+          if (categoryId != null) body.categoryId = categoryId
+          const p = await api('PUT', `/products/${productId}`, body)
+          const catInfo = categoryId != null ? `，类目=${p.categoryId}` : ''
+          return ok(`修改成功：ID=${p.id}，名称="${p.name}"，描述="${p.description || '—'}"${catInfo}`)
         }
         if (action === 'delete') {
           await api('DELETE', `/products/${productId}`)

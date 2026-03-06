@@ -2,6 +2,7 @@ package com.hmall.order.api.dto;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 public record OrderDto(
     Long orderId,
@@ -19,6 +20,7 @@ public record OrderDto(
         Long unitPriceCents,
         Long totalPriceCents,
         String displayName,
-        String itemType
+        String itemType,
+        Map<String, Object> serviceAttributes
     ) {}
 }

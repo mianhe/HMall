@@ -66,6 +66,18 @@ public class FulfillmentOrderEntity {
     @Column(name = "delivered_at")
     private Instant deliveredAt;
 
+    @Column(name = "engraving_pattern_id")
+    private Long engravingPatternId;
+
+    @Column(name = "engraving_pattern_name")
+    private String engravingPatternName;
+
+    @Column(name = "engraving_text")
+    private String engravingText;
+
+    @Column(name = "engraving_completed_at")
+    private Instant engravingCompletedAt;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -105,6 +117,14 @@ public class FulfillmentOrderEntity {
     public void setShippedAt(Instant shippedAt) { this.shippedAt = shippedAt; }
     public Instant getDeliveredAt() { return deliveredAt; }
     public void setDeliveredAt(Instant deliveredAt) { this.deliveredAt = deliveredAt; }
+    public Long getEngravingPatternId() { return engravingPatternId; }
+    public void setEngravingPatternId(Long engravingPatternId) { this.engravingPatternId = engravingPatternId; }
+    public String getEngravingPatternName() { return engravingPatternName; }
+    public void setEngravingPatternName(String engravingPatternName) { this.engravingPatternName = engravingPatternName; }
+    public String getEngravingText() { return engravingText; }
+    public void setEngravingText(String engravingText) { this.engravingText = engravingText; }
+    public Instant getEngravingCompletedAt() { return engravingCompletedAt; }
+    public void setEngravingCompletedAt(Instant engravingCompletedAt) { this.engravingCompletedAt = engravingCompletedAt; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }

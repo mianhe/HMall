@@ -19,6 +19,8 @@
 - ✅ 1.4 数量 ≤ 0 时添加应失败并返回错误
 - ✅ 1.5 未登录（无 userId）时添加应失败并返回 401
 
+> **镭雕服务**（来自业务需求 [镭雕服务](../../business-requirements/laser-engraving/overview.md)）：加购镭雕服务时仅记录 SKU + relatedSkuId；雕刻内容（图案、文字）在结账页填写，Cart 不存储。MVP 采用结账时填写。
+
 ---
 
 ## 2. 查看购物车

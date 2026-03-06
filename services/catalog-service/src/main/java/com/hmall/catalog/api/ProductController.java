@@ -47,7 +47,8 @@ public class ProductController {
             dto.categoryId(),
             dto.name(),
             dto.description(),
-            dto.productType()
+            dto.productType(),
+            dto.serviceKind()
         );
         return ResponseEntity
             .status(HttpStatus.CREATED)
@@ -76,7 +77,7 @@ public class ProductController {
 
     @PutMapping("/{id}")
     public ResponseEntity<ProductDto> update(@PathVariable Long id, @RequestBody ProductUpdateDto dto) {
-        Spu updated = applicationService.update(id, dto.name(), dto.description());
+        Spu updated = applicationService.update(id, dto.name(), dto.description(), dto.categoryId());
         return ResponseEntity.ok(toDto(updated));
     }
 
@@ -98,6 +99,7 @@ public class ProductController {
             s.getName(),
             s.getDescription(),
             s.getProductType(),
+            s.getServiceKind(),
             coverImageUrl,
             defaultDisplayImages
         );

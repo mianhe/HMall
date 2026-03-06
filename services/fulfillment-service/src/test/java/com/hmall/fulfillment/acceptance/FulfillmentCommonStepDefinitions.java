@@ -48,6 +48,18 @@ public class FulfillmentCommonStepDefinitions {
         shipFulfillmentOrder(foId);
     }
 
+    @假如("已存在含镭雕的 ALLOCATING 状态履约单 orderId {int}")
+    public void 已存在含镭雕的ALLOCATING状态履约单(int orderId) {
+        createFulfillmentOrderWithEngraving(orderId);
+    }
+
+    @假如("已存在已完成镭雕的 ALLOCATING 状态履约单 orderId {int}")
+    public void 已存在已完成镭雕的ALLOCATING状态履约单(int orderId) {
+        createFulfillmentOrderWithEngraving(orderId);
+        Long foId = context.getLastFulfillmentOrderId();
+        completeEngraving(foId);
+    }
+
     @并且("该履约单状态应为 SHIPPED")
     public void 该履约单状态应为SHIPPED() {
         assertFulfillmentOrderStatus("SHIPPED");
@@ -71,7 +83,7 @@ public class FulfillmentCommonStepDefinitions {
     private void createFulfillmentOrder(long orderId) {
         Map<String, Object> body = Map.of(
             "orderId", orderId,
-            "items", List.of(Map.of("skuId", 1001L, "quantity", 1)),
+            "items", List.of(Map.of("skuId", 1001L, "quantity", 1, "itemType", "PHYSICAL")),
             "shippingAddress", Map.of(
                 "recipientName", "测试用户", "phone", "13600000000",
                 "province", "上海", "city", "上海", "district", "浦东新区", "detail", "测试地址"
@@ -88,6 +100,41 @@ public class FulfillmentCommonStepDefinitions {
         @SuppressWarnings("unchecked")
         List<Number> ids = (List<Number>) res.getBody().get("fulfillmentOrderIds");
         context.setLastFulfillmentOrderId(ids.get(0).longValue());
+    }
+
+    private void createFulfillmentOrderWithEngraving(int orderId) {
+        Map<String, Object> body = Map.of(
+            "orderId", orderId,
+            "items", List.of(
+                Map.of("skuId", 1001L, "quantity", 1, "itemType", "PHYSICAL"),
+                Map.of("skuId", 2001L, "quantity", 1, "itemType", "SERVICE", "relatedSkuId", 1001L,
+                    "serviceAttributes", Map.of("engravingPatternId", 101L, "engravingPatternName", "竹子", "engravingText", "刻名"))
+            ),
+            "shippingAddress", Map.of(
+                "recipientName", "测试用户", "phone", "13600000000",
+                "province", "上海", "city", "上海", "district", "浦东新区", "detail", "测试地址"
+            )
+        );
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        ResponseEntity<Map<String, Object>> res = restTemplate.exchange(
+            "/api/fulfillment/create",
+            HttpMethod.POST,
+            new HttpEntity<>(body, headers),
+            new ParameterizedTypeReference<>() {}
+        );
+        @SuppressWarnings("unchecked")
+        List<Number> ids = (List<Number>) res.getBody().get("fulfillmentOrderIds");
+        context.setLastFulfillmentOrderId(ids.get(0).longValue());
+    }
+
+    private void completeEngraving(Long fulfillmentOrderId) {
+        restTemplate.exchange(
+            "/api/fulfillment/" + fulfillmentOrderId + "/complete-engraving",
+            HttpMethod.POST,
+            null,
+            new ParameterizedTypeReference<Void>() {}
+        );
     }
 
     private void allocateFulfillmentOrder(Long fulfillmentOrderId) {

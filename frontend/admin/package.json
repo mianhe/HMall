@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:business:e2e": "node scripts/run-business-e2e.cjs",
+    "test:business:e2e:list": "node scripts/run-business-e2e.cjs --list"
   },
   "dependencies": {
     "axios": "^1.7.7",

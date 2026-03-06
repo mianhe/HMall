@@ -23,6 +23,7 @@
 - ✅ 1.6 userId 不存在时应失败并返回 404
 - 🔲 1.7 明细中含 SERVICE 类型商品时，仅对 PHYSICAL 类型明细调用库存占用，SERVICE 类型跳过（来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)）
 - 🔲 1.8 纯服务订单（全部明细均为 SERVICE）时应跳过库存占用，直接创建成功
+- 🔲 1.9 明细中含镭雕服务（SERVICE + relatedSkuId + serviceAttributes 镭雕内容）时，应校验 engravingPatternId 在图案库存在（或仅校验非空时格式）、engravingText ≤20 字、至少 engravingPatternId 或 engravingText 其一非空；校验通过则存储并传递至 Fulfillment（来自业务需求 [镭雕服务](../../business-requirements/laser-engraving/overview.md)）
 
 ---
 

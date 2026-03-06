@@ -79,7 +79,7 @@ public class ServiceBindingController {
             .toList();
         return new AvailableServiceDto(
             spu.getId(), spu.getName(), spu.getDescription(),
-            spu.getProductType(), bindingDtos);
+            spu.getProductType(), spu.getServiceKind(), bindingDtos);
     }
 
     private AvailableServiceSkuDto toAvailableServiceSkuDto(BindingWithSku bws) {

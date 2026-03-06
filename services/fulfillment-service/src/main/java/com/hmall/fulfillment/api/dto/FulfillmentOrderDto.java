@@ -1,5 +1,6 @@
 package com.hmall.fulfillment.api.dto;
 
+import com.hmall.fulfillment.domain.EngravingInfo;
 import com.hmall.fulfillment.domain.FulfillmentOrder;
 
 import java.time.Instant;
@@ -13,6 +14,8 @@ public record FulfillmentOrderDto(
     List<FulfillmentItemDto> items,
     ShippingAddressDto shippingAddress,
     ShippingInfoDto shippingInfo,
+    EngravingInfoDto engravingInfo,
+    Instant engravingCompletedAt,
     Instant createdAt,
     Instant updatedAt
 ) {
@@ -45,14 +48,22 @@ public record FulfillmentOrderDto(
             );
         }
 
+        EngravingInfoDto engravingInfoDto = null;
+        if (order.getEngravingInfo() != null) {
+            EngravingInfo e = order.getEngravingInfo();
+            engravingInfoDto = new EngravingInfoDto(e.getPatternId(), e.getPatternName(), e.getText());
+        }
+
         return new FulfillmentOrderDto(
             order.getFulfillmentOrderId(), order.getOrderId(),
             order.getFulfillmentType().name(),
-            order.getStatus().name(), items, address, shippingInfo,
+            order.getStatus().name(), items, address, shippingInfo, engravingInfoDto,
+            order.getEngravingCompletedAt(),
             order.getCreatedAt(), order.getUpdatedAt()
         );
     }
 
+    public record EngravingInfoDto(Long patternId, String patternName, String text) {}
     public record FulfillmentItemDto(Long fulfillmentItemId, Long skuId, int quantity, String itemType) {}
     public record ShippingAddressDto(String recipientName, String phone,
                                      String province, String city, String district, String detail) {}

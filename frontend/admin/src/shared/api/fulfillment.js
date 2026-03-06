@@ -39,6 +39,14 @@ export async function allocateFulfillmentOrder(fulfillmentOrderId) {
 }
 
 /**
+ * 完成镭雕（有 engravingInfo 且未完成时可调用）
+ * @param {number} fulfillmentOrderId
+ */
+export async function completeEngravingFulfillmentOrder(fulfillmentOrderId) {
+  await client.post(`/fulfillment/${fulfillmentOrderId}/complete-engraving`)
+}
+
+/**
  * 发货（ALLOCATING → SHIPPED）
  * @param {number} fulfillmentOrderId
  * @param {{ carrier: string, trackingNumber: string }} body

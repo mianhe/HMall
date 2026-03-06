@@ -56,6 +56,7 @@ BFF (Backend for Frontend) 为 `frontend/web` 提供统一 API 入口，代理 C
 | `/api/categories` | Catalog | 8080 |
 | `/api/products` | Catalog | 8080 |
 | `/api/files` | Catalog | 8080 |
+| `/api/engraving-patterns` | Catalog | 8080 |
 | `/api/users` | User | 8082 |
 | `/api/login` | User | 8082 |
 | `/api/orders` | Order | 8081 |

@@ -1,6 +1,7 @@
 package com.hmall.catalog.acceptance;
 
 import com.hmall.catalog.infrastructure.persistence.CategoryJpaRepository;
+import com.hmall.catalog.infrastructure.persistence.EngravingPatternJpaRepository;
 import com.hmall.catalog.infrastructure.persistence.SpuJpaRepository;
 import io.cucumber.java.Before;
 
@@ -12,17 +13,21 @@ public class DatabaseResetHook {
 
     private final SpuJpaRepository spuJpaRepository;
     private final CategoryJpaRepository categoryJpaRepository;
+    private final EngravingPatternJpaRepository engravingPatternJpaRepository;
 
     public DatabaseResetHook(
             SpuJpaRepository spuJpaRepository,
-            CategoryJpaRepository categoryJpaRepository) {
+            CategoryJpaRepository categoryJpaRepository,
+            EngravingPatternJpaRepository engravingPatternJpaRepository) {
         this.spuJpaRepository = spuJpaRepository;
         this.categoryJpaRepository = categoryJpaRepository;
+        this.engravingPatternJpaRepository = engravingPatternJpaRepository;
     }
 
     @Before
     public void resetDb() {
         spuJpaRepository.deleteAll();
         categoryJpaRepository.deleteAll();
+        engravingPatternJpaRepository.deleteAll();
     }
 }

@@ -19,6 +19,8 @@
 - ✅ 1.1 收到**任一已订阅的领域事件**后应记录一条业务活动（eventId、eventType、topic、orderId、occurredAt、payload、receivedAt 正确落库）
 - ✅ 1.2 重复事件（同一 eventId）不应重复记录
 
+> **镭雕服务**（来自业务需求 [镭雕服务](../../business-requirements/laser-engraving/overview.md)）：🔲 若 Fulfillment 发布 EngravingCompleted 事件，Activity 订阅 `fulfillment.engraving.completed`，订单旅程可展示「镭雕已完成」节点。新增事件时在 Examples 表增加一行，并注册 event-metadata。
+
 **测试策略**：用 **Scenario Outline + Examples** 覆盖当前已订阅事件类型；新增事件时在 Examples 表增加一行即可，不新增 Scenario。
 
 ## 2. 活动查询

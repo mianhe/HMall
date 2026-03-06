@@ -68,6 +68,7 @@
               <th class="text-left py-3 px-4 font-medium text-gray-700 w-20">订单ID</th>
               <th class="text-left py-3 px-4 font-medium text-gray-700 w-16">类型</th>
               <th class="text-left py-3 px-4 font-medium text-gray-700 w-20">状态</th>
+              <th class="text-left py-3 px-4 font-medium text-gray-700 w-28">镭雕</th>
               <th class="text-left py-3 px-4 font-medium text-gray-700">商品摘要</th>
               <th class="text-left py-3 px-4 font-medium text-gray-700 w-20">收货人</th>
               <th class="text-left py-3 px-4 font-medium text-gray-700">收货地址</th>
@@ -97,6 +98,16 @@
                   {{ statusLabel(row.status) }}
                 </span>
               </td>
+              <td class="py-2 px-4 text-gray-700 text-xs">
+                <template v-if="row.engravingInfo">
+                  <span class="block truncate max-w-[140px]" :title="engravingPreview(row.engravingInfo)">
+                    {{ engravingPreview(row.engravingInfo) }}
+                  </span>
+                  <span v-if="row.engravingCompletedAt" class="text-green-600">✓ 已完成</span>
+                  <span v-else class="text-amber-600">待完成</span>
+                </template>
+                <span v-else>—</span>
+              </td>
               <td class="py-2 px-4 text-gray-700">{{ itemsSummary(row.items) }}</td>
               <td class="py-2 px-4 text-gray-700">{{ row.shippingAddress?.recipientName ?? '—' }}</td>
               <td class="py-2 px-4 text-gray-700 max-w-[180px] truncate" :title="fullAddress(row)">{{ shortAddress(row) }}</td>
@@ -121,6 +132,14 @@
                     </button>
                   </template>
                   <template v-else-if="row.status === 'ALLOCATING'">
+                    <button
+                      v-if="hasEngravingPending(row)"
+                      @click="doCompleteEngraving(row)"
+                      :disabled="actionLoading[row.fulfillmentOrderId]"
+                      class="whitespace-nowrap px-3 py-1 rounded bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 text-sm"
+                    >
+                      {{ actionLoading[row.fulfillmentOrderId] ? '处理中…' : '完成镭雕' }}
+                    </button>
                     <input
                       v-model="shipForm[row.fulfillmentOrderId].carrier"
                       placeholder="承运商"
@@ -134,6 +153,7 @@
                     <button
                       @click="doShip(row)"
                       :disabled="actionLoading[row.fulfillmentOrderId] || !canShip(row)"
+                      :title="hasEngravingPending(row) ? '须先完成镭雕' : ''"
                       class="whitespace-nowrap px-3 py-1 rounded bg-vmall-red text-white hover:bg-vmall-red-hover disabled:opacity-50 text-sm"
                     >
                       {{ actionLoading[row.fulfillmentOrderId] ? '处理中…' : '发货' }}
@@ -170,6 +190,7 @@ import AppHeader from '../shared/ui/AppHeader.vue'
 import {
   listFulfillmentOrders,
   allocateFulfillmentOrder,
+  completeEngravingFulfillmentOrder,
   shipFulfillmentOrder,
   deliverFulfillmentOrder,
 } from '../shared/api/fulfillment.js'
@@ -281,9 +302,36 @@ async function load() {
   }
 }
 
+function hasEngravingPending(row) {
+  return row.engravingInfo && !row.engravingCompletedAt
+}
+
+function engravingPreview(info) {
+  if (!info) return ''
+  const parts = []
+  if (info.patternName) parts.push(`图案: ${info.patternName}`)
+  if (info.text) parts.push(`文字: ${info.text}`)
+  return parts.join(' | ') || '—'
+}
+
 function canShip(row) {
+  if (hasEngravingPending(row)) return false
   const f = shipForm[row.fulfillmentOrderId]
   return f && f.carrier?.trim() && f.trackingNumber?.trim()
+}
+
+async function doCompleteEngraving(row) {
+  const id = row.fulfillmentOrderId
+  actionLoading[id] = true
+  actionError[id] = ''
+  try {
+    await completeEngravingFulfillmentOrder(id)
+    await load()
+  } catch (e) {
+    actionError[id] = errorMessage(e)
+  } finally {
+    actionLoading[id] = false
+  }
 }
 
 async function doAllocate(row) {

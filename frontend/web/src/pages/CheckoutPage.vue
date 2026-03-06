@@ -84,6 +84,59 @@
         </template>
       </div>
 
+      <!-- 镭雕内容（含镭雕服务时展示，购物车结算或立即购买均支持） -->
+      <div
+        v-if="engravingFormItems.length"
+        class="bg-white rounded-lg border border-vmall-gray-border p-4 mb-6"
+      >
+        <h2 class="text-lg font-medium text-gray-800 mb-3">镭雕内容</h2>
+        <p class="text-sm text-vmall-gray-text mb-4">镭雕服务需填写雕刻内容，图案或文字至少选其一，文字≤20字</p>
+        <div v-for="entry in engravingFormItems" :key="entry.entryKey" class="mb-6 last:mb-0">
+          <p class="text-sm font-medium text-gray-700 mb-2">{{ entry.primarySkuName }} - {{ entry.serviceSkuName }}</p>
+          <div class="p-4 rounded-lg border border-vmall-gray-border bg-gray-50/50 space-y-3">
+            <div>
+              <p class="text-xs text-vmall-gray-text mb-2">选择图案</p>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  v-for="p in engravingPatterns"
+                  :key="p.id"
+                  type="button"
+                  class="shrink-0 w-14 h-14 rounded border-2 overflow-hidden transition-colors"
+                  :class="getEngraving(entry.entryKey).patternId === p.id
+                    ? 'border-vmall-red ring-1 ring-vmall-red'
+                    : 'border-vmall-gray-border hover:border-vmall-red'"
+                  @click="setEngravingPattern(entry.entryKey, p)"
+                >
+                  <img :src="p.imageUrl" :alt="p.name" class="w-full h-full object-cover" />
+                </button>
+                <button
+                  v-if="engravingPatterns.length"
+                  type="button"
+                  class="shrink-0 w-14 h-14 rounded border-2 border-dashed border-vmall-gray-border text-vmall-gray-text text-xs hover:border-vmall-red"
+                  :class="getEngraving(entry.entryKey).patternId === null ? 'border-vmall-red ring-1 ring-vmall-red' : ''"
+                  @click="setEngravingPattern(entry.entryKey, null)"
+                >
+                  不选
+                </button>
+              </div>
+            </div>
+            <div>
+              <p class="text-xs text-vmall-gray-text mb-1">自定义文字（可选，≤20字）</p>
+              <input
+                :value="getEngraving(entry.entryKey).text"
+                type="text"
+                maxlength="20"
+                placeholder="请输入雕刻文字"
+                class="w-full max-w-xs px-3 py-2 rounded border border-vmall-gray-border text-sm focus:border-vmall-red focus:ring-1 focus:ring-vmall-red outline-none"
+                @input="setEngravingText(entry.entryKey, $event.target.value)"
+              />
+              <span class="ml-2 text-xs text-vmall-gray-text">{{ (getEngraving(entry.entryKey).text || '').length }}/20</span>
+            </div>
+            <p v-if="getEngravingError(entry.entryKey)" class="text-sm text-red-600">{{ getEngravingError(entry.entryKey) }}</p>
+          </div>
+        </div>
+      </div>
+
       <!-- 收货地址 -->
       <div class="bg-white rounded-lg border border-vmall-gray-border p-4 mb-6">
         <h2 class="text-lg font-medium text-gray-800 mb-3">收货地址</h2>
@@ -158,7 +211,7 @@
           合计：<span class="text-xl font-bold text-vmall-red">¥ {{ totalDisplay }}</span>
         </p>
         <button
-          :disabled="submitting"
+          :disabled="submitting || engravingValidationError"
           @click="submitOrder"
           class="px-6 py-3 rounded-lg bg-vmall-red text-white hover:bg-vmall-red-hover disabled:opacity-60 transition-colors"
         >
@@ -175,8 +228,10 @@ import { useRouter } from 'vue-router'
 import { createOrder } from '../shared/api/order.js'
 import { getAddresses } from '../shared/api/user.js'
 import { checkoutPreview, deleteCartItems } from '../shared/api/cart.js'
+import { getSku, getAvailableServices, getEngravingPatterns } from '../shared/api/catalog.js'
 import { useAuth } from '../shared/auth.js'
 import { formatApiError } from '../shared/utils/errorMessage.js'
+import { isEngravingService } from '../shared/utils/engraving.js'
 
 const router = useRouter()
 const { userId, isLoggedIn } = useAuth()
@@ -198,6 +253,13 @@ const form = ref({
 })
 const submitting = ref(false)
 const error = ref('')
+
+/** 镭雕服务项及展示信息，entryKey 为 cart-{cartItemId} 或 buy-{skuId}-{relatedSkuId} */
+const engravingFormItems = ref([])
+const engravingPatterns = ref([])
+const engravingEntryKeys = ref(new Set())
+/** 镭雕内容：entryKey -> { patternId, patternName, text } */
+const engravingByKey = ref({})
 
 const hasCheckoutData = computed(() => checkoutItem.value || checkoutItems.value?.length || checkoutPreviewData.value)
 
@@ -224,6 +286,182 @@ function formatPrice(p) {
 function findPreviewItem(cartItemId) {
   return checkoutPreviewData.value?.items?.find((i) => i.cartItemId === cartItemId) ?? null
 }
+
+async function loadEngravingMetadata() {
+  const groups = checkoutPreviewData.value?.groups ?? []
+  const flatItems = checkoutPreviewData.value?.items ?? []
+  if (!groups.length && !flatItems.some((i) => i.relatedSkuId)) {
+    engravingFormItems.value = []
+    engravingEntryKeys.value = new Set()
+    engravingPatterns.value = []
+    return
+  }
+  const formItems = []
+  const keys = new Set()
+  const addEngravingService = (svc, primarySkuName) => {
+    if (!engravingSkuIds.has(svc.skuId)) return
+    const key = `cart-${svc.cartItemId}`
+    keys.add(key)
+    formItems.push({ entryKey: key, primarySkuName, serviceSkuName: svc.skuName })
+  }
+  for (const group of groups) {
+    let spuId
+    try {
+      const sku = await getSku(group.primarySkuId)
+      spuId = sku?.spuId
+    } catch {
+      continue
+    }
+    if (!spuId) continue
+    let services
+    try {
+      services = await getAvailableServices(spuId) ?? []
+    } catch {
+      continue
+    }
+    const engravingSkuIds = new Set()
+    for (const svc of services) {
+      if (isEngravingService(svc)) {
+        for (const b of svc.bindings ?? []) engravingSkuIds.add(b.serviceSkuId)
+      }
+    }
+    for (const svc of group.serviceItems ?? []) {
+      addEngravingService(svc, group.primarySkuName)
+    }
+  }
+  if (formItems.length === 0 && flatItems.length > 0) {
+    const physicalBySkuId = {}
+    const serviceItems = []
+    for (const row of flatItems) {
+      if (row.relatedSkuId) serviceItems.push(row)
+      else physicalBySkuId[row.skuId] = row
+    }
+    for (const svc of serviceItems) {
+      const primary = physicalBySkuId[svc.relatedSkuId]
+      if (!primary) continue
+      let spuId
+      try {
+        const sku = await getSku(primary.skuId)
+        spuId = sku?.spuId
+      } catch { continue }
+      if (!spuId) continue
+      let services
+      try { services = await getAvailableServices(spuId) ?? [] } catch { continue }
+      const engravingSkuIds = new Set()
+      for (const s of services) {
+        if (isEngravingService(s)) {
+          for (const b of s.bindings ?? []) engravingSkuIds.add(b.serviceSkuId)
+        }
+      }
+      if (engravingSkuIds.has(svc.skuId)) {
+        const key = `cart-${svc.cartItemId}`
+        keys.add(key)
+        formItems.push({ entryKey: key, primarySkuName: primary.skuName || ('SKU ' + primary.skuId), serviceSkuName: svc.skuName })
+      }
+    }
+  }
+  engravingFormItems.value = formItems
+  engravingEntryKeys.value = keys
+  if (keys.size > 0) {
+    engravingPatterns.value = await getEngravingPatterns(true).catch(() => [])
+  } else {
+    engravingPatterns.value = []
+  }
+}
+
+async function loadEngravingMetadataForBuyNow() {
+  const groups = checkoutItemGroups.value
+  if (!groups?.length) {
+    engravingFormItems.value = []
+    engravingEntryKeys.value = new Set()
+    engravingPatterns.value = []
+    return
+  }
+  const items = []
+  const keys = new Set()
+  for (const group of groups) {
+    const primary = group.primary
+    const spuId = primary?.spuId
+    if (!spuId) continue
+    let services
+    try {
+      services = await getAvailableServices(spuId) ?? []
+    } catch {
+      continue
+    }
+    const engravingSkuIds = new Set()
+    for (const svc of services) {
+      if (isEngravingService(svc)) {
+        for (const b of svc.bindings ?? []) {
+          engravingSkuIds.add(b.serviceSkuId)
+        }
+      }
+    }
+    for (const svc of group.services ?? []) {
+      if (!engravingSkuIds.has(svc.skuId)) continue
+      if (svc.serviceAttributes && (svc.serviceAttributes.engravingPatternId != null || (svc.serviceAttributes.engravingText || '').trim())) {
+        continue
+      }
+      const key = `buy-${svc.skuId}-${svc.relatedSkuId}`
+      keys.add(key)
+      items.push({
+        entryKey: key,
+        primarySkuName: primary.productName || primary.displayName || ('SKU ' + primary.skuId),
+        serviceSkuName: svc.productName || svc.displayName || ('SKU ' + svc.skuId),
+      })
+    }
+  }
+  engravingFormItems.value = items
+  engravingEntryKeys.value = keys
+  if (keys.size > 0) {
+    engravingPatterns.value = await getEngravingPatterns(true).catch(() => [])
+  } else {
+    engravingPatterns.value = []
+  }
+}
+
+function getEngraving(entryKey) {
+  const v = engravingByKey.value[entryKey]
+  return {
+    patternId: v?.patternId ?? null,
+    patternName: v?.patternName ?? null,
+    text: v?.text ?? '',
+  }
+}
+
+function setEngravingPattern(entryKey, p) {
+  const next = { ...engravingByKey.value }
+  const cur = next[entryKey] ?? {}
+  next[entryKey] = {
+    ...cur,
+    patternId: p?.id ?? null,
+    patternName: p?.name ?? null,
+    text: cur.text ?? '',
+  }
+  engravingByKey.value = next
+}
+
+function setEngravingText(entryKey, text) {
+  const next = { ...engravingByKey.value }
+  const cur = next[entryKey] ?? {}
+  next[entryKey] = { ...cur, text: (text || '').slice(0, 20) }
+  engravingByKey.value = next
+}
+
+function getEngravingError(entryKey) {
+  const v = engravingByKey.value[entryKey]
+  const hasPattern = v?.patternId != null
+  const hasText = (v?.text ?? '').trim().length > 0
+  if (hasPattern || hasText) return ''
+  return '请选择图案或输入文字（至少选其一）'
+}
+
+const engravingValidationError = computed(() => {
+  for (const entry of engravingFormItems.value) {
+    if (getEngravingError(entry.entryKey)) return true
+  }
+  return false
+})
 
 const checkoutItemGroups = computed(() => {
   if (!checkoutItems.value?.length) return []
@@ -259,6 +497,7 @@ onMounted(async () => {
     previewLoading.value = true
     try {
       checkoutPreviewData.value = await checkoutPreview(cartCheckoutIds.value)
+      await loadEngravingMetadata()
     } catch (e) {
       error.value = formatApiError(e, '结算预览加载失败')
     } finally {
@@ -267,12 +506,14 @@ onMounted(async () => {
   } else if (state?.checkoutItems?.length) {
     checkoutItems.value = state.checkoutItems
     sessionStorage.setItem('checkoutItems', JSON.stringify(state.checkoutItems))
+    await loadEngravingMetadataForBuyNow()
   } else if (state?.checkoutItem) {
     checkoutItem.value = state.checkoutItem
     sessionStorage.setItem('checkoutItem', JSON.stringify(state.checkoutItem))
   } else if (storedItems) {
     try {
       checkoutItems.value = JSON.parse(storedItems)
+      await loadEngravingMetadataForBuyNow()
     } catch {
       sessionStorage.removeItem('checkoutItems')
     }
@@ -294,26 +535,39 @@ onMounted(async () => {
   }
 })
 
+function toOrderItem(i) {
+  const item = {
+    skuId: i.skuId,
+    quantity: i.quantity ?? 1,
+    relatedSkuId: i.relatedSkuId ?? null,
+  }
+  let attrs = i.serviceAttributes ? { ...i.serviceAttributes } : {}
+  const cartKey = i.cartItemId != null ? `cart-${i.cartItemId}` : null
+  const buyKey = i.relatedSkuId != null ? `buy-${i.skuId}-${i.relatedSkuId}` : null
+  const v = cartKey && engravingEntryKeys.value.has(cartKey)
+    ? engravingByKey.value[cartKey]
+    : buyKey && engravingEntryKeys.value.has(buyKey)
+      ? engravingByKey.value[buyKey]
+      : null
+  if (v) {
+    if (v.patternId != null) attrs.engravingPatternId = v.patternId
+    if (v.patternName) attrs.engravingPatternName = v.patternName
+    if (v.text?.trim()) attrs.engravingText = v.text.trim()
+  }
+  if (Object.keys(attrs).length > 0) {
+    item.serviceAttributes = attrs
+  }
+  return item
+}
+
 async function submitOrder() {
   let orderItems
   if (checkoutPreviewData.value?.items?.length) {
-    orderItems = checkoutPreviewData.value.items.map((i) => ({
-      skuId: i.skuId,
-      quantity: i.quantity,
-      relatedSkuId: i.relatedSkuId ?? null,
-    }))
+    orderItems = checkoutPreviewData.value.items.map(toOrderItem)
   } else if (checkoutItems.value?.length) {
-    orderItems = checkoutItems.value.map((i) => ({
-      skuId: i.skuId,
-      quantity: i.quantity || 1,
-      relatedSkuId: i.relatedSkuId ?? null,
-    }))
+    orderItems = checkoutItems.value.map(toOrderItem)
   } else if (checkoutItem.value?.skuId && checkoutItem.value?.quantity) {
-    orderItems = [{
-      skuId: checkoutItem.value.skuId,
-      quantity: checkoutItem.value.quantity,
-      relatedSkuId: checkoutItem.value.relatedSkuId ?? null,
-    }]
+    orderItems = [toOrderItem(checkoutItem.value)]
   } else {
     error.value = '商品信息不完整'
     return
@@ -329,6 +583,10 @@ async function submitOrder() {
   if (!userId.value) {
     error.value = '请先登录'
     router.push('/login')
+    return
+  }
+  if (engravingValidationError.value) {
+    error.value = '请完成镭雕内容填写（图案或文字至少选其一）'
     return
   }
 

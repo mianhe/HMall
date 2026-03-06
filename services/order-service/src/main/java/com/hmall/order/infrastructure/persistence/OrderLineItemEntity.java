@@ -37,6 +37,9 @@ public class OrderLineItemEntity {
     @Column(name = "spu_id")
     private Long spuId;
 
+    @Column(name = "service_attributes", length = 2048)
+    private String serviceAttributesJson;
+
     public OrderLineItemEntity() {}
 
     public Long getId() { return id; }
@@ -59,4 +62,6 @@ public class OrderLineItemEntity {
     public void setRelatedSkuId(Long relatedSkuId) { this.relatedSkuId = relatedSkuId; }
     public Long getSpuId() { return spuId; }
     public void setSpuId(Long spuId) { this.spuId = spuId; }
+    public String getServiceAttributesJson() { return serviceAttributesJson; }
+    public void setServiceAttributesJson(String serviceAttributesJson) { this.serviceAttributesJson = serviceAttributesJson; }
 }

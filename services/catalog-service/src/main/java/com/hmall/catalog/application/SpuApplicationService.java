@@ -20,13 +20,13 @@ public class SpuApplicationService {
     }
 
     @Transactional
-    public Spu create(Long categoryId, String name, String description, String productType) {
+    public Spu create(Long categoryId, String name, String description, String productType, String serviceKind) {
         var category = categoryRepository.findById(categoryId)
             .orElseThrow(() -> new IllegalArgumentException("类别不存在"));
         if (categoryRepository.existsByParentId(category.getId())) {
             throw new NotLeafCategoryException("仅叶子类别可挂商品");
         }
-        Spu spu = new Spu(categoryId, name, description, productType);
+        Spu spu = new Spu(categoryId, name, description, productType, serviceKind);
         return spuRepository.save(spu);
     }
 
@@ -47,11 +47,19 @@ public class SpuApplicationService {
     }
 
     @Transactional
-    public Spu update(Long id, String name, String description) {
+    public Spu update(Long id, String name, String description, Long categoryId) {
         Spu existing = spuRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("商品不存在"));
-        Spu updated = new Spu(existing.getId(), existing.getCategoryId(), name, description,
-            existing.getProductType());
+        Long newCategoryId = categoryId != null ? categoryId : existing.getCategoryId();
+        if (!newCategoryId.equals(existing.getCategoryId())) {
+            var category = categoryRepository.findById(newCategoryId)
+                .orElseThrow(() -> new IllegalArgumentException("类别不存在"));
+            if (categoryRepository.existsByParentId(category.getId())) {
+                throw new NotLeafCategoryException("仅叶子类别可挂商品");
+            }
+        }
+        Spu updated = new Spu(existing.getId(), newCategoryId, name, description,
+            existing.getProductType(), existing.getServiceKind());
         return spuRepository.save(updated);
     }
 

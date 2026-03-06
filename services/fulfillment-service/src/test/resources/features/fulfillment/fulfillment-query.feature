@@ -18,3 +18,10 @@
   场景: 履约单不存在时应返回 404
     当 按 fulfillmentOrderId 999999 查询履约单
     那么 应返回 404
+
+  场景: 查询含镭雕的履约单应返回 engravingInfo 和 engravingCompletedAt
+    假如 已存在含镭雕的 ALLOCATING 状态履约单 orderId 9022
+    当 按 fulfillmentOrderId 查询该履约单
+    那么 应返回 200
+    并且 返回结果应含 engravingInfo 图案 101 名称 "竹子" 文字 "刻名"
+    并且 返回结果 engravingCompletedAt 应为空

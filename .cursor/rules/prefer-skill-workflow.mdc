@@ -15,14 +15,16 @@ alwaysApply: true
 
 ## 常见映射
 
-- 缺陷修复/小范围行为调整：`fix-bug-or-adjust-feature`
+- 缺陷修复/小范围行为调整（含前端 bug、后端 bug、混合）：`fix-bug-or-adjust-feature`
 - BC 内新增或演进特性：`evolve-feature`
-- 前端页面/交互改动：`frontend-development`
+- 前端新增页面/新增功能（非 bug 修复）：`frontend-development`
 - 跨 BC 对接：`integration`
 - MCP 工具/资源改动：`mcp-development`
 - 新增/拆分 BC：`add-bounded-context` / `extract-bounded-context`
 - 需求分析或方案澄清：`analyze-requirement`
 - 业务需求交付编排/E2E 验收：`deliver-requirement`
+
+> **易混淆场景**：用户报告"某个功能不对/缺少/不生效"属于缺陷修复，走 `fix-bug-or-adjust-feature`；用户要求"加一个新页面/新功能"属于新增，走 `frontend-development` 或 `evolve-feature`。
 
 ## 例外
 

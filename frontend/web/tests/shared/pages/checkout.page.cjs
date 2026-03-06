@@ -37,6 +37,22 @@ class CheckoutPage {
     await expect(this.page).toHaveURL(/\/orders\/\d+/)
     await expect(this.page.getByText('订单号：')).toBeVisible()
   }
+
+  /** 断言结账页镭雕输入区可见（镭雕服务时必现） */
+  async assertEngravingFormVisible() {
+    await expect(this.page.getByText('镭雕内容')).toBeVisible()
+    await expect(this.page.getByPlaceholder('请输入雕刻文字')).toBeVisible()
+  }
+
+  /** 填写镭雕：选第一个图案（若有）或填文字 */
+  async fillEngravingContent() {
+    const patternBtn = this.page.locator('button').filter({ has: this.page.locator('img') }).first()
+    if (await patternBtn.count() > 0 && await patternBtn.isVisible()) {
+      await patternBtn.click()
+    } else {
+      await this.page.getByPlaceholder('请输入雕刻文字').fill('E2E测试镭雕')
+    }
+  }
 }
 
 module.exports = { CheckoutPage }

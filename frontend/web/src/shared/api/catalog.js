@@ -40,9 +40,22 @@ export async function getSkus(spuId) {
   return data
 }
 
+/** 按 ID 查 SKU 详情（含 spuId） */
+export async function getSku(skuId) {
+  const { data } = await client.get(`/skus/${skuId}`)
+  return data
+}
+
 /** 某实体商品的可选服务列表 */
 export async function getAvailableServices(spuId) {
   const { data } = await client.get(`/products/${spuId}/available-services`)
+  return data
+}
+
+/** 镭雕图案列表（enabled=true 仅返回启用的） */
+export async function getEngravingPatterns(enabled = null) {
+  const params = enabled != null ? { enabled } : {}
+  const { data } = await client.get('/engraving-patterns', { params })
   return data
 }
 

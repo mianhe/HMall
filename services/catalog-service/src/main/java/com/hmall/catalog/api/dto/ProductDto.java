@@ -8,6 +8,7 @@ public record ProductDto(
     String name,
     String description,
     String productType,
+    String serviceKind,
     String coverImageUrl,
     List<ProductImageDto> defaultDisplayImages
 ) {}

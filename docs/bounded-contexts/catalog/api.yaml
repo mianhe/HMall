@@ -717,6 +717,123 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  # ---------- 镭雕图案库（EngravingPattern） ----------
+  /api/engraving-patterns:
+    get:
+      summary: 查询镭雕图案列表
+      description: |
+        供选品/结账页使用。支持 enabled 过滤，不传则返回全部。
+        按 sortOrder 排序。
+      parameters:
+        - name: enabled
+          in: query
+          required: false
+          schema:
+            type: boolean
+            nullable: true
+          description: 不传或 null 返回全部；true 仅返回启用的
+      responses:
+        '200':
+          description: 图案列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EngravingPattern'
+    post:
+      summary: 创建镭雕图案
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EngravingPatternCreate'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EngravingPattern'
+        '400':
+          description: 业务校验失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/engraving-patterns/{id}:
+    get:
+      summary: 按 ID 查镭雕图案详情
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 图案详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EngravingPattern'
+        '404':
+          description: 图案不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: 修改镭雕图案
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EngravingPatternUpdate'
+      responses:
+        '200':
+          description: 修改成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EngravingPattern'
+        '404':
+          description: 图案不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: 删除镭雕图案
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 删除成功
+        '404':
+          description: 图案不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/products/{spuId}/available-services:
     get:
       summary: 查询某实体 SPU 的可选服务列表
@@ -1003,6 +1120,11 @@ components:
           type: string
           enum: [PHYSICAL, SERVICE]
           description: 商品类型，PHYSICAL 实体商品，SERVICE 服务类商品
+        serviceKind:
+          type: string
+          enum: [ENGRAVING, WARRANTY, INSURANCE, OTHER]
+          description: 服务分类，仅 SERVICE 类型有效；ENGRAVING=镭雕；null 或不传视为 OTHER
+          nullable: true
         coverImageUrl:
           type: string
           nullable: true
@@ -1029,6 +1151,11 @@ components:
           type: string
           enum: [PHYSICAL, SERVICE]
           description: 不指定时默认 PHYSICAL
+        serviceKind:
+          type: string
+          enum: [ENGRAVING, WARRANTY, INSURANCE, OTHER]
+          description: 服务分类，仅 SERVICE 类型有效；不传视为 OTHER
+          nullable: true
     ProductUpdate:
       type: object
       required: [name]
@@ -1038,6 +1165,11 @@ components:
         description:
           type: string
           nullable: true
+        categoryId:
+          type: integer
+          format: int64
+          nullable: true
+          description: 可选，传则修改所属类目（须为叶子类目），不传则保持原类目
     Error:
       type: object
       properties:
@@ -1234,6 +1366,10 @@ components:
         productType:
           type: string
           enum: [SERVICE]
+        serviceKind:
+          type: string
+          enum: [ENGRAVING, WARRANTY, INSURANCE, OTHER]
+          description: 服务分类，ENGRAVING=镭雕；默认 OTHER
         bindings:
           type: array
           description: 该服务 SPU 下已绑定到目标 SPU 的 SKU 列表（每项含 SKU 规格信息 + binding 售价）
@@ -1308,6 +1444,54 @@ components:
         displayName:
           type: string
           nullable: true
+    # ---------- 镭雕图案（EngravingPattern） ----------
+    EngravingPattern:
+      type: object
+      required: [id, name, imageUrl]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        imageUrl:
+          type: string
+        sortOrder:
+          type: integer
+          nullable: true
+        enabled:
+          type: boolean
+          default: true
+    EngravingPatternCreate:
+      type: object
+      required: [name, imageUrl]
+      properties:
+        name:
+          type: string
+        imageUrl:
+          type: string
+        sortOrder:
+          type: integer
+          nullable: true
+        enabled:
+          type: boolean
+          nullable: true
+          default: true
+    EngravingPatternUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        imageUrl:
+          type: string
+        sortOrder:
+          type: integer
+          nullable: true
+        enabled:
+          type: boolean
+          nullable: true
+
+    # ---------- SKU ----------
     SkuCreate:
       type: object
       required: [specOptionIds, priceCents]

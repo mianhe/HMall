@@ -123,9 +123,9 @@ end note
 | itemType | ItemType | 🔲 PHYSICAL / SERVICE，创建时从 Catalog SPU.productType 带入 |
 | relatedSkuId | Long | 🔲 SERVICE 类型关联的实体 SKU ID（随购时为同单实体 SKU；补购时为历史订单中的实体 SKU） |
 | spuId | Long | 🔲 SPU ID，创建时从 Catalog 快照（用于补购查询时 SKU→SPU 映射） |
-| serviceAttributes | Map | 增值服务（如 engravingText） |
+| serviceAttributes | Map | 增值服务；🔲 镭雕结构：engravingPatternId、engravingPatternName、engravingText（来自业务需求 [镭雕服务](../../business-requirements/laser-engraving/overview.md)） |
 
-**不变式**：quantity>0；unitPriceCents、totalPriceCents≥0；itemType 必填。
+**不变式**：quantity>0；unitPriceCents、totalPriceCents≥0；itemType 必填。🔲 镭雕：SERVICE 且 relatedSkuId 非空且 serviceAttributes 含镭雕字段时，至少 engravingPatternId 或 engravingText 其一非空；engravingText 长度 ≤20。
 
 > 🔲 itemType、relatedSkuId 来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)
 > 🔲 spuId、补购校验不变式来自业务需求 [保障服务补购](../../business-requirements/supplementary-purchase/overview.md)

@@ -6,6 +6,7 @@ const routes = [
   { path: '/products/:id', name: 'ProductDetail', component: () => import('../pages/ProductDetailPage.vue'), meta: { title: '商品详情' } },
   { path: '/inventory', name: 'Inventory', component: () => import('../pages/InventoryPage.vue'), meta: { title: '库存管理' } },
   { path: '/fulfillment', name: 'Fulfillment', component: () => import('../pages/FulfillmentPage.vue'), meta: { title: '履约管理' } },
+  { path: '/engraving-patterns', name: 'EngravingPatterns', component: () => import('../pages/EngravingPatternPage.vue'), meta: { title: '镭雕图案库' } },
   { path: '/activity', name: 'Activity', component: () => import('../pages/ActivityPage.vue'), meta: { title: '活动监控' } },
   { path: '/events', name: 'Events', component: () => import('../pages/EventsPage.vue'), meta: { title: '事件' } },
   { path: '/events/journey/:orderId?', redirect: '/events' },

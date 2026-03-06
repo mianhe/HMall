@@ -24,6 +24,7 @@
 | `/products/:id` | ProductDetailPage | 商品详情：基础信息、维度与选项、产品级展示图、各选项展示图；**上传**产品级或选项级图片；删除展示图；返回 Catalog | `GET /api/products/:id`、`/dimensions`、`/images`；`POST /api/files/upload`、`POST /api/products/:id/images`、`DELETE ...` |
 | `/inventory` | InventoryPage | 库存管理：平铺表格展示（一级类别、二级子类别、产品、SKU 名称、可用、已占用、操作）；过滤（一级类别、二级子类别、产品名称）；库存直接修改（PUT） | `GET /api/categories`、`GET /api/products`、`GET /api/products/{id}/skus`、`GET/PUT /api/inventory/stock/{skuId}` |
 | `/fulfillment` | FulfillmentPage | 履约管理：列表展示履约单（履约单ID、订单ID、状态、商品摘要、收货人、地址、承运商、物流单号、发货/签收时间、创建时间、操作）；过滤（订单ID、状态）；按状态操作（开始配货、发货、签收） | Fulfillment API |
+| `/engraving-patterns` | EngravingPatternPage | 镭雕图案库：列表展示图案（ID、缩略图、名称、排序、启用状态、操作）；过滤（启用状态）；新增/编辑/删除图案；图片上传或手动输入 URL | `GET/POST /api/engraving-patterns`、`GET/PUT/DELETE /api/engraving-patterns/{id}`、`POST /api/files/upload` |
 | `/activity` | ActivityPage | 活动监控仪表盘：统计卡片 + 最近事件流水 | `GET /api/activities/stats`、`GET /api/activities/recent` |
 | `/activity/journey/:orderId?` | OrderJourneyPage | 订单旅程回放：按 BC 分组的事件时间线，展示交易全生命周期与 Saga 补偿路径 | `GET /api/activities?orderId={id}` |
 | `/settings` | SettingsPage | 系统设置：按分类展示配置项（当前含「支付设置」） | `GET/PUT /api/payments/settings` |
@@ -34,7 +35,7 @@
 - **树形展示**（`CatalogTree` / `CatalogTreeNode`），只读。
 - **刷新按钮**：重新请求并渲染整棵树。
 - **错误与空态**：请求失败显示错误信息（含 5xx 重试与友好提示）；无数据时提示「暂无数据，请通过 MCP 添加类目与商品」。
-- **商品类型标签**：商品名称旁显示 `productType` Badge（PHYSICAL 灰色、SERVICE 蓝色）。
+- **商品类型标签**：商品名称旁显示 `productType` Badge（PHYSICAL 灰色、SERVICE 蓝色）；SERVICE 且 `serviceKind=ENGRAVING` 时显示「镭雕」Badge。
 
 | 层级 | 展示内容 |
 |------|----------|
@@ -136,6 +137,7 @@ AI Chat 以全局 Drawer 形式存在，从右侧滑出，所有路由页面共�
 | 商品详情 | AppHeader + 面包屑 + 基础信息区 + 维度与选项区（含展示图）+ 产品级展示图区 |
 | 库存管理 | AppHeader + 过滤栏（类别级联 + 关键词）+ 平铺表格（名称、可用、已占用、操作） |
 | 履约管理 | AppHeader + 过滤栏 + 履约单表格 + 操作按钮 |
+| 镭雕图案库 | AppHeader + 过滤栏（启用状态）+ 图案表格（缩略图、名称、排序、状态、操作）+ 新增/编辑弹窗 |
 | 活动监控 | AppHeader + 时间范围选择器（pill tabs + 日期）+ 统计卡片组 + 最近活动表格 + 订单旅程入口 |
 | 订单旅程 | AppHeader + 面包屑 + 顶部概要卡片 + 分组垂直时间线（BC 彩色 badge、事件详情可展开） |
 | 系统设置 | AppHeader + 分类卡片（支付设置：输入框 + 保存按钮） |

@@ -13,12 +13,14 @@ public final class ProductApiDto {
         public String name;
         public String description;
         public String productType;
+        public String serviceKind;
     }
 
     /** 修改商品请求体 */
     public static class Update {
         public String name;
         public String description;
+        public Long categoryId;
     }
 
     /** 商品响应体 */
@@ -28,6 +30,7 @@ public final class ProductApiDto {
         public String name;
         public String description;
         public String productType;
+        public String serviceKind;
         public String coverImageUrl;
         public List<ProductImageItem> defaultDisplayImages;
     }

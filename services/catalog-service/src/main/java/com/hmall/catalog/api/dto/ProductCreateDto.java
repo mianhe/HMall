@@ -4,5 +4,6 @@ public record ProductCreateDto(
     Long categoryId,
     String name,
     String description,
-    String productType
+    String productType,
+    String serviceKind
 ) {}

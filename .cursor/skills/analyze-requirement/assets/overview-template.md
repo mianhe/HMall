@@ -15,6 +15,7 @@ overview.md 由四个章节组成，分别对应 Phase A 的四个步骤：
 | **二、场景分析（事件流）** | Step 2 | 各场景按深度展开，设计决策内联 |
 | **三、变更分析** | Step 3 | 按 BC 分组的详细变更规格 + BC 间数据流 |
 | **四、迭代计划** | Step 4 | 可独立验收的迭代拆分 |
+| **交付跟踪** | `deliver-requirement` | 按迭代记录工作项执行状态（由交付 Skill 写入） |
 
 ---
 
@@ -187,3 +188,44 @@ overview.md 由四个章节组成，分别对应 Phase A 的四个步骤：
 **前端**：`frontend/admin` 图案库管理页。
 **验收**：Admin 可配图案；`GET /api/engraving-patterns` 返回图案列表。
 ```
+
+---
+
+## 交付跟踪
+
+交付跟踪章节由 `deliver-requirement` Skill 在执行交付时创建和维护。`analyze-requirement` **不写入此章节**，仅在模板中预留位置。
+
+### 格式约定
+
+- 按迭代分组，标题格式 `### 迭代 N：<名称> [✅]`（完成后加 ✅）
+- 每个迭代一张工作项跟踪表
+- 迭代完成后附**交付日期**和**下一迭代指引**
+
+```markdown
+## 交付跟踪
+
+### 迭代 0：图案库（Catalog） ✅
+
+| # | 工作项 | Skill | 状态 | 说明 |
+|---|--------|-------|------|------|
+| 1 | Catalog: EngravingPattern 域对象 + API | evolve-feature | ✅ 完成 | 6 scenario 全绿 |
+| 2 | frontend/admin: 图案库管理页 | frontend-development | ✅ 完成 | 路由 + CRUD |
+| 3 | E2E 交付门禁 | deliver-requirement | ✅ 完成 | Smoke P0 通过 |
+
+**交付日期**：2026-03-04
+**下一迭代**：迭代 1（xxx），前置依赖：yyy
+```
+
+### 状态标记
+
+| 标记 | 含义 |
+|------|------|
+| ⬜ 待执行 | 尚未开始 |
+| 🔄 进行中 | 正在执行 |
+| ✅ 完成 | 已完成 |
+
+### 与迭代计划的关系
+
+- **迭代计划**（第四章）由 `analyze-requirement` 写入，定义"做什么"
+- **交付跟踪**由 `deliver-requirement` 写入，记录"做到哪了"
+- 迭代计划中的迭代标题在交付完成后也应加 `✅ 已完成` 标记

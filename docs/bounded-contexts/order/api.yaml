@@ -176,7 +176,23 @@ components:
         relatedSkuId:
           type: integer
           format: int64
-          description: 补购时关联的实体 SKU ID
+          description: 补购/随购时关联的实体 SKU ID
+        serviceAttributes:
+          type: object
+          description: 镭雕等增值服务内容。镭雕结构：engravingPatternId、engravingPatternName、engravingText；至少 engravingPatternId 或 engravingText 其一非空；engravingText ≤20 字
+          properties:
+            engravingPatternId:
+              type: integer
+              format: int64
+              nullable: true
+            engravingPatternName:
+              type: string
+              nullable: true
+              description: 图案名称快照，展示用
+            engravingText:
+              type: string
+              maxLength: 20
+              nullable: true
     PurchasableService:
       type: object
       properties:
@@ -250,6 +266,19 @@ components:
           format: int64
         displayName:
           type: string
+        itemType:
+          type: string
+          enum: [PHYSICAL, SERVICE]
+          description: 商品类型
+        relatedSkuId:
+          type: integer
+          format: int64
+          nullable: true
+          description: SERVICE 类型关联的实体 SKU
+        serviceAttributes:
+          type: object
+          nullable: true
+          description: 镭雕等增值服务内容（engravingPatternId、engravingPatternName、engravingText）
     OrderListPage:
       type: object
       required: [content, totalElements]

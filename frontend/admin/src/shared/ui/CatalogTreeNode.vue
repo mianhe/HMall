@@ -53,7 +53,10 @@
             v-else
             class="ml-2 px-1.5 py-0.5 text-xs rounded bg-gray-100 text-gray-500"
           >PHYSICAL</span>
-          
+          <span
+            v-if="product.serviceKind === 'ENGRAVING'"
+            class="ml-2 px-1.5 py-0.5 text-xs rounded bg-amber-50 text-amber-700"
+          >镭雕</span>
           <span v-if="product.description" class="ml-2 text-sm text-vmall-gray-text">{{ product.description }}</span>
         </div>
 

@@ -34,6 +34,7 @@ public class EventMetadataRegistry {
         register(EventMetadata.normal("FulfillmentShipped", "Fulfillment", "已发货"));
         register(EventMetadata.normal("FulfillmentDelivered", "Fulfillment", "已签收"));
         register(EventMetadata.normal("ServiceActivated", "Fulfillment", "服务已激活"));
+        register(EventMetadata.normal("EngravingCompleted", "Fulfillment", "镭雕已完成"));
     }
 
     private static void register(EventMetadata metadata) {

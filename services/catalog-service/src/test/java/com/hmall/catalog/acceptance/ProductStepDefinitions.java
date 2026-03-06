@@ -343,6 +343,28 @@ public class ProductStepDefinitions {
         context.setLastStatusCode(lastUpdateProductResponse.getStatusCode().value());
     }
 
+    @When("用户将商品 {string} 的类目修改为 {string}")
+    public void 用户将商品的类目修改为(String productName, String newCategoryName) {
+        Long id = productNameToId.get(productName);
+        assertThat(id).as("商品「%s」应先存在", productName).isNotNull();
+        Long categoryId = categoryNameToId.get(newCategoryName);
+        assertThat(categoryId).as("类目「%s」应先存在", newCategoryName).isNotNull();
+        ProductApiDto.Update body = new ProductApiDto.Update();
+        body.name = productName;
+        body.description = null;
+        body.categoryId = categoryId;
+        lastUpdateProductResponse = putProduct(id, body);
+        context.setLastStatusCode(lastUpdateProductResponse.getStatusCode().value());
+    }
+
+    @And("返回的商品所属类别为 {string}")
+    public void 返回的商品所属类别为(String categoryName) {
+        Long expectedCategoryId = categoryNameToId.get(categoryName);
+        ProductApiDto.Response body = lastProductBody();
+        assertThat(body).isNotNull();
+        assertThat(body.categoryId).isEqualTo(expectedCategoryId);
+    }
+
     // ---------- 删除商品 ----------
     @When("用户删除该商品")
     public void 用户删除该商品() {

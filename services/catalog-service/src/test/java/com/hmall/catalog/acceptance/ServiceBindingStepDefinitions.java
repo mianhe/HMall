@@ -75,6 +75,21 @@ public class ServiceBindingStepDefinitions {
         context.setLastProductName(name);
     }
 
+    @Given("已存在镭雕服务商品 {string} 属于类目 {string}")
+    public void 已存在镭雕服务商品属于类目(String name, String categoryName) {
+        Long categoryId = ensureCategory(categoryName);
+        ProductApiDto.Create body = new ProductApiDto.Create();
+        body.categoryId = categoryId;
+        body.name = name;
+        body.productType = "SERVICE";
+        body.serviceKind = "ENGRAVING";
+        ResponseEntity<ProductApiDto.Response> res = postProduct(body);
+        assertThat(res.getStatusCode().value()).isEqualTo(201);
+        productNameToId.put(name, res.getBody().id);
+        context.putSpuId(name, res.getBody().id);
+        context.setLastProductName(name);
+    }
+
     @Given("服务商品 {string} 有规格维度 {string} 选项 {string}")
     public void 服务商品有规格维度选项(String productName, String dimensionName, String optionValue) {
         Long spuId = resolveSpuId(productName);
@@ -177,6 +192,25 @@ public class ServiceBindingStepDefinitions {
         body.name = name;
         body.description = desc;
         body.productType = "SERVICE";
+        ResponseEntity<ProductApiDto.Response> res = postProduct(body);
+        context.setLastStatusCode(res.getStatusCode().value());
+        if (res.getStatusCode().is2xxSuccessful() && res.getBody() != null) {
+            productNameToId.put(name, res.getBody().id);
+            context.putSpuId(name, res.getBody().id);
+            context.setLastProductName(name);
+        }
+        lastProductCreateResponse = res;
+    }
+
+    @When("用户在类目 {string} 下创建镭雕服务商品 {string} 描述 {string}")
+    public void 用户在类目下创建镭雕服务商品(String categoryName, String name, String desc) {
+        Long categoryId = ensureCategory(categoryName);
+        ProductApiDto.Create body = new ProductApiDto.Create();
+        body.categoryId = categoryId;
+        body.name = name;
+        body.description = desc;
+        body.productType = "SERVICE";
+        body.serviceKind = "ENGRAVING";
         ResponseEntity<ProductApiDto.Response> res = postProduct(body);
         context.setLastStatusCode(res.getStatusCode().value());
         if (res.getStatusCode().is2xxSuccessful() && res.getBody() != null) {
@@ -335,6 +369,26 @@ public class ServiceBindingStepDefinitions {
     }
 
     // ---------- Then: productType 相关断言 ----------
+
+    @Then("镭雕服务商品应创建成功")
+    public void 镭雕服务商品应创建成功() {
+        assertThat(lastProductCreateResponse).isNotNull();
+        assertThat(lastProductCreateResponse.getStatusCode().value()).isEqualTo(201);
+        assertThat(lastProductCreateResponse.getBody()).isNotNull();
+    }
+
+    @And("返回的 serviceKind 为 {string}")
+    public void 返回的serviceKind为(String expectedKind) {
+        ProductApiDto.Response body = lastProductBody();
+        assertThat(body).isNotNull();
+        assertThat(body.serviceKind).isEqualTo(expectedKind);
+    }
+
+    @And("可选服务 {string} 的 serviceKind 为 {string}")
+    public void 可选服务的serviceKind为(String serviceName, String expectedKind) {
+        ServiceBindingApiDto.AvailableService svc = findAvailableService(serviceName);
+        assertThat(svc.serviceKind).as("服务「%s」的 serviceKind", serviceName).isEqualTo(expectedKind);
+    }
 
     @And("返回的 productType 为 {string}")
     public void 返回的productType为(String expectedType) {

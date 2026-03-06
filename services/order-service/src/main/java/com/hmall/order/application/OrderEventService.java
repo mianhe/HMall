@@ -49,7 +49,9 @@ public class OrderEventService {
         });
 
         List<CreateFulfillmentPort.ItemQuantity> items = order.getItems().stream()
-                .map(li -> new CreateFulfillmentPort.ItemQuantity(li.getSkuId(), li.getQuantity(), li.getItemType().name()))
+                .map(li -> new CreateFulfillmentPort.ItemQuantity(
+                    li.getSkuId(), li.getQuantity(), li.getItemType().name(),
+                    li.getRelatedSkuId(), li.getServiceAttributes()))
                 .toList();
         CreateFulfillmentPort.ShippingAddress addr = new CreateFulfillmentPort.ShippingAddress(
                 order.getShippingAddress().recipientName(),

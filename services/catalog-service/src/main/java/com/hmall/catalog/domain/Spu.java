@@ -13,23 +13,27 @@ public class Spu {
     private final String name;
     private final String description;
     private final String productType;
+    /** 服务分类：ENGRAVING=镭雕，WARRANTY=延保，INSURANCE=碎屏险等，OTHER=其他；仅 SERVICE 类型有效，null 视为 OTHER */
+    private final String serviceKind;
 
     /** 新建（尚未持久化，id 为 null） */
-    public Spu(Long categoryId, String name, String description, String productType) {
+    public Spu(Long categoryId, String name, String description, String productType, String serviceKind) {
         this.id = null;
         this.categoryId = Objects.requireNonNull(categoryId, "categoryId");
         this.name = Objects.requireNonNull(name, "name");
         this.description = description;
         this.productType = productType != null ? productType : "PHYSICAL";
+        this.serviceKind = (serviceKind != null && !serviceKind.isBlank()) ? serviceKind : "OTHER";
     }
 
     /** 从持久化还原 */
-    public Spu(Long id, Long categoryId, String name, String description, String productType) {
+    public Spu(Long id, Long categoryId, String name, String description, String productType, String serviceKind) {
         this.id = Objects.requireNonNull(id, "id");
         this.categoryId = Objects.requireNonNull(categoryId, "categoryId");
         this.name = Objects.requireNonNull(name, "name");
         this.description = description;
         this.productType = productType != null ? productType : "PHYSICAL";
+        this.serviceKind = (serviceKind != null && !serviceKind.isBlank()) ? serviceKind : "OTHER";
     }
 
     public Long getId() { return id; }
@@ -37,4 +41,5 @@ public class Spu {
     public String getName() { return name; }
     public String getDescription() { return description; }
     public String getProductType() { return productType; }
+    public String getServiceKind() { return serviceKind; }
 }

@@ -22,6 +22,10 @@
             v-else
             class="px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-500 font-medium"
           >PHYSICAL</span>
+          <span
+            v-if="product.serviceKind === 'ENGRAVING'"
+            class="px-2 py-0.5 text-xs rounded bg-amber-50 text-amber-700 font-medium"
+          >镭雕</span>
         </div>
         <p v-if="product.description" class="text-vmall-gray-text mb-6">{{ product.description }}</p>
         <p v-else class="text-vmall-gray-text mb-6">—</p>

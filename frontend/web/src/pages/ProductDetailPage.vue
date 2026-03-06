@@ -80,9 +80,9 @@
             当前商品暂无规格维度，默认展示首个 SKU 价格。
           </p>
 
-          <!-- 保障服务：默认不选，点击选中/取消 -->
+          <!-- 保障服务 / 镭雕服务：默认不选，点击选中/取消 -->
           <div v-if="serviceOptions.length" class="mt-6">
-            <p class="text-sm font-medium text-gray-700 mb-3">保障服务</p>
+            <p class="text-sm font-medium text-gray-700 mb-3">增值服务</p>
             <div class="flex flex-wrap gap-2">
               <button
                 v-for="option in serviceOptions"
@@ -97,19 +97,63 @@
                 {{ option.label }} ￥{{ (option.priceCents / 100).toFixed(0) }}
               </button>
             </div>
+            <!-- 镭雕内容：选图案或填文字（≤20 字），至少选其一 -->
+            <div v-if="selectedEngravingOption" class="mt-4 p-4 rounded-lg border border-vmall-gray-border bg-gray-50/50">
+              <p class="text-sm font-medium text-gray-700 mb-3">镭雕内容（图案或文字至少选其一，文字≤20字）</p>
+              <div class="space-y-3">
+                <div>
+                  <p class="text-xs text-vmall-gray-text mb-2">选择图案</p>
+                  <div class="flex flex-wrap gap-2">
+                    <button
+                      v-for="p in engravingPatterns"
+                      :key="p.id"
+                      type="button"
+                      class="shrink-0 w-14 h-14 rounded border-2 overflow-hidden transition-colors"
+                      :class="selectedEngravingPatternId === p.id
+                        ? 'border-vmall-red ring-1 ring-vmall-red'
+                        : 'border-vmall-gray-border hover:border-vmall-red'"
+                      @click="selectEngravingPattern(p)"
+                    >
+                      <img :src="p.imageUrl" :alt="p.name" class="w-full h-full object-cover" />
+                    </button>
+                    <button
+                      v-if="engravingPatterns.length"
+                      type="button"
+                      class="shrink-0 w-14 h-14 rounded border-2 border-dashed border-vmall-gray-border text-vmall-gray-text text-xs hover:border-vmall-red"
+                      :class="selectedEngravingPatternId === null ? 'border-vmall-red ring-1 ring-vmall-red' : ''"
+                      @click="selectedEngravingPatternId = null; selectedEngravingPatternName = null"
+                    >
+                      不选
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <p class="text-xs text-vmall-gray-text mb-1">自定义文字（可选，≤20字）</p>
+                  <input
+                    v-model="engravingText"
+                    type="text"
+                    maxlength="20"
+                    placeholder="请输入雕刻文字"
+                    class="w-full max-w-xs px-3 py-2 rounded border border-vmall-gray-border text-sm focus:border-vmall-red focus:ring-1 focus:ring-vmall-red outline-none"
+                  />
+                  <span class="ml-2 text-xs text-vmall-gray-text">{{ engravingText.length }}/20</span>
+                </div>
+                <p v-if="engravingValidationError" class="text-sm text-red-600">{{ engravingValidationError }}</p>
+              </div>
+            </div>
           </div>
 
           <!-- 立即购买 / 加入购物车 -->
           <div class="mt-6 flex flex-wrap gap-3 items-center">
             <button
-              :disabled="!matchedSku"
+              :disabled="!matchedSku || (selectedEngravingOption && !!engravingValidationError)"
               @click="goCheckout"
               class="px-8 py-3 rounded-lg bg-vmall-red text-white font-medium hover:bg-vmall-red-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               立即购买
             </button>
             <button
-              :disabled="!matchedSku || addingToCart"
+              :disabled="!matchedSku || addingToCart || (selectedEngravingOption && !!engravingValidationError)"
               @click="addToCart"
               class="px-8 py-3 rounded-lg border-2 border-vmall-red text-vmall-red font-medium hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
@@ -157,9 +201,10 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getProduct, getDimensions, getSkus, getAvailableServices } from '../shared/api/catalog.js'
+import { getProduct, getDimensions, getSkus, getAvailableServices, getEngravingPatterns } from '../shared/api/catalog.js'
 import { addCartItem } from '../shared/api/cart.js'
 import { useAuth } from '../shared/auth.js'
+import { isEngravingService, buildEngravingAttributes, validateEngravingContent } from '../shared/utils/engraving.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -231,6 +276,7 @@ const matchedSku = computed(() => {
 const serviceOptions = computed(() => {
   return availableServices.value.flatMap((svc) => {
     if (!svc.bindings?.length) return []
+    const isEngraving = isEngravingService(svc)
     return svc.bindings.map((binding) => {
       const spec = bindingSpecDisplay(binding)
       return {
@@ -238,9 +284,27 @@ const serviceOptions = computed(() => {
         serviceSkuId: binding.serviceSkuId,
         priceCents: binding.priceCents,
         label: spec ? `${svc.name}（${spec}）` : svc.name,
+        serviceKind: svc.serviceKind || 'OTHER',
+        isEngraving,
       }
     })
   })
+})
+
+/** 当前选中的服务是否为镭雕（需展示图案+文字） */
+const selectedEngravingOption = computed(() => {
+  const opt = selectedServiceOption.value
+  return opt?.isEngraving ? opt : null
+})
+
+const engravingPatterns = ref([])
+const selectedEngravingPatternId = ref(null)
+const selectedEngravingPatternName = ref(null)
+const engravingText = ref('')
+
+const engravingValidationError = computed(() => {
+  if (!selectedEngravingOption.value) return ''
+  return validateEngravingContent(selectedEngravingPatternId.value, engravingText.value)
 })
 
 function selectOption(dim, opt) {
@@ -257,7 +321,18 @@ function bindingSpecDisplay(binding) {
 }
 
 function toggleService(option) {
-  selectedServiceKey.value = selectedServiceKey.value === option.key ? null : option.key
+  const wasSame = selectedServiceKey.value === option.key
+  selectedServiceKey.value = wasSame ? null : option.key
+  if (wasSame || !option.isEngraving) {
+    selectedEngravingPatternId.value = null
+    selectedEngravingPatternName.value = null
+    engravingText.value = ''
+  }
+}
+
+function selectEngravingPattern(p) {
+  selectedEngravingPatternId.value = p.id
+  selectedEngravingPatternName.value = p.name
 }
 
 const selectedServiceOption = computed(() => {
@@ -273,6 +348,7 @@ function goCheckout() {
     router.push({ path: '/login', query: { redirect: `/products/${id.value}` } })
     return
   }
+  if (selectedEngravingOption.value && engravingValidationError.value) return
   const items = [
     {
       skuId: sku.id,
@@ -284,13 +360,21 @@ function goCheckout() {
     },
   ]
   if (selectedServiceOption.value) {
-    items.push({
-      skuId: selectedServiceOption.value.serviceSkuId,
+    const svc = selectedServiceOption.value
+    const item = {
+      skuId: svc.serviceSkuId,
       quantity: 1,
-      unitPriceCents: selectedServiceOption.value.priceCents,
-      productName: selectedServiceOption.value.label,
+      unitPriceCents: svc.priceCents,
+      productName: svc.label,
       relatedSkuId: sku.id,
-    })
+    }
+    if (svc.isEngraving) {
+      const attrs = buildEngravingAttributes(
+        selectedEngravingPatternId.value, selectedEngravingPatternName.value, engravingText.value
+      )
+      if (attrs) item.serviceAttributes = attrs
+    }
+    items.push(item)
   }
   router.push({
     path: '/checkout',
@@ -336,7 +420,11 @@ async function load() {
   skus.value = []
   availableServices.value = []
   selectedOptionIds.value = {}
-    selectedServiceKey.value = null
+  selectedServiceKey.value = null
+  selectedEngravingPatternId.value = null
+  selectedEngravingPatternName.value = null
+  engravingText.value = ''
+  engravingPatterns.value = []
   currentImageIndex.value = 0
   try {
     const [p, dims, skuList] = await Promise.all([
@@ -349,6 +437,14 @@ async function load() {
     skus.value = skuList?.length ? skuList : []
     if (p.productType !== 'SERVICE') {
       availableServices.value = await getAvailableServices(id.value).catch(() => [])
+      const hasEngraving = availableServices.value.some(isEngravingService)
+      if (hasEngraving) {
+        engravingPatterns.value = await getEngravingPatterns(true).catch(() => [])
+      } else {
+        engravingPatterns.value = []
+      }
+    } else {
+      engravingPatterns.value = []
     }
   } catch (e) {
     error.value = e.response?.data?.message || e.message || '加载失败'

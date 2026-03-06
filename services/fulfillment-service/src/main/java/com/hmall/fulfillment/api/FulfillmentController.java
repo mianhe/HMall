@@ -8,6 +8,7 @@ import com.hmall.fulfillment.api.dto.FulfillmentOrderDto;
 import com.hmall.fulfillment.api.dto.ShipRequestDto;
 import com.hmall.fulfillment.application.FulfillmentAllocateApplicationService;
 import com.hmall.fulfillment.application.FulfillmentCancelApplicationService;
+import com.hmall.fulfillment.application.FulfillmentCompleteEngravingApplicationService;
 import com.hmall.fulfillment.application.FulfillmentCancelApplicationService.CancelResult;
 import com.hmall.fulfillment.application.FulfillmentCreateApplicationService;
 import com.hmall.fulfillment.application.FulfillmentCreateApplicationService.CreateFulfillmentItem;
@@ -35,6 +36,7 @@ public class FulfillmentController {
 
     private final FulfillmentCreateApplicationService createService;
     private final FulfillmentAllocateApplicationService allocateService;
+    private final FulfillmentCompleteEngravingApplicationService completeEngravingService;
     private final FulfillmentShipApplicationService shipService;
     private final FulfillmentDeliverApplicationService deliverService;
     private final FulfillmentCancelApplicationService cancelService;
@@ -42,12 +44,14 @@ public class FulfillmentController {
 
     public FulfillmentController(FulfillmentCreateApplicationService createService,
                                 FulfillmentAllocateApplicationService allocateService,
+                                FulfillmentCompleteEngravingApplicationService completeEngravingService,
                                 FulfillmentShipApplicationService shipService,
                                 FulfillmentDeliverApplicationService deliverService,
                                 FulfillmentCancelApplicationService cancelService,
                                 FulfillmentQueryApplicationService queryService) {
         this.createService = createService;
         this.allocateService = allocateService;
+        this.completeEngravingService = completeEngravingService;
         this.shipService = shipService;
         this.deliverService = deliverService;
         this.cancelService = cancelService;
@@ -63,7 +67,7 @@ public class FulfillmentController {
     public ResponseEntity<CreateFulfillmentResponseDto> create(
             @Valid @RequestBody CreateFulfillmentRequestDto dto) {
         var items = dto.items().stream()
-            .map(i -> new CreateFulfillmentItem(i.skuId(), i.quantity(), i.itemType()))
+            .map(i -> new CreateFulfillmentItem(i.skuId(), i.quantity(), i.itemType(), i.relatedSkuId(), i.serviceAttributes()))
             .toList();
         var address = new CreateShippingAddress(
             dto.shippingAddress().recipientName(), dto.shippingAddress().phone(),
@@ -77,6 +81,12 @@ public class FulfillmentController {
     @PostMapping("/{fulfillmentOrderId}/allocate")
     public ResponseEntity<Void> allocate(@PathVariable Long fulfillmentOrderId) {
         allocateService.allocate(fulfillmentOrderId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{fulfillmentOrderId}/complete-engraving")
+    public ResponseEntity<Void> completeEngraving(@PathVariable Long fulfillmentOrderId) {
+        completeEngravingService.completeEngraving(fulfillmentOrderId);
         return ResponseEntity.ok().build();
     }
 

@@ -14,6 +14,7 @@ import com.hmall.catalog.acceptance.DatabaseResetHook;
 import com.hmall.catalog.acceptance.ProductStepDefinitions;
 import com.hmall.catalog.acceptance.SpecDimensionStepDefinitions;
 import com.hmall.catalog.acceptance.SkuStepDefinitions;
+import com.hmall.catalog.acceptance.EngravingPatternStepDefinitions;
 import com.hmall.catalog.infrastructure.persistence.CategoryJpaRepository;
 import com.hmall.catalog.infrastructure.persistence.SpuJpaRepository;
 
@@ -76,9 +77,18 @@ public class AcceptanceTestConfig {
 
     @Bean
     @Primary
+    public EngravingPatternStepDefinitions engravingPatternStepDefinitions(
+            TestRestTemplate testRestTemplate,
+            CatalogTestContext catalogTestContext) {
+        return new EngravingPatternStepDefinitions(testRestTemplate, catalogTestContext);
+    }
+
+    @Bean
+    @Primary
     public DatabaseResetHook databaseResetHook(
             SpuJpaRepository spuJpaRepository,
-            CategoryJpaRepository categoryJpaRepository) {
-        return new DatabaseResetHook(spuJpaRepository, categoryJpaRepository);
+            CategoryJpaRepository categoryJpaRepository,
+            com.hmall.catalog.infrastructure.persistence.EngravingPatternJpaRepository engravingPatternJpaRepository) {
+        return new DatabaseResetHook(spuJpaRepository, categoryJpaRepository, engravingPatternJpaRepository);
     }
 }

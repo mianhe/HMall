@@ -40,7 +40,7 @@ public class RestCreateFulfillmentAdapter implements CreateFulfillmentPort {
         CreateRequest request = new CreateRequest(
                 orderId,
                 items.stream()
-                        .map(iq -> new ItemRequest(iq.skuId(), iq.quantity(), iq.itemType()))
+                        .map(iq -> new ItemRequest(iq.skuId(), iq.quantity(), iq.itemType(), iq.relatedSkuId(), iq.serviceAttributes()))
                         .toList(),
                 new AddressRequest(
                         shippingAddress.recipientName(), shippingAddress.phone(),
@@ -69,7 +69,7 @@ public class RestCreateFulfillmentAdapter implements CreateFulfillmentPort {
     private record CreateRequest(Long orderId, List<ItemRequest> items,
                                   AddressRequest shippingAddress) {}
 
-    private record ItemRequest(long skuId, int quantity, String itemType) {}
+    private record ItemRequest(long skuId, int quantity, String itemType, Long relatedSkuId, java.util.Map<String, Object> serviceAttributes) {}
 
     private record AddressRequest(String recipientName, String phone,
                                    String province, String city,

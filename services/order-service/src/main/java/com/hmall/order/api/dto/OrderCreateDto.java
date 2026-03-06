@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
 import java.util.List;
+import java.util.Map;
 
 public record OrderCreateDto(
     @NotNull Long userId,
@@ -15,7 +16,8 @@ public record OrderCreateDto(
     public record LineItemCreateDto(
         @NotNull Long skuId,
         @NotNull Integer quantity,
-        Long relatedSkuId
+        Long relatedSkuId,
+        Map<String, Object> serviceAttributes
     ) {}
 
     public record ShippingAddressDto(

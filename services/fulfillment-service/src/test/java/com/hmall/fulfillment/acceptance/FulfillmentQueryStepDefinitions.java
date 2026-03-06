@@ -63,6 +63,25 @@ public class FulfillmentQueryStepDefinitions {
         assertThat(body.get("shippingAddress")).isNotNull();
     }
 
+    @并且("返回结果应含 engravingInfo 图案 {long} 名称 {string} 文字 {string}")
+    public void 返回结果应含engravingInfo(long patternId, String patternName, String text) {
+        Map<String, Object> body = context.getLastResponseBody();
+        assertThat(body).isNotNull();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> engravingInfo = (Map<String, Object>) body.get("engravingInfo");
+        assertThat(engravingInfo).isNotNull();
+        assertThat(((Number) engravingInfo.get("patternId")).longValue()).isEqualTo(patternId);
+        assertThat(engravingInfo.get("patternName")).isEqualTo(patternName);
+        assertThat(engravingInfo.get("text")).isEqualTo(text);
+    }
+
+    @并且("返回结果 engravingCompletedAt 应为空")
+    public void 返回结果engravingCompletedAt应为空() {
+        Map<String, Object> body = context.getLastResponseBody();
+        assertThat(body).isNotNull();
+        assertThat(body.get("engravingCompletedAt")).isNull();
+    }
+
     @并且("返回结果包含该 orderId 的所有履约单")
     public void 返回结果包含该orderId的所有履约单() {
         Map<String, Object> body = context.getLastResponseBody();

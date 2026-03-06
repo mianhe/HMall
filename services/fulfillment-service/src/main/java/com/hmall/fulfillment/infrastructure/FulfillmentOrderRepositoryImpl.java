@@ -1,5 +1,6 @@
 package com.hmall.fulfillment.infrastructure;
 
+import com.hmall.fulfillment.domain.EngravingInfo;
 import com.hmall.fulfillment.domain.FulfillmentItem;
 import com.hmall.fulfillment.domain.FulfillmentOrder;
 import com.hmall.fulfillment.domain.FulfillmentOrderRepository;
@@ -65,6 +66,12 @@ public class FulfillmentOrderRepositoryImpl implements FulfillmentOrderRepositor
             e.setShippedAt(domain.getShippingInfo().getShippedAt());
             e.setDeliveredAt(domain.getShippingInfo().getDeliveredAt());
         }
+        if (domain.getEngravingInfo() != null) {
+            e.setEngravingPatternId(domain.getEngravingInfo().getPatternId());
+            e.setEngravingPatternName(domain.getEngravingInfo().getPatternName());
+            e.setEngravingText(domain.getEngravingInfo().getText());
+        }
+        e.setEngravingCompletedAt(domain.getEngravingCompletedAt());
         e.setCreatedAt(domain.getCreatedAt());
         e.setUpdatedAt(domain.getUpdatedAt());
 
@@ -102,9 +109,14 @@ public class FulfillmentOrderRepositoryImpl implements FulfillmentOrderRepositor
             .map(ie -> new FulfillmentItem(ie.getId(), ie.getSkuId(), ie.getQuantity(), ie.getItemType()))
             .toList();
 
+        EngravingInfo engravingInfo = null;
+        if (entity.getEngravingPatternId() != null || (entity.getEngravingText() != null && !entity.getEngravingText().isBlank())) {
+            engravingInfo = new EngravingInfo(entity.getEngravingPatternId(), entity.getEngravingPatternName(), entity.getEngravingText());
+        }
+
         return new FulfillmentOrder(
             entity.getId(), entity.getOrderId(), entity.getFulfillmentType(), entity.getStatus(),
-            items, address, shippingInfo,
+            items, address, shippingInfo, engravingInfo, entity.getEngravingCompletedAt(),
             entity.getCreatedAt(), entity.getUpdatedAt()
         );
     }

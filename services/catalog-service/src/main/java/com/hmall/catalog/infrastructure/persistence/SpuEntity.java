@@ -27,6 +27,9 @@ public class SpuEntity {
     @Column(name = "product_type", nullable = false)
     private String productType = "PHYSICAL";
 
+    @Column(name = "service_kind")
+    private String serviceKind;
+
     public SpuEntity() {}
 
     public Long getId() { return id; }
@@ -39,4 +42,6 @@ public class SpuEntity {
     public void setDescription(String description) { this.description = description; }
     public String getProductType() { return productType; }
     public void setProductType(String productType) { this.productType = productType; }
+    public String getServiceKind() { return serviceKind; }
+    public void setServiceKind(String serviceKind) { this.serviceKind = serviceKind; }
 }
