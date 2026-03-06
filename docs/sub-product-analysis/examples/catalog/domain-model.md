@@ -4,9 +4,12 @@
 
 ---
 
-## 模型图（PlantUML）
+## 模型图
 
-修改模型时改此处即可；渲染见 [PlantUML](https://www.plantuml.com/plantuml) 或 IDE 插件。
+![商品限定上下文 - 领域模型](domain-model.png)
+
+<details>
+<summary>PlantUML 源码（点击展开）</summary>
 
 ```plantuml
 @startuml catalog-domain
@@ -137,6 +140,8 @@ note bottom of ServiceBinding
 end note
 @enduml
 ```
+
+</details>
 
 ---
 

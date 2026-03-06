@@ -10,7 +10,12 @@ Fulfillment 负责订单的履约执行：接收 Order 的创建请求后，按�
 
 ---
 
-## 二、模型图（PlantUML）
+## 二、模型图
+
+![Fulfillment 限界上下文 - 领域模型](domain-model.png)
+
+<details>
+<summary>PlantUML 源码（点击展开）</summary>
 
 ```plantuml
 @startuml fulfillment-domain
@@ -143,6 +148,8 @@ end note
 
 @enduml
 ```
+
+</details>
 
 ---
 
