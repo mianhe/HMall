@@ -1,0 +1,7 @@
+FROM node:18-alpine
+WORKDIR /app
+COPY hmall-mcp/package*.json ./
+RUN npm ci --omit=dev
+COPY hmall-mcp/ .
+EXPOSE 3000
+CMD ["node", "index-http.js"]

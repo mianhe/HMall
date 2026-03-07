@@ -45,6 +45,12 @@ public class StubPortConfig {
 
     @Bean
     @Primary
+    public CreatePaymentPort createPaymentPort() {
+        return (orderId, amountCents) -> {};
+    }
+
+    @Bean
+    @Primary
     public RefundPaymentPort refundPaymentPort() {
         return orderId -> {};
     }

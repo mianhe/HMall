@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/hmall
+    password: ${DB_PASSWORD:hmall_prod}
+  kafka:
+    bootstrap-servers: kafka:9092
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+catalog:
+  base-url: http://catalog-service:8080
+
+user:
+  base-url: http://user-service:8082
+
+inventory:
+  base-url: http://inventory-service:8083
+
+payment:
+  base-url: http://payment-service:8084
+
+fulfillment:
+  base-url: http://fulfillment-service:8088

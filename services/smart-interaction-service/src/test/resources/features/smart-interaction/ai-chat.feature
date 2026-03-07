@@ -70,7 +70,7 @@
     并且 LLM 会流式返回文本 "好的"
     当 用户使用 Skill "库存助手" 发送消息 "查一下库存"
     那么 发送给 LLM 的 system prompt 应包含 "HMall"
-    并且 发送给 LLM 的 system prompt 应包含 "以下是当前对话匹配到的领域知识"
+    并且 发送给 LLM 的 system prompt 应包含 "以下是当前对话匹配到的操作指引与示例"
     并且 发送给 LLM 的 system prompt 应包含 "库存以 SKU 为粒度"
 
   场景: Tool Call 轮次超过限制时应终止并提示

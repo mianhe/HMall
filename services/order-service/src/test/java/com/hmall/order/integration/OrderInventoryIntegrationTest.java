@@ -58,6 +58,8 @@ class OrderInventoryIntegrationTest {
         registry.add("catalog.base-url", () -> base);
         registry.add("user.base-url", () -> base);
         registry.add("inventory.base-url", () -> base);
+        registry.add("payment.base-url", () -> base);
+        registry.add("fulfillment.base-url", () -> base);
     }
 
     @BeforeAll
@@ -81,6 +83,13 @@ class OrderInventoryIntegrationTest {
                 .willReturn(aResponse().withStatus(200).withBody("{\"success\":true}")));
         wireMock.stubFor(post(urlPathEqualTo("/api/inventory/release"))
                 .willReturn(aResponse().withStatus(200).withBody("{\"success\":true}")));
+        // Payment & Fulfillment (NoOp stubs for this test)
+        wireMock.stubFor(post(urlPathEqualTo("/api/payments"))
+                .willReturn(aResponse().withStatus(201)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"paymentId\":1}")));
+        wireMock.stubFor(post(urlPathEqualTo("/api/fulfillment/cancel"))
+                .willReturn(aResponse().withStatus(200)));
     }
 
     @AfterAll

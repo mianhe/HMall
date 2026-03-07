@@ -65,6 +65,7 @@ class OrderPaymentIntegrationTest {
         registry.add("user.base-url", () -> base);
         registry.add("inventory.base-url", () -> base);
         registry.add("payment.base-url", () -> base);
+        registry.add("fulfillment.base-url", () -> base);
     }
 
     @BeforeAll
@@ -91,6 +92,8 @@ class OrderPaymentIntegrationTest {
                         .withHeader("Content-Type", "application/json")
                         .withBody("{\"paymentId\":1001,\"orderId\":1,\"amountCents\":1199800,\"status\":\"PENDING\",\"payUrl\":\"https://pay.example/1001\"}")));
         wireMock.stubFor(post(urlPathEqualTo("/api/payments/refund"))
+                .willReturn(aResponse().withStatus(200)));
+        wireMock.stubFor(post(urlPathEqualTo("/api/fulfillment/cancel"))
                 .willReturn(aResponse().withStatus(200)));
     }
 

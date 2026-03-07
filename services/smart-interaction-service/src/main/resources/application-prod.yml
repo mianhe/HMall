@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/hmall
+    password: ${DB_PASSWORD:hmall_prod}
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+hmall:
+  ai:
+    providers:
+      zhipu:
+        api-key: ${ZHIPU_API_KEY:}
+      qwen:
+        api-key: ${QWEN_API_KEY:}
+      deepseek:
+        api-key: ${DEEPSEEK_API_KEY:}
+    mcp:
+      url: http://hmall-mcp:3000/mcp

@@ -5,7 +5,7 @@
 ---
 
 ## 一、职责说明
-
+ 
 Activity 是一个**只读聚合**服务：订阅 Order、Payment、Inventory 等 BC 发布的 Kafka 事件，将其持久化为统一的业务活动记录（BusinessActivity），对外提供查询 API。不发起任何写操作到上游 BC。
 
 ---

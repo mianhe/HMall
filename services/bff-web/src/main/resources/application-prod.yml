@@ -1,0 +1,21 @@
+bff:
+  catalog:
+    base-url: http://catalog-service:8080
+  user:
+    base-url: http://user-service:8082
+  order:
+    base-url: http://order-service:8081
+  inventory:
+    base-url: http://inventory-service:8083
+  payment:
+    base-url: http://payment-service:8084
+  activity:
+    base-url: http://activity-service:8086
+  cart:
+    base-url: http://cart-service:8087
+  fulfillment:
+    base-url: http://fulfillment-service:8088
+  proxy:
+    allowed-origins:
+      - http://${PUBLIC_HOST:localhost}
+      - https://${PUBLIC_HOST:localhost}

@@ -1,0 +1,282 @@
+services:
+  # ==================== Infrastructure ====================
+  postgres:
+    image: postgres:16-alpine
+    container_name: hmall-postgres
+    environment:
+      POSTGRES_DB: hmall
+      POSTGRES_USER: hmall
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-hmall_prod}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - hmall-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hmall"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: hmall-kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    networks:
+      - hmall-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+
+  minio:
+    image: minio/minio:latest
+    container_name: hmall-minio
+    environment:
+      MINIO_ROOT_USER: hmall
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:-hmall_prod}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - hmall-net
+    restart: unless-stopped
+
+  # ==================== Backend Services ====================
+  catalog-service:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        SERVICE_DIR: services/catalog-service
+    container_name: hmall-catalog
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_PASSWORD: ${DB_PASSWORD:-hmall_prod}
+      MINIO_PASSWORD: ${MINIO_PASSWORD:-hmall_prod}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - hmall-net
+    restart: unless-stopped
+
+  user-service:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        SERVICE_DIR: services/user-service
+    container_name: hmall-user
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_PASSWORD: ${DB_PASSWORD:-hmall_prod}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - hmall-net
+    restart: unless-stopped
+
+  order-service:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        SERVICE_DIR: services/order-service
+    container_name: hmall-order
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_PASSWORD: ${DB_PASSWORD:-hmall_prod}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - hmall-net
+    restart: unless-stopped
+
+  inventory-service:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        SERVICE_DIR: services/inventory-service
+    container_name: hmall-inventory
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_PASSWORD: ${DB_PASSWORD:-hmall_prod}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - hmall-net
+    restart: unless-stopped
+
+  payment-service:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        SERVICE_DIR: services/payment-service
+    container_name: hmall-payment
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_PASSWORD: ${DB_PASSWORD:-hmall_prod}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - hmall-net
+    restart: unless-stopped
+
+  activity-service:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        SERVICE_DIR: services/activity-service
+    container_name: hmall-activity
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_PASSWORD: ${DB_PASSWORD:-hmall_prod}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - hmall-net
+    restart: unless-stopped
+
+  cart-service:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        SERVICE_DIR: services/cart-service
+    container_name: hmall-cart
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_PASSWORD: ${DB_PASSWORD:-hmall_prod}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - hmall-net
+    restart: unless-stopped
+
+  fulfillment-service:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        SERVICE_DIR: services/fulfillment-service
+    container_name: hmall-fulfillment
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_PASSWORD: ${DB_PASSWORD:-hmall_prod}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - hmall-net
+    restart: unless-stopped
+
+  smart-interaction-service:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        SERVICE_DIR: services/smart-interaction-service
+    container_name: hmall-smart-interaction
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_PASSWORD: ${DB_PASSWORD:-hmall_prod}
+      ZHIPU_API_KEY: ${ZHIPU_API_KEY:-}
+      QWEN_API_KEY: ${QWEN_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - hmall-net
+    restart: unless-stopped
+
+  bff-web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        SERVICE_DIR: services/bff-web
+    container_name: hmall-bff
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      PUBLIC_HOST: ${PUBLIC_HOST:-localhost}
+    depends_on:
+      - catalog-service
+      - user-service
+    networks:
+      - hmall-net
+    restart: unless-stopped
+
+  # ==================== MCP Server ====================
+  hmall-mcp:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.mcp
+    container_name: hmall-mcp
+    environment:
+      HMALL_API_BASE: http://catalog-service:8080/api
+      HMALL_INVENTORY_API_BASE: http://inventory-service:8083/api
+      HMALL_CART_API_BASE: http://cart-service:8087/api
+      HMALL_ORDER_API_BASE: http://order-service:8081/api
+      HMALL_FULFILLMENT_API_BASE: http://fulfillment-service:8088/api
+      HMALL_USER_API_BASE: http://user-service:8082/api
+      HMALL_ACTIVITY_API_BASE: http://activity-service:8086/api
+    depends_on:
+      - catalog-service
+    networks:
+      - hmall-net
+    restart: unless-stopped
+
+  # ==================== Frontend + Reverse Proxy ====================
+  nginx:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.nginx
+    container_name: hmall-nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - bff-web
+      - smart-interaction-service
+    networks:
+      - hmall-net
+    restart: unless-stopped
+
+networks:
+  hmall-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+  minio_data:

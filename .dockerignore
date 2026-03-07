@@ -1,0 +1,7 @@
+.git
+.hmall
+.cursor
+docs
+scripts
+**/node_modules
+**/target

@@ -9,6 +9,7 @@ import com.hmall.smartinteraction.infrastructure.LlmProviderConfig;
 import com.hmall.smartinteraction.infrastructure.McpToolBridge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -123,7 +124,8 @@ public class AiChatService {
         }
     }
 
-    static final int ROUTING_TOOL_THRESHOLD = 20;
+    @Value("${smart-interaction.routing-tool-threshold:20}")
+    private int routingToolThreshold;
 
     private List<Skill> resolveAutoMatchedSkills(LlmProviderConfig.Provider provider, ChatRequest request) {
         String clientType = request.clientType();
@@ -132,9 +134,9 @@ public class AiChatService {
                 .toList();
 
         int toolCount = mcpToolBridge.getTools().size();
-        if (toolCount <= ROUTING_TOOL_THRESHOLD) {
+        if (toolCount <= routingToolThreshold) {
             log.info("Tool count ({}) <= threshold ({}), skipping LLM routing, using all {} audience-matching Skills",
-                    toolCount, ROUTING_TOOL_THRESHOLD, candidateSkills.size());
+                    toolCount, routingToolThreshold, candidateSkills.size());
             return candidateSkills;
         }
 

@@ -1,0 +1,14 @@
+FROM maven:3.9-eclipse-temurin-21-alpine AS build
+ARG SERVICE_DIR
+WORKDIR /build
+COPY ${SERVICE_DIR}/pom.xml .
+RUN --mount=type=cache,target=/root/.m2/repository \
+    mvn dependency:go-offline -B 2>/dev/null || true
+COPY ${SERVICE_DIR}/src ./src
+RUN --mount=type=cache,target=/root/.m2/repository \
+    mvn package -DskipTests -B
+
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=build /build/target/*.jar app.jar
+ENTRYPOINT ["java", "-jar", "app.jar"]

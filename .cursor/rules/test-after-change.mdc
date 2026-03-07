@@ -1,0 +1,36 @@
+---
+description: 
+globs: services/**/*.java,services/**/*.feature,services/**/*.yml
+alwaysApply: false
+---
+
+# Test After Change
+
+对 services/ 下任何后端代码（Java、Feature、配置）的改动，完成后**必须**运行受影响 BC 的测试验证。
+
+## 执行要求
+
+1. 改动完成后，识别涉及哪些 BC（服务目录名即 BC 标识）。
+2. 对每个受影响的 BC 运行测试：`cd services/<service-dir> && mvn test -q`。
+3. 若测试失败，**必须修复后再告知用户改动完成**，不允许留下红色测试。
+4. 若改动涉及共享结构（如根 pom.xml），运行全量测试：`./scripts/hmall.sh test`。
+
+## 快速参考
+
+| BC | 服务目录 | 测试命令 |
+|----|---------|---------|
+| Catalog | catalog-service | `mvn test -q` |
+| User | user-service | `mvn test -q` |
+| Order | order-service | `mvn test -q` |
+| Inventory | inventory-service | `mvn test -q` |
+| Payment | payment-service | `mvn test -q` |
+| Activity | activity-service | `mvn test -q` |
+| Cart | cart-service | `mvn test -q` |
+| Fulfillment | fulfillment-service | `mvn test -q` |
+| SmartInteraction | smart-interaction-service | `mvn test -q` |
+| BFF | bff-web | `mvn test -q` |
+
+## 例外
+
+- 纯文档、纯注释改动可不触发。
+- 用户明确说"不用跑测试"时可跳过。
