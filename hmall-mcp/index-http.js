@@ -45,7 +45,9 @@ function createServer() {
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000
 const transports = {}
 
-const app = createMcpExpressApp()
+const ALLOWED_HOSTS = (process.env.MCP_ALLOWED_HOSTS || 'localhost,hmall-mcp')
+  .split(',').map(h => h.trim()).filter(Boolean)
+const app = createMcpExpressApp({ allowedHosts: ALLOWED_HOSTS })
 
 const mcpPostHandler = async (req, res) => {
   const sessionId = req.headers['mcp-session-id']

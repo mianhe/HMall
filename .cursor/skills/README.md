@@ -62,18 +62,16 @@ flowchart LR
     end
 
     subgraph E["⑤ 发布"]
-        E1["部署上线 🔲"]
+        E1["部署上线"]
     end
 
     A3 --> B1
     B3 --> C1
     C2 --> D1
     D2 --> E1
-
-    style E1 stroke-dasharray: 5 5
 ```
 
-> **交付验收**通过 `deliver-requirement` Skill 编排，包含 Smoke E2E 回归 + Business E2E 验收 + 开发者确认三道门禁。**部署上线**（虚线框）为待完善部分，计划包括：容器化部署、CI/CD 流水线。
+> **交付验收**通过 `deliver-requirement` Skill 编排，包含 Smoke E2E 回归 + Business E2E 验收 + 开发者确认三道门禁。**部署上线**通过 `deploy` Skill 执行，支持首次部署与日常更新两种路径。
 
 ## Skill 体系
 
@@ -106,7 +104,7 @@ flowchart LR
     end
 
     subgraph 发布["⑤ 发布"]
-        DEPLOY[部署上线 🔲]
+        DEPLOY[deploy<br/>部署上线]
     end
 
     AR --> DR
@@ -115,8 +113,6 @@ flowchart LR
     EF --> INT
     FE -->|E2E 门禁| DR
     DR --> DEPLOY
-
-    style DEPLOY stroke-dasharray: 5 5
 ```
 
 ### 各 Skill 说明
@@ -133,6 +129,7 @@ flowchart LR
 | **frontend-development** | 实现或扩展前端页面。需求优先、契约对齐、不重复后端业务规则 | 确定/更新界面规格 → 实现页面 → 自动化验证（build + Smoke E2E） → 开发者确认 | 前端页面、更新的 ui-spec、Smoke E2E 全绿 |
 | **mcp-development** | 为 BC 设计并实现 MCP tools，暴露 AI 可调用的能力 | API 分类与暴露范围分析 → 设计 MCP tools → 实现与 schema → 验证与文档同步 | MCP Tools 实现与文档 |
 | **bc-audit** | 审计指定 BC 的信任链完整性（问题域↔解决方案域对齐），产出分级整改清单 | 建立基线 → 三维审计（问题域完整性/链条对齐/集成边界）→ 分级输出 | 信任链评估、分级整改清单、补测建议 |
+| **deploy** | 部署 HMall 到阿里云 ECS。首次部署（初始化→克隆→配置→构建→验证）或日常更新（本地测试→推送→服务器拉取重部署→验证） | 路径判定 → 本地测试通过 → 提交推送 → 服务器构建启动 → 验证健康 → 开发者确认 | 运行中的生产环境、部署验证报告 |
 
 ### 场景与 Skill 组合
 
@@ -146,6 +143,7 @@ flowchart LR
 | 跨 BC 对接 | integration |
 | 前端页面开发 | frontend-development |
 | BC 质量巡检 / 治理盘点 | bc-audit |
+| 部署上线 / 更新服务器 | deploy |
 
 ### ⚠️ Skill 流程不可绕过
 
@@ -164,5 +162,6 @@ flowchart LR
   ├── 修 Bug 或小幅调整 → fix-bug-or-adjust-feature
   ├── 对接两个 BC → integration
   ├── 前端页面 → frontend-development
-  └── 做 BC 质量审计/治理盘点 → bc-audit
+  ├── 做 BC 质量审计/治理盘点 → bc-audit
+  └── 部署/发布/更新服务器 → deploy
 ```
