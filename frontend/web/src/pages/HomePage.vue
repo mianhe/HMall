@@ -98,12 +98,13 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, reactive, watch } from 'vue'
 import { useAuth } from '../shared/auth.js'
-import { getCategories, getProducts } from '../shared/api/catalog.js'
+import { getCategoryTree, getProducts } from '../shared/api/catalog.js'
 
 const { isLoggedIn, username } = useAuth()
 
+const categoryTree = ref([])
 const rootCategories = ref([])
 const navError = ref('')
 const hoverRootId = ref(null)
@@ -114,37 +115,36 @@ const selectedSubId = ref(null)
 const products = ref([])
 const productsLoading = ref(false)
 
-async function loadRootCategories() {
+const productsCache = reactive({})
+
+async function loadCategoryTree() {
   navError.value = ''
   try {
-    rootCategories.value = await getCategories(null)
+    const tree = await getCategoryTree()
+    categoryTree.value = tree
+    rootCategories.value = tree.map(({ id, name }) => ({ id, name }))
   } catch (e) {
     navError.value = e.response?.data?.message || e.message || '加载类目失败'
   }
 }
 
-function onRootEnter(cat) {
-  hoverRootId.value = cat.id
-  subCategories.value = []
-  selectedSubId.value = null
-  products.value = []
-  subLoading.value = true
-  getCategories(cat.id)
-    .then((list) => {
-      subCategories.value = list
-      if (list.length > 0) {
-        selectSub(list[0])
-      }
-    })
-    .catch(() => {
-      subCategories.value = []
-    })
-    .finally(() => {
-      subLoading.value = false
-    })
+function getSubCategories(rootId) {
+  const root = categoryTree.value.find((c) => c.id === rootId)
+  return root?.children || []
 }
 
-/** 只有鼠标离开整块导航（一级 + 浮层）时才关闭，避免从一级移到二级时经过空档导致浮层消失 */
+function onRootEnter(cat) {
+  hoverRootId.value = cat.id
+  const subs = getSubCategories(cat.id)
+  subCategories.value = subs
+  subLoading.value = false
+  selectedSubId.value = null
+  products.value = []
+  if (subs.length > 0) {
+    selectSub(subs[0])
+  }
+}
+
 function onNavLeave() {
   hoverRootId.value = null
   panelHover.value = false
@@ -152,10 +152,16 @@ function onNavLeave() {
 
 function selectSub(sub) {
   selectedSubId.value = sub.id
+  if (productsCache[sub.id]) {
+    products.value = productsCache[sub.id]
+    productsLoading.value = false
+    return
+  }
   products.value = []
   productsLoading.value = true
   getProducts(sub.id)
     .then((list) => {
+      productsCache[sub.id] = list
       products.value = list
     })
     .catch(() => {
@@ -170,7 +176,7 @@ watch(hoverRootId, (id) => {
   if (id == null) panelHover.value = false
 })
 
-loadRootCategories()
+loadCategoryTree()
 </script>
 
 <style scoped>

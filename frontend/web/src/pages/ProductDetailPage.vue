@@ -33,7 +33,7 @@
               :class="currentImageIndex === idx ? 'border-vmall-red' : 'border-vmall-gray-border hover:border-vmall-red'"
               @click="currentImageIndex = idx"
             >
-              <img :src="img.imageUrl" :alt="'图' + (idx + 1)" class="w-full h-full object-cover" />
+              <img :src="img.imageUrl" :alt="'图' + (idx + 1)" class="w-full h-full object-cover" loading="lazy" />
             </button>
           </div>
         </div>
@@ -427,22 +427,19 @@ async function load() {
   engravingPatterns.value = []
   currentImageIndex.value = 0
   try {
-    const [p, dims, skuList] = await Promise.all([
+    const [p, dims, skuList, services, patterns] = await Promise.all([
       getProduct(id.value),
       getDimensions(id.value).catch(() => []),
       getSkus(id.value).catch(() => []),
+      getAvailableServices(id.value).catch(() => []),
+      getEngravingPatterns(true).catch(() => []),
     ])
     product.value = p
     dimensions.value = dims?.length ? dims : []
     skus.value = skuList?.length ? skuList : []
     if (p.productType !== 'SERVICE') {
-      availableServices.value = await getAvailableServices(id.value).catch(() => [])
-      const hasEngraving = availableServices.value.some(isEngravingService)
-      if (hasEngraving) {
-        engravingPatterns.value = await getEngravingPatterns(true).catch(() => [])
-      } else {
-        engravingPatterns.value = []
-      }
+      availableServices.value = services
+      engravingPatterns.value = services.some(isEngravingService) ? patterns : []
     } else {
       engravingPatterns.value = []
     }

@@ -10,6 +10,12 @@ export async function getCategories(parentId = null) {
   return data
 }
 
+/** 完整类目树（根→子→叶子），一次请求 */
+export async function getCategoryTree() {
+  const { data } = await client.get('/categories/tree')
+  return data
+}
+
 /** 按类目查商品列表 */
 export async function getProducts(categoryId) {
   const { data } = await client.get('/products', { params: { categoryId } })
