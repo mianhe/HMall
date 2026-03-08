@@ -1,0 +1,34 @@
+---
+description: 禁止直接修改远程服务器上的代码或配置文件
+alwaysApply: true
+---
+
+# No Remote Code Edit
+
+通过 SSH 连接远程服务器时，**严禁修改服务器上的任何代码或版本控制内的配置文件**。
+
+## 允许的操作（只读 + 运维）
+
+- 查看日志：`docker logs`、`tail`
+- 查看状态：`docker ps`、`free -h`、`df -h`、`ufw status`
+- 执行已有脚本：`bash deploy.sh up/down/pull/status/logs`
+- 运行初始化脚本：`bash init-server.sh`
+- 编辑 `.env.prod`（不在 Git 中的环境配置）
+- 通过 API 导入数据（如 `curl -X POST ... /api/ai/skills`）
+
+## 禁止的操作
+
+- `scp` 本地文件覆盖服务器上的 Git 仓库文件
+- `ssh ... sed/vim/echo >` 修改服务器上 Git 仓库内的文件
+- 任何绕过 `git pull` 直接修改服务器代码的行为
+
+## 发现部署问题时的正确流程
+
+当部署过程中发现代码或配置问题（如 Kafka 健康检查路径错误、MCP Host 校验失败）：
+
+1. **在服务器上诊断**（日志、状态、curl 测试）— 允许
+2. **回到本地修改代码** — 在本地仓库中修复
+3. **本地提交并推送** — `git commit && git push`
+4. **服务器拉取并重部署** — `ssh ... 'cd ~/hmall/deploy && bash deploy.sh pull'`
+
+绝不走捷径。即使"只改一行"、"先跑通再说"，也必须走 commit → push → pull 闭环。
