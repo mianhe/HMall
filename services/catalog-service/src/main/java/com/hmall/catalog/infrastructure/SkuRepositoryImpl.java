@@ -69,6 +69,13 @@ public class SkuRepositoryImpl implements SkuRepository {
         return batchToDomain(entities);
     }
 
+    @Override
+    public List<Sku> findBySpuIdIn(List<Long> spuIds) {
+        if (spuIds == null || spuIds.isEmpty()) return List.of();
+        List<SkuEntity> entities = skuJpaRepository.findBySpuIdInOrderBySpuIdAscIdAsc(spuIds);
+        return batchToDomain(entities);
+    }
+
     private List<Sku> batchToDomain(List<SkuEntity> entities) {
         if (entities.isEmpty()) return List.of();
         List<Long> skuIds = entities.stream().map(SkuEntity::getId).toList();

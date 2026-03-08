@@ -64,7 +64,7 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import AppHeader from '../shared/ui/AppHeader.vue'
 import InventoryTable from '../shared/ui/InventoryTable.vue'
-import { getCategoryTree, getProducts, getSkus } from '../shared/api/catalog.js'
+import { getCategoryTree, getProducts } from '../shared/api/catalog.js'
 import { batchGetStock, setStock } from '../shared/api/inventory.js'
 
 const tree = ref([])
@@ -165,37 +165,21 @@ function errorMessage(e) {
   return msg || '加载失败'
 }
 
-async function loadSkusForLeaves(categoryTree) {
+function collectLeaves(nodes) {
   const leaves = []
-  function collectLeaves(nodes) {
-    for (const node of nodes) {
-      if (node.children?.length) {
-        collectLeaves(node.children)
-      } else {
-        leaves.push(node)
-      }
+  for (const node of nodes) {
+    if (node.children?.length) {
+      leaves.push(...collectLeaves(node.children))
+    } else {
+      leaves.push(node)
     }
   }
-  collectLeaves(categoryTree)
+  return leaves
+}
 
-  const productsByCategory = await Promise.all(
-    leaves.map((leaf) => getProducts(leaf.id).then((products) => ({ leaf, products })))
-  )
-
-  const allProducts = productsByCategory.flatMap((entry) => entry.products)
-  const skusBySpuId = {}
-  if (allProducts.length) {
-    const skuResults = await Promise.all(
-      allProducts.map((p) => getSkus(p.id).then((skus) => ({ spuId: p.id, skus })))
-    )
-    for (const { spuId, skus } of skuResults) {
-      skusBySpuId[spuId] = skus
-    }
-  }
-
-  for (const { leaf, products } of productsByCategory) {
-    leaf.products = products.map((p) => ({ ...p, skus: skusBySpuId[p.id] || [] }))
-  }
+async function loadProductsForLeaf(leaf) {
+  const products = await getProducts(leaf.id, { include: 'skus' })
+  leaf.products = products
 }
 
 async function load(opts = {}) {
@@ -204,8 +188,13 @@ async function load(opts = {}) {
   error.value = ''
   try {
     const categoryTree = await getCategoryTree()
-    await loadSkusForLeaves(categoryTree)
     tree.value = categoryTree
+
+    const leaves = collectLeaves(categoryTree)
+    for (const leaf of leaves) {
+      await loadProductsForLeaf(leaf)
+      tree.value = [...tree.value]
+    }
   } catch (e) {
     if (retries > 0 && isServerError(e)) {
       await new Promise((r) => setTimeout(r, 2000))

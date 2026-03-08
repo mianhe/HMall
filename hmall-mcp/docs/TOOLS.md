@@ -105,6 +105,7 @@
 | `action` | string | 是 | `list` \| `get` \| `create` \| `update` \| `delete` |
 | `categoryId` | number | 否 | **list** 时：按类目过滤；不传则与 keyword 二选一或返回全部（依实现） |
 | `keyword` | string | 否 | **list** 时：按关键词搜索商品名称（跨类目模糊匹配） |
+| `includeSkus` | boolean | 否 | **list** 时设为 true，每个商品内嵌 SKU 列表（含价格和规格值），适合按 SKU 属性筛选场景 |
 | `productId` | number | get/update/delete 时必填 | 商品 ID |
 | `detail` | string | 否 | **get** 时：`basic` 仅基础信息，`full` 含规格维度、选项及 SKU；默认可为 basic |
 | `name` | string | create/update 时必填 | 商品名称 |
@@ -114,6 +115,7 @@
 **示例**
 
 - 按类目查列表：`action=list`, `categoryId=3`
+- 按关键词搜索（含 SKU）：`action=list`, `keyword=手机`, `includeSkus=true`
 - 按关键词搜索：`action=list`, `keyword=手机`
 - 查商品详情（含规格与 SKU）：`action=get`, `productId=1`, `detail=full`
 - 创建：`action=create`, `categoryId=3`, `name=iPhone 16`

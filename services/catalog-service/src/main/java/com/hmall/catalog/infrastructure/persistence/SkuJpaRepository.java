@@ -7,4 +7,6 @@ import java.util.List;
 public interface SkuJpaRepository extends JpaRepository<SkuEntity, Long> {
 
     List<SkuEntity> findBySpuIdOrderByIdAsc(Long spuId);
+
+    List<SkuEntity> findBySpuIdInOrderBySpuIdAscIdAsc(List<Long> spuIds);
 }

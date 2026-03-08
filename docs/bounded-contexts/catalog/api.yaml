@@ -178,6 +178,13 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: include
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [skus]
+          description: 传 "skus" 时，每个 Product 内嵌其 SKU 列表（含 specValues 和价格）；不传则不返回 skus 字段
       responses:
         '200':
           description: 商品列表
@@ -199,6 +206,13 @@ paths:
           schema:
             type: string
           description: 搜索关键词，模糊匹配商品名称
+        - name: include
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [skus]
+          description: 传 "skus" 时，每个 Product 内嵌其 SKU 列表；不传则不返回 skus 字段
       responses:
         '200':
           description: 匹配的商品列表
@@ -1135,6 +1149,12 @@ components:
           description: 详情页未选规格时的默认图廊（多张）。规则同 coverImageUrl，但返回整组图。
           items:
             $ref: '#/components/schemas/ProductImage'
+        skus:
+          type: array
+          nullable: true
+          description: 仅在请求携带 include=skus 时返回；包含该 SPU 下所有 SKU。不携带时该字段不出现在响应中。
+          items:
+            $ref: '#/components/schemas/Sku'
     ProductCreate:
       type: object
       required: [categoryId, name]

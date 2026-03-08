@@ -407,6 +407,82 @@ public class ProductStepDefinitions {
         }
     }
 
+    // ---------- include=skus ----------
+    @Given("商品 {string} 下有 SKU 价格 {long}")
+    public void 商品下有SKU价格(String productName, long priceCents) {
+        Long spuId = productNameToId.get(productName);
+        assertThat(spuId).as("商品「%s」应先存在", productName).isNotNull();
+        context.putSpuId(productName, spuId);
+        context.setLastProductName(productName);
+        SkuApiDto.Create body = new SkuApiDto.Create();
+        body.specOptionIds = List.of();
+        body.priceCents = priceCents;
+        body.displayName = null;
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        try {
+            ResponseEntity<SkuApiDto.Response> res = restTemplate.exchange(
+                baseUrl() + "/api/products/" + spuId + "/skus",
+                HttpMethod.POST,
+                new HttpEntity<>(body, headers),
+                SkuApiDto.Response.class
+            );
+            assertThat(res.getStatusCode().value()).isEqualTo(201);
+        } catch (RestClientResponseException e) {
+            throw new AssertionError("创建 SKU 失败: " + e.getResponseBodyAsString(), e);
+        }
+    }
+
+    @When("用户请求类别 {string} 下的商品并携带 include=skus")
+    public void 用户请求类别下的商品并携带includeSkus(String categoryName) {
+        Long categoryId = categoryNameToId.get(categoryName);
+        assertThat(categoryId).as("类别「%s」应先存在", categoryName).isNotNull();
+        lastProductListResponse = getProductsByCategoryWithInclude(categoryId, "skus");
+    }
+
+    @When("用户按关键词 {string} 搜索商品并携带 include=skus")
+    public void 用户按关键词搜索商品并携带includeSkus(String keyword) {
+        lastProductListResponse = searchProductsWithInclude(keyword, "skus");
+        context.setLastStatusCode(lastProductListResponse.getStatusCode().value());
+    }
+
+    @And("第 {int} 个商品应内嵌 skus 列表且长度为 {int}")
+    public void 第N个商品应内嵌skus列表且长度为(int index, int expectedSize) {
+        assertThat(lastProductListResponse).isNotNull();
+        List<ProductApiDto.Response> list = lastProductListResponse.getBody();
+        assertThat(list).hasSizeGreaterThanOrEqualTo(index);
+        ProductApiDto.Response product = list.get(index - 1);
+        assertThat(product.skus).as("商品「%s」应内嵌 skus", product.name).isNotNull();
+        assertThat(product.skus).hasSize(expectedSize);
+    }
+
+    @And("第 {int} 个商品不应包含 skus 字段")
+    public void 第N个商品不应包含skus字段(int index) {
+        assertThat(lastProductListResponse).isNotNull();
+        List<ProductApiDto.Response> list = lastProductListResponse.getBody();
+        assertThat(list).hasSizeGreaterThanOrEqualTo(index);
+        ProductApiDto.Response product = list.get(index - 1);
+        assertThat(product.skus).as("商品「%s」不应包含 skus", product.name).isNull();
+    }
+
+    private ResponseEntity<List<ProductApiDto.Response>> getProductsByCategoryWithInclude(Long categoryId, String include) {
+        String url = baseUrl() + "/api/products?categoryId=" + categoryId + "&include=" + include;
+        try {
+            return restTemplate.exchange(url, HttpMethod.GET, null, LIST_OF_PRODUCT);
+        } catch (RestClientResponseException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(null);
+        }
+    }
+
+    private ResponseEntity<List<ProductApiDto.Response>> searchProductsWithInclude(String keyword, String include) {
+        String url = baseUrl() + "/api/products/search?keyword=" + keyword + "&include=" + include;
+        try {
+            return restTemplate.exchange(url, HttpMethod.GET, null, LIST_OF_PRODUCT);
+        } catch (RestClientResponseException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(null);
+        }
+    }
+
     // ---------- 搜索商品 ----------
     @Given("类别 {string} 下有商品 {string} 描述 {string}")
     public void 类别下有商品描述(String categoryName, String productName, String description) {

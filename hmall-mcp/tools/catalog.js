@@ -27,6 +27,18 @@ async function api(method, path, body) {
   return text ? JSON.parse(text) : null
 }
 
+function formatProductLine(p, includeSkus) {
+  let line = `[${p.id}] ${p.name} [${p.productType || 'PHYSICAL'}]${p.description ? ' - ' + p.description : ''}${p.categoryId != null ? ' (类目:' + p.categoryId + ')' : ''}`
+  if (includeSkus && p.skus?.length) {
+    const skuLines = p.skus.map(s => {
+      const spec = (s.specValues || []).map(v => `${v.dimensionName}:${v.optionValue}`).join(', ')
+      return `    SKU[${s.id}] ${spec} ¥${(s.priceCents / 100).toFixed(2)}${s.displayName ? ' ' + s.displayName : ''}`
+    })
+    line += '\n' + skuLines.join('\n')
+  }
+  return line
+}
+
 async function uploadFile(localPath) {
   const fileBuffer = await readFile(localPath)
   const fileName = basename(localPath)
@@ -123,25 +135,27 @@ export function registerCatalogTools(server) {
       action: actionProducts,
       categoryId: z.number().optional().describe('list 时按类目过滤；create 时必填；update 时可选，传则修改所属类目'),
       keyword: z.string().optional().describe('list 时按关键词搜索'),
+      includeSkus: z.boolean().optional().describe('list 时设为 true 可同时返回每个商品的 SKU 列表（含价格和规格值），适合需要按 SKU 筛选的场景'),
       productId: z.number().optional().describe('get/update/delete 时必填'),
       detail: z.enum(['basic', 'full']).optional().describe('get 时：full 含规格与 SKU'),
       name: z.string().optional().describe('create/update 时必填'),
       description: z.string().optional(),
       productType: z.enum(['PHYSICAL', 'SERVICE']).optional().describe('create 时：PHYSICAL(默认) 或 SERVICE'),
     },
-    async ({ action, categoryId, keyword, productId, detail, name, description, productType }) => {
+    async ({ action, categoryId, keyword, includeSkus, productId, detail, name, description, productType }) => {
       try {
         if (action === 'list') {
+          const includeSuffix = includeSkus ? '&include=skus' : ''
           if (keyword != null && keyword !== '') {
-            const list = await api('GET', `/products/search?keyword=${encodeURIComponent(keyword)}`)
+            const list = await api('GET', `/products/search?keyword=${encodeURIComponent(keyword)}${includeSuffix}`)
             if (!list.length) return ok(`未找到包含"${keyword}"的商品。`)
-            const lines = list.map(p => `[${p.id}] ${p.name} [${p.productType || 'PHYSICAL'}]${p.description ? ' - ' + p.description : ''} (类目:${p.categoryId})`)
+            const lines = list.map(p => formatProductLine(p, includeSkus))
             return ok(`共 ${list.length} 个商品：\n${lines.join('\n')}`)
           }
-          const path = categoryId != null ? `/products?categoryId=${categoryId}` : '/products/search'
-          const list = await api('GET', path)
+          const base = categoryId != null ? `/products?categoryId=${categoryId}` : '/products/search?keyword='
+          const list = await api('GET', `${base}${includeSuffix}`)
           if (!list.length) return ok(categoryId != null ? '该类目下暂无商品。' : '暂无商品。')
-          const lines = list.map(p => `[${p.id}] ${p.name} [${p.productType || 'PHYSICAL'}]${p.description ? ' - ' + p.description : ''}${p.categoryId != null ? ' (类目:' + p.categoryId + ')' : ''}`)
+          const lines = list.map(p => formatProductLine(p, includeSkus))
           return ok(lines.join('\n'))
         }
         if (action === 'get') {

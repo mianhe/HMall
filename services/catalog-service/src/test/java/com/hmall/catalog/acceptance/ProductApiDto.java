@@ -33,6 +33,7 @@ public final class ProductApiDto {
         public String serviceKind;
         public String coverImageUrl;
         public List<ProductImageItem> defaultDisplayImages;
+        public List<SkuApiDto.Response> skus;
     }
 
     /** 默认展示图项（与 ProductImage 契约一致，测试仅反序列化） */

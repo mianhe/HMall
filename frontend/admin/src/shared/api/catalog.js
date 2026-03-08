@@ -23,8 +23,10 @@ export async function getCategoryTree() {
   return data
 }
 
-export async function getProducts(categoryId) {
-  const { data } = await client.get('/products', { params: { categoryId } })
+export async function getProducts(categoryId, { include } = {}) {
+  const params = { categoryId }
+  if (include) params.include = include
+  const { data } = await client.get('/products', { params })
   return data
 }
 

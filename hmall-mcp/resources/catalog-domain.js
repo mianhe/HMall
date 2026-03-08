@@ -35,6 +35,11 @@ export const CATALOG_DOMAIN_KNOWLEDGE = `## 商品目录（Catalog）领域知�
 - 创建新绑定 → catalog_service_bindings create(skuId, targetSpuId, priceCents 可选)。
 - 删除绑定 → catalog_service_bindings delete(skuId, bindingId)。
 
+### 查询商品与 SKU
+
+- 按 SKU 属性筛选（如查价格区间、规格组合）：catalog_products list + includeSkus=true，一次返回所有商品及其 SKU（含价格、specValues）。
+- 查单个商品完整信息：catalog_products get detail=full。
+
 ### 新建商品流程
 
 - 新建实体商品：确认类目 → catalog_products create（productType 不传或传 PHYSICAL）→ 添加维度与选项 → 用 optionId 创建 SKU。
