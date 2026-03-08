@@ -23,7 +23,7 @@
 import { ref, onMounted } from 'vue'
 import AppHeader from '../shared/ui/AppHeader.vue'
 import CatalogTree from '../shared/ui/CatalogTree.vue'
-import { getCategories, getProducts, getDimensions, getSkus, getServiceBindings } from '../shared/api/catalog.js'
+import { getCategoryTree, getProducts, getDimensions, getSkus, getServiceBindings } from '../shared/api/catalog.js'
 
 const tree = ref([])
 const loading = ref(false)
@@ -59,8 +59,8 @@ async function load(opts = {}) {
   let lastErr = null
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const roots = await getCategories(null)
-      tree.value = await Promise.all(roots.map((c) => loadCategoryNode(c)))
+      const categoryTree = await getCategoryTree()
+      tree.value = await enrichTreeSequentially(categoryTree)
       return
     } catch (e) {
       lastErr = e
@@ -80,30 +80,33 @@ async function load(opts = {}) {
   if (lastErr) error.value = errorMessage(lastErr)
 }
 
-async function loadCategoryNode(category) {
-  const [children, products] = await Promise.all([
-    getCategories(category.id),
-    getProducts(category.id),
-  ])
-  const childNodes = await Promise.all(children.map((c) => loadCategoryNode(c)))
-  const productNodes = await Promise.all(
-    products.map(async (p) => {
-      const [dims, skus] = await Promise.all([
-        getDimensions(p.id),
-        getSkus(p.id),
-      ])
-      let skusWithBindings = skus
-      if (p.productType === 'SERVICE') {
-        skusWithBindings = await Promise.all(
-          skus.map(async (sku) => {
-            const bindings = await getServiceBindings(sku.id)
-            return { ...sku, bindings }
-          })
-        )
+async function enrichTreeSequentially(categories) {
+  const result = []
+  for (const cat of categories) {
+    result.push(await enrichCategoryNode(cat))
+  }
+  return result
+}
+
+async function enrichCategoryNode(category) {
+  const products = await getProducts(category.id)
+  const productNodes = []
+  for (const p of products) {
+    const [dims, skus] = await Promise.all([
+      getDimensions(p.id),
+      getSkus(p.id),
+    ])
+    let skusWithBindings = skus
+    if (p.productType === 'SERVICE') {
+      const bindingsArr = []
+      for (const sku of skus) {
+        bindingsArr.push({ ...sku, bindings: await getServiceBindings(sku.id) })
       }
-      return { ...p, dimensions: dims, skus: skusWithBindings }
-    })
-  )
+      skusWithBindings = bindingsArr
+    }
+    productNodes.push({ ...p, dimensions: dims, skus: skusWithBindings })
+  }
+  const childNodes = await enrichTreeSequentially(category.children || [])
   return {
     type: 'category',
     ...category,
