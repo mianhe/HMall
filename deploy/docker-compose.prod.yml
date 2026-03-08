@@ -137,6 +137,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_PASSWORD: ${DB_PASSWORD:-hmall_prod}
+      PUBLIC_HOST: ${PUBLIC_HOST:-localhost}
     depends_on:
       postgres:
         condition: service_healthy

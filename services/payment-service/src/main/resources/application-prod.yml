@@ -1,3 +1,6 @@
+payment:
+  mock-pay-base-url: http://${PUBLIC_HOST:localhost}
+
 spring:
   datasource:
     url: jdbc:postgresql://postgres:5432/hmall
