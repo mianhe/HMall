@@ -24,6 +24,14 @@ public class SkuStockRepositoryImpl implements SkuStockRepository {
     }
 
     @Override
+    public List<SkuStock> findBySkuIdIn(List<Long> skuIds) {
+        if (skuIds == null || skuIds.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findBySkuIdIn(skuIds).stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public List<SkuStock> findAll() {
         return jpaRepository.findAll().stream().map(this::toDomain).toList();
     }

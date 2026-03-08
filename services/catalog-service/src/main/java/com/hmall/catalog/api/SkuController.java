@@ -6,6 +6,8 @@ import com.hmall.catalog.api.dto.SkuSpecValueDto;
 import com.hmall.catalog.api.dto.SkuUpdateDto;
 import com.hmall.catalog.application.SkuApplicationService;
 import com.hmall.catalog.domain.Sku;
+import com.hmall.catalog.domain.Spu;
+import com.hmall.catalog.domain.SpuRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -24,9 +26,11 @@ import java.util.List;
 public class SkuController {
 
     private final SkuApplicationService applicationService;
+    private final SpuRepository spuRepository;
 
-    public SkuController(SkuApplicationService applicationService) {
+    public SkuController(SkuApplicationService applicationService, SpuRepository spuRepository) {
         this.applicationService = applicationService;
+        this.spuRepository = spuRepository;
     }
 
     @PostMapping
@@ -45,8 +49,12 @@ public class SkuController {
 
     @GetMapping
     public ResponseEntity<List<SkuDto>> list(@PathVariable Long spuId) {
+        Spu spu = spuRepository.findById(spuId)
+            .orElseThrow(() -> new IllegalArgumentException("SPU 不存在"));
         List<Sku> skus = applicationService.findBySpuId(spuId);
-        return ResponseEntity.ok(skus.stream().map(this::toSkuDto).toList());
+        return ResponseEntity.ok(skus.stream()
+            .map(sku -> toSkuDto(sku, spu.getName(), spu.getProductType()))
+            .toList());
     }
 
     @GetMapping("/{skuId}")
@@ -75,8 +83,13 @@ public class SkuController {
     }
 
     private SkuDto toSkuDto(Sku sku) {
-        String spuName = applicationService.getSpuName(sku.getSpuId());
-        String productType = applicationService.getProductType(sku.getSpuId());
+        Spu spu = spuRepository.findById(sku.getSpuId()).orElse(null);
+        String spuName = spu != null ? spu.getName() : "";
+        String productType = spu != null ? spu.getProductType() : "PHYSICAL";
+        return toSkuDto(sku, spuName, productType);
+    }
+
+    private SkuDto toSkuDto(Sku sku, String spuName, String productType) {
         List<SkuSpecValueDto> specValues = applicationService.resolveSpecValues(sku.getSpecOptionIds()).stream()
             .map(v -> new SkuSpecValueDto(v.dimensionName(), v.optionValue()))
             .toList();

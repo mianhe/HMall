@@ -31,6 +31,12 @@ public class SpecOptionRepositoryImpl implements SpecOptionRepository {
     }
 
     @Override
+    public List<SpecOption> findByIdIn(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        return jpaRepository.findByIdIn(ids).stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public List<SpecOption> findBySpecDimensionId(Long specDimensionId) {
         return jpaRepository.findBySpecDimensionIdOrderBySortOrderAscIdAsc(specDimensionId).stream()
             .map(this::toDomain)

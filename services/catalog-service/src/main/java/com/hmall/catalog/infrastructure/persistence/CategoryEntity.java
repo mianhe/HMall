@@ -5,13 +5,16 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 /**
  * 类别表对应的 JPA 实体。
  */
 @Entity
-@Table(name = "category")
+@Table(name = "category", indexes = {
+    @Index(name = "idx_category_parent_id", columnList = "parent_id")
+})
 public class CategoryEntity {
 
     @Id

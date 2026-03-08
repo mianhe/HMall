@@ -8,5 +8,7 @@ public interface SpecOptionJpaRepository extends JpaRepository<SpecOptionEntity,
 
     List<SpecOptionEntity> findBySpecDimensionIdOrderBySortOrderAscIdAsc(Long specDimensionId);
 
+    List<SpecOptionEntity> findByIdIn(List<Long> ids);
+
     boolean existsBySpecDimensionIdAndOptionValue(Long specDimensionId, String optionValue);
 }

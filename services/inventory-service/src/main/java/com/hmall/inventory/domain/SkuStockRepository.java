@@ -10,6 +10,8 @@ public interface SkuStockRepository {
 
     Optional<SkuStock> findBySkuId(Long skuId);
 
+    List<SkuStock> findBySkuIdIn(List<Long> skuIds);
+
     List<SkuStock> findAll();
 
     SkuStock save(SkuStock stock);

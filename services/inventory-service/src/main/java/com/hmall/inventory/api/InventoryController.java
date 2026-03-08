@@ -61,6 +61,14 @@ public class InventoryController {
         return ResponseEntity.ok(result);
     }
 
+    @PostMapping("/stock/batch")
+    public ResponseEntity<List<StockResponseDto>> batchGetStock(@RequestBody List<Long> skuIds) {
+        List<StockResponseDto> result = stockApplicationService.findBySkuIds(skuIds).stream()
+            .map(this::toStockResponse)
+            .toList();
+        return ResponseEntity.ok(result);
+    }
+
     @GetMapping("/stock/{skuId}")
     public ResponseEntity<StockResponseDto> getStock(@PathVariable Long skuId) {
         SkuStock stock = stockApplicationService.getBySkuId(skuId);

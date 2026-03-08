@@ -42,6 +42,7 @@
 - ✅ 3.3 查询全部库存列表，返回所有已初始化的 SkuStock（skuId、available、reserved）
 - ✅ 3.4 查询不存在的 skuId 时应返回 404
 - ✅ 3.5 设置 available 为负数时应返回 400
+- ✅ 3.6 按 skuId 列表批量查询库存（仅返回已有记录的 SKU，不存在的忽略）
 
 ---
 

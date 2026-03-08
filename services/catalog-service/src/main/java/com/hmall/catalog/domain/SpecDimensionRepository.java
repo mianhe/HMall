@@ -12,6 +12,8 @@ public interface SpecDimensionRepository {
 
     Optional<SpecDimension> findById(Long id);
 
+    List<SpecDimension> findByIdIn(List<Long> ids);
+
     List<SpecDimension> findBySpuId(Long spuId);
 
     boolean existsBySpuIdAndName(Long spuId, String name);

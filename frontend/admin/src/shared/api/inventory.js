@@ -11,12 +11,22 @@ const client = axios.create({
 })
 
 /**
- * 查询库存
+ * 查询单个 SKU 库存
  * @param {number} skuId - SKU ID
  * @returns {Promise<{ skuId: number, available: number, reserved: number }>}
  */
 export async function getStock(skuId) {
   const { data } = await client.get(`/inventory/stock/${skuId}`)
+  return data
+}
+
+/**
+ * 批量查询库存（仅返回已有记录的 SKU）
+ * @param {number[]} skuIds - SKU ID 列表
+ * @returns {Promise<Array<{ skuId: number, available: number, reserved: number }>>}
+ */
+export async function batchGetStock(skuIds) {
+  const { data } = await client.post('/inventory/stock/batch', skuIds)
   return data
 }
 

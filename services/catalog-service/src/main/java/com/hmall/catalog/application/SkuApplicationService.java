@@ -13,7 +13,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * SKU 应用服务。
@@ -75,20 +78,6 @@ public class SkuApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public String getSpuName(Long spuId) {
-        return spuRepository.findById(spuId)
-            .map(spu -> spu.getName() != null ? spu.getName() : "")
-            .orElse("");
-    }
-
-    @Transactional(readOnly = true)
-    public String getProductType(Long spuId) {
-        return spuRepository.findById(spuId)
-            .map(spu -> spu.getProductType())
-            .orElse("PHYSICAL");
-    }
-
-    @Transactional(readOnly = true)
     public List<Sku> findBySpuId(Long spuId) {
         spuRepository.findById(spuId)
             .orElseThrow(() -> new IllegalArgumentException("SPU 不存在"));
@@ -128,11 +117,17 @@ public class SkuApplicationService {
         if (specOptionIds == null || specOptionIds.isEmpty()) {
             return List.of();
         }
+        Map<Long, SpecOption> optionMap = optionRepository.findByIdIn(specOptionIds).stream()
+            .collect(Collectors.toMap(SpecOption::getId, Function.identity()));
+        Set<Long> dimIds = optionMap.values().stream()
+            .map(SpecOption::getSpecDimensionId).collect(Collectors.toSet());
+        Map<Long, SpecDimension> dimMap = dimensionRepository.findByIdIn(new ArrayList<>(dimIds)).stream()
+            .collect(Collectors.toMap(SpecDimension::getId, Function.identity()));
         List<SpecValueView> result = new ArrayList<>();
         for (Long optionId : specOptionIds) {
-            SpecOption option = optionRepository.findById(optionId).orElse(null);
+            SpecOption option = optionMap.get(optionId);
             if (option == null) continue;
-            SpecDimension dim = dimensionRepository.findById(option.getSpecDimensionId()).orElse(null);
+            SpecDimension dim = dimMap.get(option.getSpecDimensionId());
             if (dim == null) continue;
             result.add(new SpecValueView(dim.getName(), option.getOptionValue()));
         }

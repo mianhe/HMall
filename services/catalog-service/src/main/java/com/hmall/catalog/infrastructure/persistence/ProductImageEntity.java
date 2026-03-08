@@ -5,10 +5,14 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "product_image")
+@Table(name = "product_image", indexes = {
+    @Index(name = "idx_product_image_spu_id", columnList = "spu_id"),
+    @Index(name = "idx_product_image_option_id", columnList = "spec_option_id")
+})
 public class ProductImageEntity {
 
     @Id

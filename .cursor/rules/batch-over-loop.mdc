@@ -1,0 +1,46 @@
+---
+description: 防止 N+1 查询和请求风暴
+globs: services/**/*.java,frontend/**/*.vue,frontend/**/*.js,hmall-mcp/**/*.js
+alwaysApply: false
+---
+
+# Batch Over Loop
+
+处理列表数据时，**禁止在循环中逐条查询**，必须使用批量操作。此规则覆盖后端数据库查询和前端 HTTP 请求两个层面。
+
+## 后端：禁止 N+1 查询
+
+当 Repository 实现或 Application Service 需要为列表中的每个元素查询关联数据时：
+
+- **提供 `findByXxxIn(List<ID>)` 批量方法**，一次查出所有关联数据，再在内存中按 ID 分组匹配。
+- **Controller 层映射列表 DTO 时**，先批量获取所有关联数据，再逐条组装，不在 `toDto()` 内发起查询。
+
+典型违规模式：
+
+```java
+// 错误：循环内逐条查询
+for (Sku sku : skuList) {
+    SpecOption opt = specOptionRepo.findById(sku.getOptionId());
+}
+
+// 正确：批量查询 + 内存匹配
+List<Long> optionIds = skuList.stream().map(Sku::getOptionId).toList();
+Map<Long, SpecOption> optionMap = specOptionRepo.findByIdIn(optionIds)
+    .stream().collect(Collectors.toMap(SpecOption::getId, Function.identity()));
+```
+
+## 前端：禁止请求风暴
+
+当页面需要为列表中的每个元素请求数据时：
+
+- **优先使用后端批量接口**（如 `POST /batch`），一次请求获取所有数据。
+- **若无批量接口，先推动后端提供**，而不是用 `Promise.all` 发 N 个请求绕过。
+- 层级数据（如分类树）使用 tree 接口，不递归调用 `getChildren`。
+
+## 检查时机
+
+新增或修改以下代码时触发自查：
+
+- Repository 新增 `findByXxx` 方法 → 是否需要对应的 `findByXxxIn` 批量版本
+- Controller/Service 中出现 `for` / `stream().map()` 调用 Repository → 改为批量
+- 前端 `for` / `.map()` / `Promise.all` 中出现 API 调用 → 改为批量接口

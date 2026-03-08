@@ -64,8 +64,8 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import AppHeader from '../shared/ui/AppHeader.vue'
 import InventoryTable from '../shared/ui/InventoryTable.vue'
-import { getCategories, getProducts, getDimensions, getSkus } from '../shared/api/catalog.js'
-import { getStock, setStock } from '../shared/api/inventory.js'
+import { getCategoryTree, getProducts, getSkus } from '../shared/api/catalog.js'
+import { batchGetStock, setStock } from '../shared/api/inventory.js'
 
 const tree = ref([])
 const loading = ref(false)
@@ -165,26 +165,36 @@ function errorMessage(e) {
   return msg || '加载失败'
 }
 
-async function loadCategoryNode(category) {
-  const [children, products] = await Promise.all([
-    getCategories(category.id),
-    getProducts(category.id),
-  ])
-  const childNodes = await Promise.all(children.map((c) => loadCategoryNode(c)))
-  const productNodes = await Promise.all(
-    products.map(async (p) => {
-      const [dims, skus] = await Promise.all([
-        getDimensions(p.id),
-        getSkus(p.id),
-      ])
-      return { ...p, dimensions: dims, skus }
-    })
+async function loadSkusForLeaves(categoryTree) {
+  const leaves = []
+  function collectLeaves(nodes) {
+    for (const node of nodes) {
+      if (node.children?.length) {
+        collectLeaves(node.children)
+      } else {
+        leaves.push(node)
+      }
+    }
+  }
+  collectLeaves(categoryTree)
+
+  const productsByCategory = await Promise.all(
+    leaves.map((leaf) => getProducts(leaf.id).then((products) => ({ leaf, products })))
   )
-  return {
-    type: 'category',
-    ...category,
-    children: childNodes,
-    products: productNodes,
+
+  const allProducts = productsByCategory.flatMap((entry) => entry.products)
+  const skusBySpuId = {}
+  if (allProducts.length) {
+    const skuResults = await Promise.all(
+      allProducts.map((p) => getSkus(p.id).then((skus) => ({ spuId: p.id, skus })))
+    )
+    for (const { spuId, skus } of skuResults) {
+      skusBySpuId[spuId] = skus
+    }
+  }
+
+  for (const { leaf, products } of productsByCategory) {
+    leaf.products = products.map((p) => ({ ...p, skus: skusBySpuId[p.id] || [] }))
   }
 }
 
@@ -192,13 +202,11 @@ async function load(opts = {}) {
   const { retries = 0 } = opts
   loading.value = true
   error.value = ''
-  let lastErr = null
   try {
-    const roots = await getCategories(null)
-    tree.value = await Promise.all(roots.map((c) => loadCategoryNode(c)))
-    return
+    const categoryTree = await getCategoryTree()
+    await loadSkusForLeaves(categoryTree)
+    tree.value = categoryTree
   } catch (e) {
-    lastErr = e
     if (retries > 0 && isServerError(e)) {
       await new Promise((r) => setTimeout(r, 2000))
       return load({ retries: retries - 1 })
@@ -212,20 +220,23 @@ async function load(opts = {}) {
 async function loadStocksForSkus(skuIds) {
   const missing = skuIds.filter((id) => stockBySkuId[id] === undefined)
   if (!missing.length) return
-  await Promise.all(
-    missing.map(async (skuId) => {
-      try {
-        const s = await getStock(skuId)
-        stockBySkuId[skuId] = s
-      } catch (e) {
-        if (e.response?.status === 404) {
-          stockBySkuId[skuId] = { skuId, available: 0, reserved: 0 }
-        } else {
-          stockBySkuId[skuId] = { skuId, available: 0, reserved: 0, _error: errorMessage(e) }
-        }
+  try {
+    const stocks = await batchGetStock(missing)
+    const returned = new Set()
+    for (const s of stocks) {
+      stockBySkuId[s.skuId] = s
+      returned.add(s.skuId)
+    }
+    for (const id of missing) {
+      if (!returned.has(id)) {
+        stockBySkuId[id] = { skuId: id, available: 0, reserved: 0 }
       }
-    })
-  )
+    }
+  } catch (e) {
+    for (const id of missing) {
+      stockBySkuId[id] = { skuId: id, available: 0, reserved: 0, _error: errorMessage(e) }
+    }
+  }
 }
 
 watch(

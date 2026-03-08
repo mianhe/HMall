@@ -1,0 +1,26 @@
+---
+description: 线上问题主动 SSH 诊断，不要只看本地代码猜测
+alwaysApply: true
+---
+
+# Server Diagnosis
+
+当用户报告**已部署环境**的问题（页面打不开、接口超时、服务异常、502/504 等），**立即 SSH 到服务器诊断**，不要仅靠本地代码推测原因。
+
+## 连接方式
+
+- 服务器 IP：从 `deploy/.env.prod.example` 的 `PUBLIC_HOST` 获取
+- SSH 命令：`ssh root@<PUBLIC_HOST>`
+- 远程执行：`ssh root@<IP> '<command>'`
+
+## 诊断步骤（按顺序执行）
+
+1. **容器状态**：`docker ps --format "table {{.Names}}\t{{.Status}}"`，确认相关服务是否运行
+2. **服务日志**：`docker logs <container> --tail 50`，查看报错或异常堆栈
+3. **API 连通性**：`curl -s -o /dev/null -w "%{http_code} %{time_total}s" --max-time 20 http://localhost/<path>`，验证请求链路（Nginx → BFF → 后端服务）
+4. **基础设施**：`free -h`（内存）、`df -h`（磁盘）、`docker stats --no-stream`（容器资源）
+
+## 约束
+
+- 所有服务器操作**只读**，遵守 `no-remote-code-edit` 规则
+- 诊断完成后，若需修改代码，回到本地修改 → 提交推送 → 服务器 `bash deploy.sh pull`

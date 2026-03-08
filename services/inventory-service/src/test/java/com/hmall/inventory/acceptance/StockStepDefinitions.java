@@ -94,6 +94,20 @@ public class StockStepDefinitions {
         responseContext.setLastStockListBody(res.getBody());
     }
 
+    @When("管理端 批量查询 skuId 列表 {long}、{long}、{long} 的库存")
+    public void 管理端批量查询库存(long id1, long id2, long id3) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        ResponseEntity<List<Map<String, Object>>> res = restTemplate.exchange(
+            baseUrl() + "/api/inventory/stock/batch",
+            HttpMethod.POST,
+            new HttpEntity<>(List.of(id1, id2, id3), headers),
+            new ParameterizedTypeReference<List<Map<String, Object>>>() {}
+        );
+        responseContext.setLastStatusCode(res.getStatusCode().value());
+        responseContext.setLastStockListBody(res.getBody());
+    }
+
     @And("返回的库存列表应包含 skuId {long} 且 available {int}")
     public void 库存列表应包含(long skuId, int expectedAvailable) {
         List<Map<String, Object>> list = responseContext.getLastStockListBody();
@@ -102,5 +116,11 @@ public class StockStepDefinitions {
             assertThat(((Number) item.get("skuId")).longValue()).isEqualTo(skuId);
             assertThat(((Number) item.get("available")).intValue()).isEqualTo(expectedAvailable);
         });
+    }
+
+    @And("返回的库存列表长度应为 {int}")
+    public void 库存列表长度应为(int expectedSize) {
+        List<Map<String, Object>> list = responseContext.getLastStockListBody();
+        assertThat(list).isNotNull().hasSize(expectedSize);
     }
 }

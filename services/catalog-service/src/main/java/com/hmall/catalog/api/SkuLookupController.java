@@ -4,6 +4,8 @@ import com.hmall.catalog.api.dto.SkuDto;
 import com.hmall.catalog.api.dto.SkuSpecValueDto;
 import com.hmall.catalog.application.SkuApplicationService;
 import com.hmall.catalog.domain.Sku;
+import com.hmall.catalog.domain.Spu;
+import com.hmall.catalog.domain.SpuRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,27 +23,23 @@ import java.util.List;
 public class SkuLookupController {
 
     private final SkuApplicationService applicationService;
+    private final SpuRepository spuRepository;
 
-    public SkuLookupController(SkuApplicationService applicationService) {
+    public SkuLookupController(SkuApplicationService applicationService, SpuRepository spuRepository) {
         this.applicationService = applicationService;
+        this.spuRepository = spuRepository;
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<SkuDto> getById(@PathVariable Long id) {
         Sku sku = applicationService.getById(id);
-        String spuName = applicationService.getSpuName(sku.getSpuId());
-        String productType = applicationService.getProductType(sku.getSpuId());
+        Spu spu = spuRepository.findById(sku.getSpuId()).orElse(null);
+        String spuName = spu != null ? spu.getName() : "";
+        String productType = spu != null ? spu.getProductType() : "PHYSICAL";
         List<SkuSpecValueDto> specValues = applicationService.resolveSpecValues(sku.getSpecOptionIds()).stream()
             .map(v -> new SkuSpecValueDto(v.dimensionName(), v.optionValue()))
             .toList();
-        return ResponseEntity.ok(new SkuDto(
-            sku.getId(),
-            sku.getSpuId(),
-            sku.getPriceCents(),
-            sku.getDisplayName(),
-            spuName,
-            productType,
-            specValues
-        ));
+        return ResponseEntity.ok(new SkuDto(sku.getId(), sku.getSpuId(), sku.getPriceCents(),
+            sku.getDisplayName(), spuName, productType, specValues));
     }
 }

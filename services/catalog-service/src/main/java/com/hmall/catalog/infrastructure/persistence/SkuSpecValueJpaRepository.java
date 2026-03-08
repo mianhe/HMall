@@ -8,6 +8,8 @@ public interface SkuSpecValueJpaRepository extends JpaRepository<SkuSpecValueEnt
 
     List<SkuSpecValueEntity> findBySkuIdOrderByIdAsc(Long skuId);
 
+    List<SkuSpecValueEntity> findBySkuIdInOrderBySkuIdAscIdAsc(List<Long> skuIds);
+
     void deleteBySkuId(Long skuId);
 
     boolean existsBySpecOptionId(Long specOptionId);

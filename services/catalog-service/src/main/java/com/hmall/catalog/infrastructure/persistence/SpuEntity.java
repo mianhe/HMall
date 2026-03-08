@@ -5,10 +5,13 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "spu")
+@Table(name = "spu", indexes = {
+    @Index(name = "idx_spu_category_id", columnList = "category_id")
+})
 public class SpuEntity {
 
     @Id

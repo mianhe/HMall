@@ -5,10 +5,13 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "spec_option")
+@Table(name = "spec_option", indexes = {
+    @Index(name = "idx_spec_option_dimension_id", columnList = "spec_dimension_id")
+})
 public class SpecOptionEntity {
 
     @Id

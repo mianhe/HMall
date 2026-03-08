@@ -12,6 +12,8 @@ public interface SpecOptionRepository {
 
     Optional<SpecOption> findById(Long id);
 
+    List<SpecOption> findByIdIn(List<Long> ids);
+
     List<SpecOption> findBySpecDimensionId(Long specDimensionId);
 
     boolean existsBySpecDimensionIdAndOptionValue(Long specDimensionId, String optionValue);

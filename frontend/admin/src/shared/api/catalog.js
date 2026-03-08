@@ -18,6 +18,11 @@ export async function getCategories(parentId = null) {
   return data
 }
 
+export async function getCategoryTree() {
+  const { data } = await client.get('/categories/tree')
+  return data
+}
+
 export async function getProducts(categoryId) {
   const { data } = await client.get('/products', { params: { categoryId } })
   return data

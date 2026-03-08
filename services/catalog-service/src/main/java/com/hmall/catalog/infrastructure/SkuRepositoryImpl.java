@@ -8,7 +8,10 @@ import com.hmall.catalog.infrastructure.persistence.SkuSpecValueEntity;
 import com.hmall.catalog.infrastructure.persistence.SkuSpecValueJpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Repository
@@ -62,13 +65,20 @@ public class SkuRepositoryImpl implements SkuRepository {
 
     @Override
     public List<Sku> findBySpuId(Long spuId) {
-        return skuJpaRepository.findBySpuIdOrderByIdAsc(spuId).stream()
-            .map(entity -> {
-                List<Long> optionIds = specValueJpaRepository.findBySkuIdOrderByIdAsc(entity.getId()).stream()
-                    .map(SkuSpecValueEntity::getSpecOptionId)
-                    .toList();
-                return toDomain(entity, optionIds);
-            })
+        List<SkuEntity> entities = skuJpaRepository.findBySpuIdOrderByIdAsc(spuId);
+        return batchToDomain(entities);
+    }
+
+    private List<Sku> batchToDomain(List<SkuEntity> entities) {
+        if (entities.isEmpty()) return List.of();
+        List<Long> skuIds = entities.stream().map(SkuEntity::getId).toList();
+        Map<Long, List<Long>> optionsBySkuId = new LinkedHashMap<>();
+        for (SkuSpecValueEntity sv : specValueJpaRepository.findBySkuIdInOrderBySkuIdAscIdAsc(skuIds)) {
+            optionsBySkuId.computeIfAbsent(sv.getSkuId(), k -> new ArrayList<>())
+                .add(sv.getSpecOptionId());
+        }
+        return entities.stream()
+            .map(e -> toDomain(e, optionsBySkuId.getOrDefault(e.getId(), List.of())))
             .toList();
     }
 

@@ -22,6 +22,11 @@ public class InventoryStockApplicationService {
     }
 
     @Transactional(readOnly = true)
+    public List<SkuStock> findBySkuIds(List<Long> skuIds) {
+        return skuStockRepository.findBySkuIdIn(skuIds);
+    }
+
+    @Transactional(readOnly = true)
     public SkuStock getBySkuId(Long skuId) {
         return skuStockRepository.findBySkuId(skuId)
             .orElseThrow(() -> new StockNotFoundException("skuId=" + skuId));

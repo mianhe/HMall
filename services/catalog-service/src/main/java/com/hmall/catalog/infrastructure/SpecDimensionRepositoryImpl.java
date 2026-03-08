@@ -31,6 +31,12 @@ public class SpecDimensionRepositoryImpl implements SpecDimensionRepository {
     }
 
     @Override
+    public List<SpecDimension> findByIdIn(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        return jpaRepository.findByIdIn(ids).stream().map(this::toDomain).toList();
+    }
+
+    @Override
     public List<SpecDimension> findBySpuId(Long spuId) {
         return jpaRepository.findBySpuIdOrderBySortOrderAscIdAsc(spuId).stream()
             .map(this::toDomain)

@@ -7,6 +7,12 @@ alwaysApply: true
 
 通过 SSH 连接远程服务器时，**严禁修改服务器上的任何代码或版本控制内的配置文件**。
 
+## 连接方式
+
+- 服务器 IP：从 `deploy/.env.prod.example` 的 `PUBLIC_HOST` 获取
+- SSH 连接：`ssh root@<PUBLIC_HOST>`
+- 远程执行单条命令：`ssh root@<IP> '<command>'`
+
 ## 允许的操作（只读 + 运维）
 
 - 查看日志：`docker logs`、`tail`
