@@ -5,3 +5,6 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+
+catalog:
+  base-url: http://catalog-service:8080
