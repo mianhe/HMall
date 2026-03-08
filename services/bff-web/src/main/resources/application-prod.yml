@@ -19,3 +19,4 @@ bff:
     allowed-origins:
       - http://${PUBLIC_HOST:localhost}
       - https://${PUBLIC_HOST:localhost}
+    read-timeout-ms: 60000
