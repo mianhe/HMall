@@ -23,16 +23,11 @@
 import { ref, onMounted } from 'vue'
 import AppHeader from '../shared/ui/AppHeader.vue'
 import CatalogTree from '../shared/ui/CatalogTree.vue'
-import { getCategoryTree, getProducts, getDimensions, getSkus, getServiceBindings } from '../shared/api/catalog.js'
+import { getCategoryTree } from '../shared/api/catalog.js'
 
 const tree = ref([])
 const loading = ref(false)
 const error = ref('')
-
-function isServerError(e) {
-  const status = e.response?.status
-  return status >= 500 || status === 502 || status === 503
-}
 
 function errorMessage(e) {
   const status = e.response?.status
@@ -52,68 +47,17 @@ function errorMessage(e) {
   return msg || '加载失败'
 }
 
-async function load(opts = {}) {
-  const { retries = 0 } = opts
+async function load() {
   loading.value = true
   error.value = ''
-  let lastErr = null
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const categoryTree = await getCategoryTree()
-      tree.value = await enrichTreeSequentially(categoryTree)
-      return
-    } catch (e) {
-      lastErr = e
-      if (attempt < retries && isServerError(e)) {
-        await new Promise((r) => setTimeout(r, 2000))
-        continue
-      }
-      error.value = errorMessage(e)
-      return
-    } finally {
-      if (attempt === retries || !lastErr || !isServerError(lastErr)) {
-        loading.value = false
-      }
-    }
-  }
-  loading.value = false
-  if (lastErr) error.value = errorMessage(lastErr)
-}
-
-async function enrichTreeSequentially(categories) {
-  const result = []
-  for (const cat of categories) {
-    result.push(await enrichCategoryNode(cat))
-  }
-  return result
-}
-
-async function enrichCategoryNode(category) {
-  const products = await getProducts(category.id)
-  const productNodes = []
-  for (const p of products) {
-    const [dims, skus] = await Promise.all([
-      getDimensions(p.id),
-      getSkus(p.id),
-    ])
-    let skusWithBindings = skus
-    if (p.productType === 'SERVICE') {
-      const bindingsArr = []
-      for (const sku of skus) {
-        bindingsArr.push({ ...sku, bindings: await getServiceBindings(sku.id) })
-      }
-      skusWithBindings = bindingsArr
-    }
-    productNodes.push({ ...p, dimensions: dims, skus: skusWithBindings })
-  }
-  const childNodes = await enrichTreeSequentially(category.children || [])
-  return {
-    type: 'category',
-    ...category,
-    children: childNodes,
-    products: productNodes,
+  try {
+    tree.value = await getCategoryTree()
+  } catch (e) {
+    error.value = errorMessage(e)
+  } finally {
+    loading.value = false
   }
 }
 
-onMounted(() => load({ retries: 2 }))
+onMounted(load)
 </script>
