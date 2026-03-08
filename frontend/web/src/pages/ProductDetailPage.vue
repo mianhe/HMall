@@ -46,6 +46,7 @@
           <div class="mb-6">
             <template v-if="matchedSku">
               <span class="text-2xl font-bold text-vmall-red">¥ {{ (matchedSku.priceCents / 100).toFixed(2) }}</span>
+              <p v-if="!matchedSkuInStock" class="text-sm text-amber-600 mt-1">该规格暂无库存</p>
             </template>
             <template v-else>
               <span class="text-xl text-vmall-gray-text">请选择规格</span>
@@ -143,17 +144,17 @@
             </div>
           </div>
 
-          <!-- 立即购买 / 加入购物车 -->
+          <!-- 立即购买 / 加入购物车（V-Mall：缺货时禁用并显示提示） -->
           <div class="mt-6 flex flex-wrap gap-3 items-center">
             <button
-              :disabled="!matchedSku || (selectedEngravingOption && !!engravingValidationError)"
+              :disabled="!matchedSku || !matchedSkuInStock || (selectedEngravingOption && !!engravingValidationError)"
               @click="goCheckout"
               class="px-8 py-3 rounded-lg bg-vmall-red text-white font-medium hover:bg-vmall-red-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               立即购买
             </button>
             <button
-              :disabled="!matchedSku || addingToCart || (selectedEngravingOption && !!engravingValidationError)"
+              :disabled="!matchedSku || !matchedSkuInStock || addingToCart || (selectedEngravingOption && !!engravingValidationError)"
               @click="addToCart"
               class="px-8 py-3 rounded-lg border-2 border-vmall-red text-vmall-red font-medium hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
@@ -202,6 +203,7 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getProduct, getDimensions, getSkus, getAvailableServices, getEngravingPatterns } from '../shared/api/catalog.js'
+import { batchGetStock } from '../shared/api/inventory.js'
 import { addCartItem } from '../shared/api/cart.js'
 import { useAuth } from '../shared/auth.js'
 import { isEngravingService, buildEngravingAttributes, validateEngravingContent } from '../shared/utils/engraving.js'
@@ -212,6 +214,7 @@ const { isLoggedIn } = useAuth()
 const product = ref(null)
 const dimensions = ref([])
 const skus = ref([])
+const stockBySkuId = ref({})
 const availableServices = ref([])
 const selectedServiceKey = ref(null)
 const loading = ref(true)
@@ -271,6 +274,15 @@ const matchedSku = computed(() => {
       sv.some((s) => s.dimensionName === name && s.optionValue === value)
     )
   }) ?? null
+})
+
+/** 当前选中的 SKU 是否有库存（无记录视为有货，由下单时校验） */
+const matchedSkuInStock = computed(() => {
+  const sku = matchedSku.value
+  if (!sku) return false
+  const stock = stockBySkuId.value[sku.id]
+  if (!stock) return true
+  return stock.available > 0
 })
 
 const serviceOptions = computed(() => {
@@ -419,6 +431,7 @@ async function load() {
   dimensions.value = []
   skus.value = []
   availableServices.value = []
+  stockBySkuId.value = {}
   selectedOptionIds.value = {}
   selectedServiceKey.value = null
   selectedEngravingPatternId.value = null
@@ -442,6 +455,13 @@ async function load() {
       engravingPatterns.value = services.some(isEngravingService) ? patterns : []
     } else {
       engravingPatterns.value = []
+    }
+    const skuIds = (skuList || []).map((s) => s.id)
+    if (skuIds.length) {
+      const stocks = await batchGetStock(skuIds).catch(() => [])
+      stockBySkuId.value = Object.fromEntries(
+        stocks.map((s) => [s.skuId, { available: s.available, reserved: s.reserved }])
+      )
     }
   } catch (e) {
     error.value = e.response?.data?.message || e.message || '加载失败'
