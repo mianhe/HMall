@@ -21,12 +21,22 @@ export async function getModels() {
  * @returns {Promise<ReadableStreamDefaultReader>}
  */
 export async function streamChat(payload, signal) {
-  const response = await fetch('/api/ai/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    signal,
-  })
+  const doFetch = () =>
+    fetch('/api/ai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal,
+    })
+
+  let response
+  try {
+    response = await doFetch()
+  } catch (err) {
+    if (err.name === 'AbortError') throw err
+    await new Promise(r => setTimeout(r, 500))
+    response = await doFetch()
+  }
 
   if (!response.ok) {
     throw new Error(`AI chat request failed: ${response.status}`)
