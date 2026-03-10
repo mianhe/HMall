@@ -51,7 +51,7 @@ file_to_service() {
     services/smart-interaction-service/*) echo "smart-interaction-service" ;;
     services/bff-web/*)                   echo "bff-web" ;;
     pom.xml)                              echo "__ALL__" ;;
-    docs/*|deploy/*|scripts/*|.github/*|.githooks/*|.cursor/*|*.md|.gitignore|.dockerignore)
+    docs/*|deploy/*|scripts/*|.github/*|.githooks/*|.cursor/*|hmall-mcp/*|*.md|.gitignore|.dockerignore)
                                           echo "__SKIP__" ;;
     *)                                    echo "__ALL__" ;;
   esac

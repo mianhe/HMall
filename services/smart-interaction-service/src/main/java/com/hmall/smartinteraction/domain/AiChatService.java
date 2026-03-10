@@ -467,6 +467,10 @@ public class AiChatService {
         var matchedUris = new java.util.LinkedHashSet<String>();
         for (var resource : allResources) {
             String uri = resource.uri();
+            if (uri.contains("/ontology/")) {
+                matchedUris.add(uri);
+                continue;
+            }
             for (String prefix : toolPrefixes) {
                 String domain = prefix.replace("_", "");
                 if (uri.contains(domain) || uri.contains(prefix.replace("_", "-"))) {

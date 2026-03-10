@@ -108,7 +108,7 @@ cd ~/hmall/deploy
 bash deploy.sh up
 ```
 
-首次构建需要 20-40 分钟（下载 Maven 依赖 + 编译 11 个服务 + 构建前端）。后续更新会很快（Docker 缓存）。
+首次构建需要 20-40 分钟（下载 Maven 依赖 + 编译 11 个服务 + 构建前端）。后续更新会很快（Docker 缓存）。各 Java 服务配置了健康检查，BFF 与 Nginx 会等依赖服务就绪后再启动，减少部署后 502 的时间窗口。
 
 查看构建日志：
 
@@ -139,7 +139,7 @@ bash deploy.sh status
 bash deploy.sh logs                     # 全部
 bash deploy.sh logs catalog-service     # 单个服务
 
-# 拉取最新代码并重新部署
+# 拉取最新代码并重新部署（会自动等待 API 就绪，最多约 5 分钟）
 bash deploy.sh pull
 
 # 停止所有服务

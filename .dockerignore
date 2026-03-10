@@ -1,7 +1,13 @@
 .git
+.githooks
 .hmall
 .cursor
 docs
 scripts
+*.md
 **/node_modules
 **/target
+**/dist
+.idea
+.vscode
+*.iml

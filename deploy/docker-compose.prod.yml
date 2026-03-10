@@ -68,6 +68,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --spider --timeout=2 http://localhost:8080/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 120s
     networks:
       - hmall-net
     restart: unless-stopped
@@ -85,6 +91,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --spider --timeout=2 http://localhost:8082/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 120s
     networks:
       - hmall-net
     restart: unless-stopped
@@ -104,6 +116,12 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --spider --timeout=2 http://localhost:8081/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 120s
     networks:
       - hmall-net
     restart: unless-stopped
@@ -123,6 +141,12 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --spider --timeout=2 http://localhost:8083/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 120s
     networks:
       - hmall-net
     restart: unless-stopped
@@ -143,6 +167,12 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --spider --timeout=2 http://localhost:8084/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 120s
     networks:
       - hmall-net
     restart: unless-stopped
@@ -162,6 +192,12 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --spider --timeout=2 http://localhost:8086/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 120s
     networks:
       - hmall-net
     restart: unless-stopped
@@ -179,6 +215,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --spider --timeout=2 http://localhost:8087/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 120s
     networks:
       - hmall-net
     restart: unless-stopped
@@ -198,6 +240,12 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --spider --timeout=2 http://localhost:8088/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 120s
     networks:
       - hmall-net
     restart: unless-stopped
@@ -218,6 +266,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --spider --timeout=2 http://localhost:8089/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 120s
     networks:
       - hmall-net
     restart: unless-stopped
@@ -233,8 +287,16 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       PUBLIC_HOST: ${PUBLIC_HOST:-localhost}
     depends_on:
-      - catalog-service
-      - user-service
+      catalog-service:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null --spider --timeout=2 http://localhost:8085/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 180s
     networks:
       - hmall-net
     restart: unless-stopped
@@ -255,7 +317,8 @@ services:
       HMALL_ACTIVITY_API_BASE: http://activity-service:8086/api
       MCP_ALLOWED_HOSTS: localhost,hmall-mcp,${PUBLIC_HOST:-localhost}
     depends_on:
-      - catalog-service
+      catalog-service:
+        condition: service_healthy
     networks:
       - hmall-net
     restart: unless-stopped
@@ -269,8 +332,10 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - bff-web
-      - smart-interaction-service
+      bff-web:
+        condition: service_healthy
+      smart-interaction-service:
+        condition: service_healthy
     networks:
       - hmall-net
     restart: unless-stopped
