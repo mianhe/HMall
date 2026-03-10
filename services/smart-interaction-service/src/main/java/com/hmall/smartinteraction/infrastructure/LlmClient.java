@@ -19,6 +19,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.util.retry.Retry;
+
 @Component
 public class LlmClient {
 
@@ -67,6 +70,11 @@ public class LlmClient {
             .bodyValue(body)
             .retrieve()
             .bodyToFlux(String.class)
+            .retryWhen(Retry.backoff(3, Duration.ofSeconds(2))
+                .maxBackoff(Duration.ofSeconds(10))
+                .filter(t -> t instanceof WebClientResponseException.TooManyRequests)
+                .doBeforeRetry(signal -> log.warn("429 rate-limited by LLM provider, retry #{} after backoff",
+                        signal.totalRetries() + 1)))
             .mapNotNull(line -> {
                 try {
                     String data = line.startsWith("data:") ? line.substring(5).trim() : line.trim();
