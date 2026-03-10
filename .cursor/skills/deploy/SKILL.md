@@ -19,6 +19,7 @@ description: 部署 HMall 到阿里云 ECS：本地测试 → 提交推送 → �
 1. **本地先行，服务器只拉不改**：所有代码变更必须在本地完成、测试通过、提交推送后，服务器通过 `git pull` 获取。**严禁直接在服务器上修改代码。**
 2. **环境配置与代码分离**：`.env.prod` 只存在于服务器上（不入 Git），包含密码和 API Key 等敏感信息。
 3. **构建在服务器完成**：Docker 多阶段构建，服务器上 `docker compose up --build` 自动编译打包。
+4. **最小影响部署**：`deploy.sh pull` 智能检测变更范围，只重建有改动的服务；滚动更新先构建新镜像再逐个替换，减少停机时间。
 
 ---
 
@@ -97,8 +98,17 @@ description: 部署 HMall 到阿里云 ECS：本地测试 → 提交推送 → �
 | 步骤 | 动作 |
 |------|------|
 | 4 | SSH 连接服务器 |
-| 5 | `cd ~/hmall/deploy && bash deploy.sh pull`（= git pull + docker compose up --build） |
-| 6 | 若只需更新特定服务（加速）：`cd ~/hmall && git pull && cd deploy && docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build <service-name>` |
+| 5 | `cd ~/hmall/deploy && bash deploy.sh pull`（智能部署：自动检测变更范围，只重建有改动的服务） |
+| 6 | 若需手动更新指定服务：`cd ~/hmall/deploy && bash deploy.sh update <service...>`（先构建镜像再逐个替换容器） |
+
+`deploy.sh pull` 的智能检测规则：
+- 仅后端 `services/<svc>/` 改动 → 只重建该服务
+- `Dockerfile.service` 或 `docker-compose.prod.yml` 改动 → 重建所有后端
+- `frontend/`、`deploy/nginx/` 改动 → 重建 Nginx
+- `hmall-mcp/`、`Dockerfile.mcp`、`docs/ontology.md` 改动 → 重建 MCP
+- 仅文档/脚本改动 → 跳过部署
+
+滚动更新流程：先构建所有新镜像（旧容器保持运行），再按依赖顺序逐个替换容器。
 
 ---
 
@@ -138,7 +148,7 @@ description: 部署 HMall 到阿里云 ECS：本地测试 → 提交推送 → �
 | 1. 诊断 | 查看日志（`docker logs`）、容器状态（`docker ps`）、测试连通性（`curl`）。**只读操作。** | 服务器 |
 | 2. 修复 | 根据诊断结果，在本地仓库中修改相关代码或配置文件 | 本地 |
 | 3. 提交推送 | `git add . && git commit -m "fix: ..." && git push` | 本地 |
-| 4. 拉取重部署 | `cd ~/hmall/deploy && bash deploy.sh pull`，或针对特定服务：`git pull && docker compose ... up -d --build <service>` | 服务器 |
+| 4. 拉取重部署 | `cd ~/hmall/deploy && bash deploy.sh pull`（智能检测变更），或 `git pull && bash deploy.sh update <service>` | 服务器 |
 | 5. 重新验证 | 回到步骤 7（验证），确认问题已解决 | 服务器 |
 
 > **严禁捷径**：即使"只改一行"、"先跑通再说"，也必须走完 commit → push → pull 闭环。参见 `no-remote-code-edit` 规则。
@@ -149,12 +159,16 @@ description: 部署 HMall 到阿里云 ECS：本地测试 → 提交推送 → �
 
 | 现象 | 排查步骤 |
 |------|---------|
-| 容器状态为 Created（未启动） | 检查 `depends_on` 中的依赖服务是否 healthy。常见：Kafka 健康检查命令路径不对（应为 `/opt/kafka/bin/kafka-broker-api-versions.sh`） |
-| 服务启动后 MCP 403 Forbidden | MCP SDK 的 Host 头校验拒绝了 Docker 网络 hostname。检查 `hmall-mcp/index-http.js` 中 `createMcpExpressApp` 的 `allowedHosts` 配置 |
+| 容器状态为 Created（未启动） | 检查 `depends_on` 中的依赖服务是否 healthy。依赖链：基础设施 → 后端服务 → BFF/MCP → Nginx |
+| 后端 healthy 但 BFF/Nginx 仍 Created | `docker compose up -d` 再次触发依赖检查。若 Kafka 仍 unhealthy，可能是健康检查超时不足 |
+| MCP 循环重启（ENOENT ontology.md） | 确认 `.dockerignore` 中有 `!docs/ontology.md` 例外，`Dockerfile.mcp` 中 COPY 到 `/docs/ontology.md`（绝对路径） |
+| Nginx 启动失败 host not found | MCP upstream 使用了变量 + resolver（`deploy/nginx/default.conf`），若仍失败检查 Docker DNS `127.0.0.11` 是否可用 |
+| 服务启动后 MCP 403 Forbidden | MCP SDK 的 Host 头校验拒绝了请求。检查 `docker-compose.prod.yml` 中 `MCP_ALLOWED_HOSTS` 是否包含公网 IP |
 | `apt-get upgrade` 卡住 | 阿里云访问海外 PPA 可能很慢。`kill` 卡住的 apt 进程，跳过 upgrade 手动继续后续安装步骤 |
 | AI 助手不可用 | 检查 `.env.prod` 中 API Key 是否填写，`docker logs hmall-smart-interaction` 查看错误 |
 | 内存不足 | `free -h` 检查。Swap 应为 4GB。`docker stats --no-stream` 查看各容器内存。考虑限制 JVM：在 Dockerfile 或 compose 中加 `-Xmx` |
-| 某服务需单独重建 | `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build <service>` |
+| 某服务需单独重建 | `bash deploy.sh update <service-name>`（推荐），或 `docker compose ... up -d --build <service>` |
+| `deploy.sh pull` 跳过了需要的服务 | 智能检测基于 git diff，若前次部署失败需用 `bash deploy.sh update <service...>` 手动触发 |
 
 ---
 
@@ -176,7 +190,7 @@ description: 部署 HMall 到阿里云 ECS：本地测试 → 提交推送 → �
 ## 参考
 
 - `deploy/init-server.sh`：服务器初始化脚本
-- `deploy/deploy.sh`：日常部署脚本（up/down/restart/logs/status/pull）
+- `deploy/deploy.sh`：部署脚本（up/down/restart/logs/status/pull/update），pull 支持智能变更检测
 - `deploy/docker-compose.prod.yml`：生产环境编排
 - `deploy/.env.prod.example`：环境变量模板
 - `deploy/Dockerfile.service`：Java 微服务镜像构建
