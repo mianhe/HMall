@@ -75,7 +75,7 @@ Fulfillment 负责订单的履约执行：接收 Order 的创建履约请求，�
 
 > 以下变更来自业务需求 [镭雕服务](../../business-requirements/laser-engraving/overview.md)
 
-- 🔲 3a.1 engravingInfo 非空且 engravingCompletedAt 未设时执行完成镭雕应成功，设 engravingCompletedAt
+- 🔲 3a.1 engravingInfo 非空且 engravingCompletedAt 未设时执行完成镭雕应成功，设 engravingCompletedAt，并发布 ServiceActivated 事件（镭雕是附加在实体履约单上的服务，完成即等效服务激活）
 - 🔲 3a.2 engravingInfo 为空时执行完成镭雕应失败并返回错误
 - 🔲 3a.3 engravingCompletedAt 已设时执行完成镭雕应失败并返回错误（幂等或重复操作）
 - 🔲 3a.4 履约单不存在时应返回 404

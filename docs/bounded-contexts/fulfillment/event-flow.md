@@ -47,7 +47,8 @@ Order 同步调用 createFulfillment(orderId, items, shippingAddress)
   → 镭雕 SERVICE items 不拆成 VIRTUAL，engravingInfo 合并到关联的实体履约单
   → 管理后台调用 POST /api/fulfillment/{id}/complete-engraving 标记镭雕完成
   → 有 engravingInfo 时须 completeEngraving 后才能 ship
-  → 可选发布 EngravingCompleted 事件（Activity 消费）
+  → 发布 EngravingCompleted 事件（Activity 消费）
+  → 发布 ServiceActivated 事件（Order + Activity 消费；镭雕完成即等效服务激活）
 ```
 
 ### 取消（补偿路径）
@@ -181,7 +182,7 @@ POST /api/fulfillment/{fulfillmentOrderId}/complete-engraving
 
 | 场景 | 状态码 | 说明 |
 |------|--------|------|
-| 完成成功 | 200 | 设 engravingCompletedAt，可选发布 EngravingCompleted |
+| 完成成功 | 200 | 设 engravingCompletedAt，发布 EngravingCompleted + ServiceActivated |
 | engravingInfo 为空 | 400 | 该履约单无镭雕内容 |
 | engravingCompletedAt 已设 | 400 | 镭雕已完成，重复操作 |
 | 履约单不存在 | 404 | — |
@@ -244,10 +245,10 @@ GET /api/fulfillment?orderId={orderId}&status={status}
 | FulfillmentOrderAllocated | 开始配货成功 | `fulfillment.order.allocated` | Order, Activity | orderId, fulfillmentOrderId, occurredAt |
 | FulfillmentShipped | 发货成功 | `fulfillment.shipped` | Order, Activity | orderId, fulfillmentOrderId, occurredAt |
 | FulfillmentDelivered | 签收确认 | `fulfillment.delivered` | Order, Activity | orderId, fulfillmentOrderId, occurredAt |
-| 🔲 ServiceActivated | 虚拟服务激活 | `fulfillment.service.activated` | Order, Activity | orderId, fulfillmentOrderId, serviceSkuId, activatedAt, expiresAt, occurredAt |
+| 🔲 ServiceActivated | 虚拟服务激活 / 镭雕完成 | `fulfillment.service.activated` | Order, Activity | orderId, fulfillmentOrderId, serviceSkuId, activatedAt, expiresAt, occurredAt |
 | 🔲 EngravingCompleted | 镭雕已完成 | `fulfillment.engraving.completed` | Activity | orderId, fulfillmentOrderId, completedAt, occurredAt |
 
-**注意**：FulfillmentOrderCreated 事件仅 Activity 消费。Order 在同步创建履约单后保持 PAID；收到 FulfillmentOrderAllocated 后置 FULFILLING。🔲 ServiceActivated 对 Order 等效 FulfillmentDelivered。🔲 EngravingCompleted 供 Activity 订单旅程展示，Order 不消费。
+**注意**：FulfillmentOrderCreated 事件仅 Activity 消费。Order 在同步创建履约单后保持 PAID；收到 FulfillmentOrderAllocated 后置 FULFILLING。🔲 ServiceActivated 对 Order 等效 FulfillmentDelivered；镭雕完成时也会发布 ServiceActivated（镭雕是附加在实体履约单上的服务，完成即等效服务激活）。🔲 EngravingCompleted 供 Activity 订单旅程展示，Order 不消费。
 
 ### 事件消息体
 

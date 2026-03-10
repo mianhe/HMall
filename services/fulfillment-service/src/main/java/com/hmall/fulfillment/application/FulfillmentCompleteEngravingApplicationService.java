@@ -4,6 +4,7 @@ import com.hmall.fulfillment.domain.EngravingCompleted;
 import com.hmall.fulfillment.domain.FulfillmentOrder;
 import com.hmall.fulfillment.domain.FulfillmentOrderRepository;
 import com.hmall.fulfillment.domain.DomainEventPublisher;
+import com.hmall.fulfillment.domain.ServiceActivated;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,5 +37,7 @@ public class FulfillmentCompleteEngravingApplicationService {
 
         Instant occurredAt = order.getEngravingCompletedAt() != null ? order.getEngravingCompletedAt() : Instant.now();
         eventPublisher.publish(new EngravingCompleted(order.getOrderId(), fulfillmentOrderId, occurredAt));
+        eventPublisher.publish(new ServiceActivated(
+                order.getOrderId(), fulfillmentOrderId, 0L, occurredAt, null, occurredAt));
     }
 }
