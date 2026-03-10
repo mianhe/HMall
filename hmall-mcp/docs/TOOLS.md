@@ -27,7 +27,7 @@
 
 | 工具名 | 用途 |
 |--------|------|
-| `inventory_stock` | 库存水位：按 skuId 查询（可用/已占用）/ 初始化或更新可用库存 |
+| `inventory_stock` | 库存水位：按商品分组查询（含全缺货告警）/ 单 SKU 查询 / 初始化或更新可用库存 |
 
 > **设计说明**：Inventory BC 的占用（occupy）和释放（release）API 属于系统协调接口（仅由 Order BC 在 Saga 流程中调用），不暴露为 MCP tool，以避免绕过 Order 的一致性保证。
 
@@ -298,19 +298,21 @@ SKU 的查询与维护。SKU 由各规格维度的选项组合 + 价格（及可
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `action` | string | 是 | `list` \| `get` \| `update` |
+| `action` | string | 是 | `health` \| `list` \| `get` \| `update` |
 | `skuId` | number | get/update 时必填 | SKU ID |
 | `available` | number | update 时必填 | 可用数量，≥0 |
 
 **action 说明**
 
-- `list`：查询全部库存列表，返回每个 SKU 的可用/已占用数量及名称，附带汇总合计。无记录时提示为空。
+- `health`：商品级库存健康检查。交叉比对商品目录与库存记录（内部仅 2 次 API 调用），按 PHYSICAL 商品分为四档输出：✅ 全部有货、⚠️ 部分缺货、❌ 全部缺货、🔕 未初始化库存。适合全局巡检"有没有缺货"等场景。
+- `list`：查询全部库存明细，按商品（SPU）分组展示每个 SKU 的可用/已占用数量，附带汇总合计。末尾标注所有 SKU 均缺货的商品。SERVICE 类型商品自动跳过。
 - `get`：查询单个 SKU 的可用数量（available）和已占用数量（reserved）。不存在时返回 404。
 - `update`：初始化或更新可用库存。不存在则创建（reserved=0），存在则仅更新 available。
 
 **示例**
 
-- 查全部库存：`action=list`
+- 库存健康巡检：`action=health`
+- 查全部库存明细：`action=list`
 - 查单个库存：`action=get`, `skuId=100`
 - 设置库存为 500：`action=update`, `skuId=100`, `available=500`
 

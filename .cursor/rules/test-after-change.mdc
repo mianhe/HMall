@@ -1,19 +1,31 @@
 ---
-description: 
-globs: services/**/*.java,services/**/*.feature,services/**/*.yml
+description: 代码或配置改动后必须运行对应测试/验证
+globs: services/**/*.java,services/**/*.feature,services/**/*.yml,deploy/**,hmall-mcp/**,frontend/**
 alwaysApply: false
 ---
 
 # Test After Change
 
-对 services/ 下任何后端代码（Java、Feature、配置）的改动，完成后**必须**运行受影响 BC 的测试验证。
+对代码或配置的改动，完成后**必须**运行对应的测试或验证。
 
-## 执行要求
+## 后端代码（services/）
 
 1. 改动完成后，识别涉及哪些 BC（服务目录名即 BC 标识）。
 2. 对每个受影响的 BC 运行测试：`cd services/<service-dir> && mvn test -q`。
 3. 若测试失败，**必须修复后再告知用户改动完成**，不允许留下红色测试。
 4. 若改动涉及共享结构（如根 pom.xml），运行全量测试：`./scripts/hmall.sh test`。
+
+## 部署/配置（deploy/、docker-compose、nginx）
+
+改动后若需部署验证：提交推送 → `deploy.sh pull` → 轮询等待服务就绪 → `curl` 验证受影响 API。
+
+## MCP（hmall-mcp/）
+
+改动后运行 `node scripts/verify-mcp-local.mjs` 确认工具可发现。
+
+## 前端（frontend/）
+
+改动后运行相关 E2E 用例或用浏览器确认受影响页面。
 
 ## 快速参考
 

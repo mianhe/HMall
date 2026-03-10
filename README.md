@@ -79,6 +79,8 @@
 
 **可选 — MCP Server（供 AI 对话操作商品）**：在 `hmall-mcp/` 下执行 `npm install && npm run start:http`，默认监听 http://127.0.0.1:3000/mcp，任意 MCP Client 配置该 URL 即可使用。详见 `hmall-mcp/README.md`。
 
+**本地「智能助手」不可用、提示「无法查询相关信息」时**：与路由无关。前端 `/api/ai` 已代理到 smart-interaction-service（8089），该服务需连 **MCP**（3000）拉取工具；若连不上或拿不到工具，LLM 会按约定回复上述提示。**常见原因**：（1）未起 MCP —— 先起 **catalog-service**，再 `cd hmall-mcp && npm run start:http`；（2）MCP 曾拒绝 Host `127.0.0.1` —— 已默认放行，需**重启 MCP** 后重试。本地需同时运行：catalog-service、MCP、smart-interaction-service；可用 `./scripts/hmall.sh start mcp smart-interaction-service`（需先起 DB 与 catalog）。验证 MCP 是否可被 smart-interaction 使用：`node scripts/verify-mcp-local.mjs`。
+
 ---
 
 ## 2. 如何执行测试
