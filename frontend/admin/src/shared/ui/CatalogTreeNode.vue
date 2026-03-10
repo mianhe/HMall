@@ -11,6 +11,13 @@
       <span class="font-medium text-gray-800">{{ node.name }}</span>
       <span v-if="node.description" class="ml-2 text-sm text-vmall-gray-text">{{ node.description }}</span>
       <span v-if="productsLoading" class="ml-2 text-xs text-vmall-gray-text">加载中…</span>
+      <button
+        v-if="isLeaf"
+        @click.stop="openCreateProductForCategory(node.id, node.name)"
+        class="ml-auto px-2 py-0.5 text-xs rounded border border-vmall-gray-border text-vmall-gray-text hover:bg-white hover:text-vmall-red hover:border-vmall-red transition-colors shrink-0"
+      >
+        新增商品
+      </button>
     </div>
 
     <template v-if="expanded">
@@ -57,13 +64,16 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, inject } from 'vue'
 import { getProducts } from '../api/catalog.js'
 
 const props = defineProps({
   node: { type: Object, required: true },
   depth: { type: Number, default: 0 },
 })
+
+const openCreateProductForCategory = inject('openCreateProductForCategory')
+const isLeaf = computed(() => !props.node.children?.length)
 
 const expanded = ref(props.depth < 1)
 const products = ref([])

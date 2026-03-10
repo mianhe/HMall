@@ -4,22 +4,13 @@
     <main class="max-w-4xl mx-auto px-4 py-8">
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-gray-800">Catalog</h1>
-        <div class="flex gap-2">
-          <button
-            @click="openCreateProduct"
-            :disabled="!tree.length"
-            class="px-4 py-2 rounded-lg bg-vmall-red text-white hover:bg-vmall-red-hover disabled:opacity-50 transition-colors"
-          >
-            新增商品
-          </button>
-          <button
-            @click="load"
-            :disabled="loading"
-            class="px-4 py-2 rounded-lg bg-white border border-vmall-gray-border text-vmall-gray-text hover:bg-vmall-gray-bg transition-colors disabled:opacity-50"
-          >
-            {{ loading ? '加载中…' : '刷新' }}
-          </button>
-        </div>
+        <button
+          @click="load"
+          :disabled="loading"
+          class="px-4 py-2 rounded-lg bg-white border border-vmall-gray-border text-vmall-gray-text hover:bg-vmall-gray-bg transition-colors disabled:opacity-50"
+        >
+          {{ loading ? '加载中…' : '刷新' }}
+        </button>
       </div>
       <div v-if="error" class="text-vmall-red mb-4">{{ error }}</div>
       <CatalogTree v-if="tree.length" :nodes="tree" />
@@ -32,25 +23,9 @@
         @click.self="closeForm"
       >
         <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-          <h2 class="text-lg font-semibold text-gray-800 mb-4">新增商品</h2>
+          <h2 class="text-lg font-semibold text-gray-800 mb-1">新增商品</h2>
+          <p class="text-sm text-vmall-gray-text mb-4">类目：{{ form.categoryName }}</p>
           <form @submit.prevent="submitForm" class="space-y-4">
-            <label class="block">
-              <span class="text-sm font-medium text-gray-700">所属类目 <span class="text-vmall-red">*</span></span>
-              <select
-                v-model="form.categoryId"
-                required
-                class="mt-1 w-full px-3 py-2 rounded-lg border border-vmall-gray-border text-gray-800 bg-white"
-              >
-                <option :value="null" disabled>请选择类目</option>
-                <option
-                  v-for="cat in leafCategories"
-                  :key="cat.id"
-                  :value="cat.id"
-                >
-                  {{ cat.path }}
-                </option>
-              </select>
-            </label>
             <label class="block">
               <span class="text-sm font-medium text-gray-700">商品名称 <span class="text-vmall-red">*</span></span>
               <input
@@ -121,7 +96,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, provide, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AppHeader from '../shared/ui/AppHeader.vue'
 import CatalogTree from '../shared/ui/CatalogTree.vue'
@@ -137,30 +112,16 @@ const submitting = ref(false)
 const formError = ref('')
 const form = reactive({
   categoryId: null,
+  categoryName: '',
   name: '',
   description: '',
   productType: 'PHYSICAL',
   serviceKind: 'OTHER',
 })
 
-const leafCategories = computed(() => {
-  const result = []
-  function walk(nodes, ancestors) {
-    for (const node of nodes) {
-      const path = [...ancestors, node.name]
-      if (!node.children?.length) {
-        result.push({ id: node.id, path: path.join(' > ') })
-      } else {
-        walk(node.children, path)
-      }
-    }
-  }
-  walk(tree.value, [])
-  return result
-})
-
-function openCreateProduct() {
-  form.categoryId = null
+function openCreateProductForCategory(categoryId, categoryName) {
+  form.categoryId = categoryId
+  form.categoryName = categoryName
   form.name = ''
   form.description = ''
   form.productType = 'PHYSICAL'
@@ -168,6 +129,8 @@ function openCreateProduct() {
   formError.value = ''
   formVisible.value = true
 }
+
+provide('openCreateProductForCategory', openCreateProductForCategory)
 
 function closeForm() {
   formVisible.value = false
