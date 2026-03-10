@@ -139,8 +139,12 @@ bash deploy.sh status
 bash deploy.sh logs                     # 全部
 bash deploy.sh logs catalog-service     # 单个服务
 
-# 拉取最新代码并重新部署（会自动等待 API 就绪，最多约 5 分钟）
+# 拉取最新代码并智能部署（只更新变更的服务，近零停机）
 bash deploy.sh pull
+
+# 手动更新指定服务（先构建镜像，再逐个替换容器）
+bash deploy.sh update catalog-service
+bash deploy.sh update catalog-service bff-web   # 多个服务
 
 # 停止所有服务
 bash deploy.sh down
@@ -148,6 +152,17 @@ bash deploy.sh down
 # 重启所有服务
 bash deploy.sh restart
 ```
+
+### 智能部署说明
+
+`deploy.sh pull` 会自动检测代码变更范围，只重建有改动的服务：
+
+- **仅后端改动**：只重建对应的 Java 服务，Nginx 和前端不受影响
+- **仅前端改动**：只重建 Nginx 容器
+- **Dockerfile 或 Compose 改动**：重建所有受影响的服务
+- **仅文档/脚本改动**：跳过部署
+
+部署流程分两阶段：先构建所有新镜像（旧容器保持运行），再逐个替换容器。每个服务约有 30 秒不可用窗口（容器替换 + 健康检查），其余服务全程可用。
 
 ## 数据持久化
 

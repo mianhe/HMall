@@ -70,7 +70,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null --spider --timeout=2 http://localhost:8080/; r=$$?; [ $$r -eq 0 ] || [ $$r -eq 8 ]; exit $$?"]
+      test: ["CMD-SHELL", "curl -s -o /dev/null --max-time 2 http://localhost:8080/"]
       interval: 10s
       timeout: 5s
       retries: 18
@@ -93,7 +93,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null --spider --timeout=2 http://localhost:8082/; r=$$?; [ $$r -eq 0 ] || [ $$r -eq 8 ]; exit $$?"]
+      test: ["CMD-SHELL", "curl -s -o /dev/null --max-time 2 http://localhost:8082/"]
       interval: 10s
       timeout: 5s
       retries: 18
@@ -118,7 +118,7 @@ services:
       kafka:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null --spider --timeout=2 http://localhost:8081/; r=$$?; [ $$r -eq 0 ] || [ $$r -eq 8 ]; exit $$?"]
+      test: ["CMD-SHELL", "curl -s -o /dev/null --max-time 2 http://localhost:8081/"]
       interval: 10s
       timeout: 5s
       retries: 18
@@ -143,7 +143,7 @@ services:
       kafka:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null --spider --timeout=2 http://localhost:8083/; r=$$?; [ $$r -eq 0 ] || [ $$r -eq 8 ]; exit $$?"]
+      test: ["CMD-SHELL", "curl -s -o /dev/null --max-time 2 http://localhost:8083/"]
       interval: 10s
       timeout: 5s
       retries: 18
@@ -169,7 +169,7 @@ services:
       kafka:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null --spider --timeout=2 http://localhost:8084/; r=$$?; [ $$r -eq 0 ] || [ $$r -eq 8 ]; exit $$?"]
+      test: ["CMD-SHELL", "curl -s -o /dev/null --max-time 2 http://localhost:8084/"]
       interval: 10s
       timeout: 5s
       retries: 18
@@ -194,7 +194,7 @@ services:
       kafka:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null --spider --timeout=2 http://localhost:8086/; r=$$?; [ $$r -eq 0 ] || [ $$r -eq 8 ]; exit $$?"]
+      test: ["CMD-SHELL", "curl -s -o /dev/null --max-time 2 http://localhost:8086/"]
       interval: 10s
       timeout: 5s
       retries: 18
@@ -217,7 +217,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null --spider --timeout=2 http://localhost:8087/; r=$$?; [ $$r -eq 0 ] || [ $$r -eq 8 ]; exit $$?"]
+      test: ["CMD-SHELL", "curl -s -o /dev/null --max-time 2 http://localhost:8087/"]
       interval: 10s
       timeout: 5s
       retries: 18
@@ -242,7 +242,7 @@ services:
       kafka:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null --spider --timeout=2 http://localhost:8088/; r=$$?; [ $$r -eq 0 ] || [ $$r -eq 8 ]; exit $$?"]
+      test: ["CMD-SHELL", "curl -s -o /dev/null --max-time 2 http://localhost:8088/"]
       interval: 10s
       timeout: 5s
       retries: 18
@@ -268,7 +268,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null --spider --timeout=2 http://localhost:8089/; r=$$?; [ $$r -eq 0 ] || [ $$r -eq 8 ]; exit $$?"]
+      test: ["CMD-SHELL", "curl -s -o /dev/null --max-time 2 http://localhost:8089/"]
       interval: 10s
       timeout: 5s
       retries: 18
@@ -293,7 +293,7 @@ services:
       user-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null --spider --timeout=2 http://localhost:8085/; r=$$?; [ $$r -eq 0 ] || [ $$r -eq 8 ]; exit $$?"]
+      test: ["CMD-SHELL", "curl -s -o /dev/null --max-time 2 http://localhost:8085/"]
       interval: 10s
       timeout: 5s
       retries: 18
