@@ -10,7 +10,7 @@ const client = axios.create({
   timeout: 15000,
 })
 
-// ---------- 类目、商品、维度、SKU（读） ----------
+// ---------- 类目（Category） ----------
 
 export async function getCategories(parentId = null) {
   const params = parentId != null ? { parentId } : {}
@@ -22,6 +22,22 @@ export async function getCategoryTree() {
   const { data } = await client.get('/categories/tree')
   return data
 }
+
+export async function createCategory(body) {
+  const { data } = await client.post('/categories', body)
+  return data
+}
+
+export async function updateCategory(id, body) {
+  const { data } = await client.put(`/categories/${id}`, body)
+  return data
+}
+
+export async function deleteCategory(id) {
+  await client.delete(`/categories/${id}`)
+}
+
+// ---------- 商品、维度、SKU（读） ----------
 
 export async function getProducts(categoryId, { include } = {}) {
   const params = { categoryId }
@@ -40,9 +56,42 @@ export async function getDimensions(spuId) {
   return data
 }
 
+export async function createDimension(spuId, body) {
+  const { data } = await client.post(`/products/${spuId}/dimensions`, body)
+  return data
+}
+
+export async function createOption(spuId, dimensionId, body) {
+  const { data } = await client.post(
+    `/products/${spuId}/dimensions/${dimensionId}/options`,
+    body
+  )
+  return data
+}
+
+export async function deleteOption(spuId, dimensionId, optionId) {
+  await client.delete(
+    `/products/${spuId}/dimensions/${dimensionId}/options/${optionId}`
+  )
+}
+
 export async function getSkus(spuId) {
   const { data } = await client.get(`/products/${spuId}/skus`)
   return data
+}
+
+export async function createSku(spuId, body) {
+  const { data } = await client.post(`/products/${spuId}/skus`, body)
+  return data
+}
+
+export async function updateSku(spuId, skuId, body) {
+  const { data } = await client.put(`/products/${spuId}/skus/${skuId}`, body)
+  return data
+}
+
+export async function deleteSku(spuId, skuId) {
+  await client.delete(`/products/${spuId}/skus/${skuId}`)
 }
 
 // ---------- 文件上传（返回 { url }） ----------
@@ -114,6 +163,15 @@ export async function deleteOptionImage(spuId, dimensionId, optionId, imageId) {
 export async function createProduct(body) {
   const { data } = await client.post('/products', body)
   return data
+}
+
+export async function updateProduct(id, body) {
+  const { data } = await client.put(`/products/${id}`, body)
+  return data
+}
+
+export async function deleteProduct(id) {
+  await client.delete(`/products/${id}`)
 }
 
 // ---------- 镭雕图案库（EngravingPattern） ----------

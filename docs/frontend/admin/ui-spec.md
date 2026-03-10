@@ -1,6 +1,6 @@
 # 界面规格 — 管理后台（frontend/admin）
 
-管理后台以**展示与图片上传**为主：类目、商品、规格、SKU 一页全览；**商品详情页**支持查看商品信息并上传产品级/选项级展示图。其余增删改（类目、商品、维度、选项、SKU）由 MCP 完成。后端需求见 `docs/bounded-contexts/catalog/requirements.md`。
+管理后台支持 **Catalog 全量 CRUD**：类目、商品、规格维度、选项、SKU 的增删改均在 Admin 完成；商品详情页支持编辑基本信息、维度/选项/SKU、展示图与服务绑定。后端需求见 `docs/bounded-contexts/catalog/requirements.md`。
 
 ---
 
@@ -8,8 +8,8 @@
 
 | 端 | 职责 |
 |----|------|
-| **管理后台（frontend/admin）** | 查看、刷新；**图片**：可在商品详情页上传/删除产品级展示图、选项级展示图；其余新建/修改/删除由 MCP 或后端 API 直接操作 |
-| **MCP** | 类目/商品/规格/SKU 的增删改 |
+| **管理后台（frontend/admin）** | 类目树增删改、商品增删改、规格维度/选项/SKU 增删改、产品级/选项级展示图、服务绑定、镭雕图案库；全部通过 REST API 完成 |
+| **MCP** | 可选补充（与 Admin 能力重叠时可二选一） |
 
 ---
 
@@ -20,8 +20,8 @@
 | 路由 | 页面 | 功能 | 后端 API |
 |------|------|------|----------|
 | `/` | HomePage | 入口；文案说明；跳转「查看 Catalog」「库存管理」 | — |
-| `/catalog` | CatalogPage | 类目 + 商品 + 规格 + SKU 树形全览；**点击商品**进入该商品详情页；刷新、空态与错误提示 | `GET /api/categories`、`GET /api/products`、`GET /api/products/{spuId}/dimensions`、`GET /api/products/{spuId}/skus` |
-| `/products/:id` | ProductDetailPage | 商品详情：基础信息、维度与选项、产品级展示图、各选项展示图；**上传**产品级或选项级图片；删除展示图；返回 Catalog | `GET /api/products/:id`、`/dimensions`、`/images`；`POST /api/files/upload`、`POST /api/products/:id/images`、`DELETE ...` |
+| `/catalog` | CatalogPage | 类目 + 商品树形全览；**类目**：hover 显示「+ 子类目」「编辑」「删除」；**叶子类目**另有「新增商品」；**商品行** hover 显示「删除」；刷新、空态与错误提示 | `GET/POST/PUT/DELETE /api/categories`、`GET /api/products`、`POST /api/products`、`DELETE /api/products/{id}` |
+| `/products/:id` | ProductDetailPage | 商品详情：**基础信息**可编辑（名称、描述）与删除；**规格维度**可新增；**选项**可新增/删除；**SKU** 可新增/编辑价格与展示名/删除；产品级与选项级展示图、服务绑定（SERVICE） | `GET/PUT/DELETE /api/products/:id`、`GET/POST /api/products/:id/dimensions`、`POST/DELETE .../options`、`GET/POST/PUT/DELETE .../skus`、图片与绑定 API |
 | `/inventory` | InventoryPage | 库存管理：平铺表格展示（一级类别、二级子类别、产品、SKU 名称、可用、已占用、操作）；过滤（一级类别、二级子类别、产品名称）；库存直接修改（PUT） | `GET /api/categories`、`GET /api/products`、`GET /api/products/{id}/skus`、`GET/PUT /api/inventory/stock/{skuId}` |
 | `/fulfillment` | FulfillmentPage | 履约管理：列表展示履约单（履约单ID、订单ID、状态、商品摘要、收货人、地址、承运商、物流单号、发货/签收时间、创建时间、操作）；过滤（订单ID、状态）；按状态操作（开始配货、发货、签收） | Fulfillment API |
 | `/engraving-patterns` | EngravingPatternPage | 镭雕图案库：列表展示图案（ID、缩略图、名称、排序、启用状态、操作）；过滤（启用状态）；新增/编辑/删除图案；图片上传或手动输入 URL | `GET/POST /api/engraving-patterns`、`GET/PUT/DELETE /api/engraving-patterns/{id}`、`POST /api/files/upload` |
@@ -32,29 +32,32 @@
 ### 2.2 Catalog 页
 
 - **递归加载**：根类目 → 每类目下子类目与商品 → 每商品下维度（含选项及展示图）、SKU。
-- **树形展示**（`CatalogTree` / `CatalogTreeNode`），只读。
-- **新增商品**：每个叶子类目行右侧显示「新增商品」按钮 → 弹窗表单（类目已确定，填写名称、描述、商品类型、服务分类）→ 创建成功后跳转商品详情页。商品类型为 SERVICE 时显示服务分类下拉（ENGRAVING/WARRANTY/INSURANCE/OTHER）。API: `POST /api/products`。
+- **树形展示**（`CatalogTree` / `CatalogTreeNode`）。**类目行** hover 显示操作：「+ 子类目」（弹窗：名称、描述）、「编辑」（弹窗：名称、描述）、「删除」（confirm）；**叶子类目**另有「新增商品」按钮。
+- **新增商品**：叶子类目行「新增商品」→ 弹窗（类目已定，名称、描述、商品类型、服务分类）→ 创建后跳转商品详情。API: `POST /api/products`。
+- **商品行**：hover 显示「删除」，confirm 后 `DELETE /api/products/{id}` 并刷新树。
 - **刷新按钮**：重新请求并渲染整棵树。
-- **错误与空态**：请求失败显示错误信息（含 5xx 重试与友好提示）；无数据时提示「暂无数据，请通过 MCP 添加类目与商品」。
-- **商品类型标签**：商品名称旁显示 `productType` Badge（PHYSICAL 灰色、SERVICE 蓝色）；SERVICE 且 `serviceKind=ENGRAVING` 时显示「镭雕」Badge。
+- **错误与空态**：请求失败显示错误信息；无数据时提示「暂无数据，请通过 MCP 添加类目与商品」。
+- **商品类型标签**：商品名称旁显示 `productType` Badge；SERVICE 且 `serviceKind=ENGRAVING` 时显示「镭雕」Badge。
 
 | 层级 | 展示内容 |
 |------|----------|
-| 类目 | 名称、描述；可展开看子类目或商品 |
-| 商品 | 名称、**productType Badge**、描述、**规格维度**（如「颜色、容量」）；点击进入商品详情页 |
-| SKU | 规格组合、价格、展示名 |
-| 服务绑定 | 仅 SERVICE 商品的 SKU 下展示：目标 SPU 名称 + 绑定价格（null 显示「继承标准价」） |
+| 类目 | 名称、描述；hover 显示 + 子类目 / 编辑 / 删除（叶子另有「新增商品」） |
+| 商品 | 名称、Badge、描述；点击进详情；hover 显示「删除」 |
+| SKU | 规格组合、价格、展示名（详情页内管理） |
+| 服务绑定 | 商品详情页内、仅 SERVICE 类型管理 |
 
 API 封装位置：`frontend/admin/src/shared/api/catalog.js`。契约：`docs/bounded-contexts/catalog/api.yaml`。
 
 ### 2.3 商品详情页（ProductDetailPage）
 
-- **进入方式**：Catalog 页树形列表中**点击商品名称**，跳转 `/products/:id`。
-- **页面展示**：商品基础信息（含 productType Badge）、规格维度与选项、产品级展示图、各选项展示图。
-- **服务绑定管理**（仅 SERVICE 类型商品）：每个 SKU 下展示已绑定的目标商品列表（含价格），支持新增绑定（输入目标 SPU ID + 可选价格）和删除绑定。API: `GET/POST /api/skus/{skuId}/service-bindings`、`DELETE /api/skus/{skuId}/service-bindings/{bindingId}`。
-- **图片上传**：产品级和选项级均为「先 `POST /api/files/upload` 得到 URL，再调用对应的图片创建 API」；上传成功后刷新图片列表。
-- **删除**：产品级展示图、选项级展示图均提供删除操作。
-- 错误时展示后端返回的 `message`，不在前端写死文案。
+- **进入方式**：Catalog 页点击商品名称，跳转 `/products/:id`。
+- **商品基本信息**：名称、描述可点击「编辑」进入行内编辑，保存调用 `PUT /api/products/:id`；右上角「删除商品」confirm 后 `DELETE /api/products/:id` 并跳回 Catalog。
+- **规格维度**：列表展示；「+ 新增维度」展开表单（维度名称、是否必填），`POST /api/products/{spuId}/dimensions`。
+- **规格选项**：每个维度下列出选项，每选项可「删除」；维度下「+ 新增选项」输入选项值，`POST .../dimensions/{dimId}/options`、`DELETE .../options/{optId}`。
+- **SKU**：列表展示每 SKU 的价格（元）与展示名，行内可编辑后「保存」或「删除」；「+ 新增 SKU」展开表单（每维度选一选项、价格、展示名），`POST/PUT/DELETE /api/products/{spuId}/skus`。
+- **产品级/选项级展示图**：上传（先 `POST /api/files/upload` 再创建图）、删除。
+- **服务绑定**（仅 SERVICE）：按 SKU 管理绑定，新增（目标 SPU ID、价格）、删除。
+- 错误时展示后端返回的 `message`。
 
 ### 2.4 库存管理页（InventoryPage）
 

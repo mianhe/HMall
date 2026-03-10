@@ -91,6 +91,58 @@
           </form>
         </div>
       </div>
+
+      <!-- 新增/编辑类目弹窗 -->
+      <div
+        v-if="categoryFormVisible"
+        class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+        @click.self="closeCategoryForm"
+      >
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+          <h2 class="text-lg font-semibold text-gray-800 mb-4">
+            {{ categoryFormMode === 'create' ? '新增子类目' : '编辑类目' }}
+          </h2>
+          <p v-if="categoryFormMode === 'create'" class="text-sm text-vmall-gray-text mb-4">父类目：{{ categoryForm.parentName }}</p>
+          <form @submit.prevent="submitCategoryForm" class="space-y-4">
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">名称 <span class="text-vmall-red">*</span></span>
+              <input
+                v-model.trim="categoryForm.name"
+                type="text"
+                required
+                class="mt-1 w-full px-3 py-2 rounded-lg border border-vmall-gray-border text-gray-800"
+                placeholder="类目名称"
+              />
+            </label>
+            <label class="block">
+              <span class="text-sm font-medium text-gray-700">描述</span>
+              <textarea
+                v-model.trim="categoryForm.description"
+                rows="2"
+                class="mt-1 w-full px-3 py-2 rounded-lg border border-vmall-gray-border text-gray-800 resize-none"
+                placeholder="可选"
+              />
+            </label>
+            <div v-if="categoryFormError" class="text-vmall-red text-sm">{{ categoryFormError }}</div>
+            <div class="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                @click="closeCategoryForm"
+                class="px-4 py-2 rounded-lg border border-vmall-gray-border text-vmall-gray-text hover:bg-vmall-gray-bg"
+              >
+                取消
+              </button>
+              <button
+                type="submit"
+                :disabled="categorySubmitting"
+                class="px-4 py-2 rounded-lg bg-vmall-red text-white hover:bg-vmall-red-hover disabled:opacity-50"
+              >
+                {{ categorySubmitting ? '保存中…' : '保存' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </main>
   </div>
 </template>
@@ -100,7 +152,14 @@ import { ref, reactive, provide, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AppHeader from '../shared/ui/AppHeader.vue'
 import CatalogTree from '../shared/ui/CatalogTree.vue'
-import { getCategoryTree, createProduct } from '../shared/api/catalog.js'
+import {
+  getCategoryTree,
+  createProduct,
+  createCategory,
+  updateCategory,
+  deleteCategory as apiDeleteCategory,
+  deleteProduct as apiDeleteProduct,
+} from '../shared/api/catalog.js'
 
 const router = useRouter()
 const tree = ref([])
@@ -119,6 +178,18 @@ const form = reactive({
   serviceKind: 'OTHER',
 })
 
+const categoryFormVisible = ref(false)
+const categoryFormMode = ref('create')
+const categorySubmitting = ref(false)
+const categoryFormError = ref('')
+const categoryForm = reactive({
+  parentId: null,
+  parentName: '',
+  id: null,
+  name: '',
+  description: '',
+})
+
 function openCreateProductForCategory(categoryId, categoryName) {
   form.categoryId = categoryId
   form.categoryName = categoryName
@@ -130,10 +201,88 @@ function openCreateProductForCategory(categoryId, categoryName) {
   formVisible.value = true
 }
 
+function openCreateSubCategory(parentId, parentName) {
+  categoryFormMode.value = 'create'
+  categoryForm.parentId = parentId
+  categoryForm.parentName = parentName
+  categoryForm.id = null
+  categoryForm.name = ''
+  categoryForm.description = ''
+  categoryFormError.value = ''
+  categoryFormVisible.value = true
+}
+
+function openEditCategory(id, name, description) {
+  categoryFormMode.value = 'edit'
+  categoryForm.parentId = null
+  categoryForm.parentName = ''
+  categoryForm.id = id
+  categoryForm.name = name ?? ''
+  categoryForm.description = description ?? ''
+  categoryFormError.value = ''
+  categoryFormVisible.value = true
+}
+
+async function deleteCategoryAndRefresh(id) {
+  if (!confirm('确定删除该类目？若有子类目或商品将无法删除。')) return
+  try {
+    await apiDeleteCategory(id)
+    await load()
+  } catch (e) {
+    error.value = e.response?.data?.message || e.message || '删除失败'
+  }
+}
+
+async function deleteProductAndRefresh(id) {
+  if (!confirm('确定删除该商品？')) return
+  try {
+    await apiDeleteProduct(id)
+    await load()
+  } catch (e) {
+    error.value = e.response?.data?.message || e.message || '删除失败'
+  }
+}
+
 provide('openCreateProductForCategory', openCreateProductForCategory)
+provide('openCreateSubCategory', openCreateSubCategory)
+provide('openEditCategory', openEditCategory)
+provide('deleteCategoryAndRefresh', deleteCategoryAndRefresh)
+provide('deleteProductAndRefresh', deleteProductAndRefresh)
+provide('refreshTree', load)
 
 function closeForm() {
   formVisible.value = false
+}
+
+function closeCategoryForm() {
+  categoryFormVisible.value = false
+}
+
+async function submitCategoryForm() {
+  const name = categoryForm.name?.trim()
+  if (!name) return
+  categorySubmitting.value = true
+  categoryFormError.value = ''
+  try {
+    if (categoryFormMode.value === 'create') {
+      await createCategory({
+        parentId: categoryForm.parentId,
+        name,
+        description: categoryForm.description?.trim() || undefined,
+      })
+    } else {
+      await updateCategory(categoryForm.id, {
+        name,
+        description: categoryForm.description?.trim() || undefined,
+      })
+    }
+    closeCategoryForm()
+    await load()
+  } catch (e) {
+    categoryFormError.value = e.response?.data?.message || e.message || '保存失败'
+  } finally {
+    categorySubmitting.value = false
+  }
 }
 
 async function submitForm() {
