@@ -191,10 +191,8 @@ async function load(opts = {}) {
     tree.value = categoryTree
 
     const leaves = collectLeaves(categoryTree)
-    for (const leaf of leaves) {
-      await loadProductsForLeaf(leaf)
-      tree.value = [...tree.value]
-    }
+    await Promise.all(leaves.map((leaf) => loadProductsForLeaf(leaf)))
+    tree.value = [...tree.value]
   } catch (e) {
     if (retries > 0 && isServerError(e)) {
       await new Promise((r) => setTimeout(r, 2000))

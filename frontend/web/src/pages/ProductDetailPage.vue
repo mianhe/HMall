@@ -42,11 +42,17 @@
         <div class="lg:flex-1">
           <h1 class="text-xl lg:text-2xl font-bold text-gray-800 mb-4">{{ product.name }}</h1>
 
-          <!-- 价格（选中 SKU 后显示） -->
+          <!-- 价格（选中 SKU 后显示；未选时显示价格区间） -->
           <div class="mb-6">
             <template v-if="matchedSku">
-              <span class="text-2xl font-bold text-vmall-red">¥ {{ (matchedSku.priceCents / 100).toFixed(2) }}</span>
+              <span class="text-2xl font-bold text-vmall-red">{{ formatPrice(matchedSku.priceCents) }}</span>
               <p v-if="!matchedSkuInStock" class="text-sm text-amber-600 mt-1">该规格暂无库存</p>
+            </template>
+            <template v-else-if="priceRange">
+              <span class="text-2xl font-bold text-vmall-red">
+                {{ priceRange.min === priceRange.max ? formatPrice(priceRange.min) : `${formatPrice(priceRange.min)} - ${formatPrice(priceRange.max)}` }}
+              </span>
+              <p v-if="dimensions.length" class="text-sm text-vmall-gray-text mt-1">选择下方规格后显示对应价格</p>
             </template>
             <template v-else>
               <span class="text-xl text-vmall-gray-text">请选择规格</span>
@@ -66,12 +72,17 @@
                 :key="opt.id"
                 type="button"
                 class="px-4 py-2 rounded border text-sm transition-colors"
-                :class="selectedOptionIds[dim.id] === opt.id
-                  ? 'border-vmall-red text-vmall-red bg-red-50/50'
-                  : 'border-vmall-gray-border text-gray-700 hover:border-vmall-red hover:text-vmall-red'"
-                @click="selectOption(dim, opt)"
+                :class="[
+                  selectedOptionIds[dim.id] === opt.id
+                    ? 'border-vmall-red text-vmall-red bg-red-50/50'
+                    : 'border-vmall-gray-border text-gray-700 hover:border-vmall-red hover:text-vmall-red',
+                  isOptionDisabled(dim, opt) ? 'opacity-50 cursor-not-allowed' : ''
+                ]"
+                :disabled="isOptionDisabled(dim, opt)"
+                @click="!isOptionDisabled(dim, opt) && selectOption(dim, opt)"
               >
                 {{ opt.optionValue }}
+                <span v-if="isOptionOutOfStock(dim, opt)" class="ml-1 text-xs text-amber-600">缺货</span>
               </button>
             </div>
           </div>
@@ -95,7 +106,7 @@
                   : 'border-vmall-gray-border text-gray-700 hover:border-vmall-red hover:text-vmall-red'"
                 @click="toggleService(option)"
               >
-                {{ option.label }} ￥{{ (option.priceCents / 100).toFixed(0) }}
+                {{ option.label }} {{ formatPrice(option.priceCents) }}
               </button>
             </div>
             <!-- 镭雕内容：选图案或填文字（≤20 字），至少选其一 -->
@@ -177,6 +188,7 @@
             详情
           </button>
           <button
+            v-if="hasParams"
             type="button"
             class="px-6 py-3 text-sm font-medium transition-colors"
             :class="activeTab === 'params' ? 'text-vmall-red border-b-2 border-vmall-red -mb-px' : 'text-vmall-gray-text hover:text-vmall-red'"
@@ -190,7 +202,7 @@
             <p v-if="product.description" class="whitespace-pre-wrap">{{ product.description }}</p>
             <p v-else>暂无详细描述</p>
           </div>
-          <div v-show="activeTab === 'params'">
+          <div v-if="hasParams" v-show="activeTab === 'params'">
             <p>暂无参数信息</p>
           </div>
         </div>
@@ -206,6 +218,7 @@ import { getProduct, getDimensions, getSkus, getAvailableServices, getEngravingP
 import { batchGetStock } from '../shared/api/inventory.js'
 import { addCartItem } from '../shared/api/cart.js'
 import { useAuth } from '../shared/auth.js'
+import { formatPrice } from '../shared/utils/price.js'
 import { isEngravingService, buildEngravingAttributes, validateEngravingContent } from '../shared/utils/engraving.js'
 
 const route = useRoute()
@@ -220,6 +233,7 @@ const selectedServiceKey = ref(null)
 const loading = ref(true)
 const error = ref('')
 const activeTab = ref('detail')
+const hasParams = false
 
 /** 当前选中的规格：dimensionId -> optionId */
 const selectedOptionIds = ref({})
@@ -284,6 +298,51 @@ const matchedSkuInStock = computed(() => {
   if (!stock) return true
   return stock.available > 0
 })
+
+/** 未选规格时的价格区间（用于占位展示） */
+const priceRange = computed(() => {
+  if (!skus.value.length) return null
+  const prices = skus.value.map((s) => s.priceCents)
+  return { min: Math.min(...prices), max: Math.max(...prices) }
+})
+
+/** 构建「当前选择 + 指定维度选某选项」的 spec 映射，用于查找是否存在对应 SKU */
+function buildSelectionWithOption(dim, opt) {
+  const dims = dimensions.value
+  const selected = selectedOptionIds.value
+  const map = {}
+  dims.forEach((d) => {
+    const optId = d.id === dim.id ? opt.id : selected[d.id]
+    if (optId != null) {
+      const o = (d.options || []).find((x) => x.id === optId)
+      if (o) map[d.name] = o.optionValue
+    }
+  })
+  return map
+}
+
+function findSkuForSelection(selectionMap) {
+  return skus.value.find((sku) => {
+    const sv = sku.specValues || []
+    return Object.entries(selectionMap).every(([name, value]) =>
+      sv.some((s) => s.dimensionName === name && s.optionValue === value)
+    )
+  }) ?? null
+}
+
+function isOptionDisabled(dim, opt) {
+  const map = buildSelectionWithOption(dim, opt)
+  const sku = findSkuForSelection(map)
+  return !sku
+}
+
+function isOptionOutOfStock(dim, opt) {
+  const map = buildSelectionWithOption(dim, opt)
+  const sku = findSkuForSelection(map)
+  if (!sku) return false
+  const stock = stockBySkuId.value[sku.id]
+  return stock != null && stock.available === 0
+}
 
 const serviceOptions = computed(() => {
   return availableServices.value.flatMap((svc) => {

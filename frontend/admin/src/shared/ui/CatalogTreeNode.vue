@@ -90,7 +90,7 @@
 </template>
 
 <script setup>
-import { ref, computed, inject } from 'vue'
+import { ref, computed, inject, watch } from 'vue'
 import { getProducts } from '../api/catalog.js'
 
 const props = defineProps({
@@ -103,9 +103,11 @@ const openCreateSubCategory = inject('openCreateSubCategory')
 const openEditCategory = inject('openEditCategory')
 const deleteCategoryAndRefresh = inject('deleteCategoryAndRefresh')
 const deleteProductAndRefresh = inject('deleteProductAndRefresh')
+const expandedCategoryIds = inject('expandedCategoryIds')
+const setExpanded = inject('setExpanded')
 const isLeaf = computed(() => !props.node.children?.length)
 
-const expanded = ref(props.depth < 1)
+const expanded = computed(() => expandedCategoryIds.value.has(props.node.id))
 const products = ref([])
 const productsLoading = ref(false)
 const productsError = ref('')
@@ -126,9 +128,10 @@ async function loadProducts() {
 }
 
 function toggle() {
-  expanded.value = !expanded.value
-  if (expanded.value) loadProducts()
+  setExpanded(props.node.id, !expanded.value)
 }
 
-if (expanded.value) loadProducts()
+watch(expanded, (isExpanded) => {
+  if (isExpanded) loadProducts()
+}, { immediate: true })
 </script>

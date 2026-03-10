@@ -16,9 +16,11 @@ export async function getCategoryTree() {
   return data
 }
 
-/** 按类目查商品列表 */
-export async function getProducts(categoryId) {
-  const { data } = await client.get('/products', { params: { categoryId } })
+/** 按类目查商品列表（可选 include=skus 携带 SKU 列表用于展示最低价） */
+export async function getProducts(categoryId, { include } = {}) {
+  const params = { categoryId }
+  if (include) params.include = include
+  const { data } = await client.get('/products', { params })
   return data
 }
 

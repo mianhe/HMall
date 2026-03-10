@@ -4,6 +4,7 @@
     <router-view />
     <AiChatButton @toggle="chatOpen = !chatOpen" />
     <AiChatPanel :open="chatOpen" @close="chatOpen = false" />
+    <AppToast />
   </div>
 </template>
 
@@ -12,11 +13,15 @@ import { ref, provide, onMounted, onUnmounted } from 'vue'
 import AppHeader from './shared/ui/AppHeader.vue'
 import AiChatButton from './shared/ui/ai-chat/AiChatButton.vue'
 import AiChatPanel from './shared/ui/ai-chat/AiChatPanel.vue'
+import AppToast from './shared/ui/AppToast.vue'
 import { useAiChat } from './shared/composables/useAiChat.js'
+import { useToast } from './shared/composables/useToast.js'
 
 const chatOpen = ref(false)
 const chat = useAiChat()
+const toast = useToast()
 provide('aiChat', chat)
+provide('toast', toast)
 
 onMounted(() => chat.loadModels())
 

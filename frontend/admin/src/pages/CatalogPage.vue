@@ -4,17 +4,26 @@
     <main class="max-w-4xl mx-auto px-4 py-8">
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold text-gray-800">Catalog</h1>
-        <button
-          @click="load"
-          :disabled="loading"
-          class="px-4 py-2 rounded-lg bg-white border border-vmall-gray-border text-vmall-gray-text hover:bg-vmall-gray-bg transition-colors disabled:opacity-50"
-        >
-          {{ loading ? '加载中…' : '刷新' }}
-        </button>
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            @click="openCreateSubCategory(null, '根级类目')"
+            class="px-4 py-2 rounded-lg bg-vmall-red text-white hover:bg-vmall-red-hover"
+          >
+            + 新增根类目
+          </button>
+          <button
+            @click="load"
+            :disabled="loading"
+            class="px-4 py-2 rounded-lg bg-white border border-vmall-gray-border text-vmall-gray-text hover:bg-vmall-gray-bg transition-colors disabled:opacity-50"
+          >
+            {{ loading ? '加载中…' : '刷新' }}
+          </button>
+        </div>
       </div>
       <div v-if="error" class="text-vmall-red mb-4">{{ error }}</div>
       <CatalogTree v-if="tree.length" :nodes="tree" />
-      <p v-else-if="!loading && !error" class="text-vmall-gray-text">暂无数据，请通过 MCP 添加类目与商品。</p>
+      <p v-else-if="!loading && !error" class="text-vmall-gray-text">暂无数据，点击「+ 新增根类目」开始构建商品目录。</p>
 
       <!-- 新增商品弹窗 -->
       <div
@@ -148,7 +157,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, provide, onMounted } from 'vue'
+import { ref, reactive, provide, inject, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AppHeader from '../shared/ui/AppHeader.vue'
 import CatalogTree from '../shared/ui/CatalogTree.vue'
@@ -162,9 +171,19 @@ import {
 } from '../shared/api/catalog.js'
 
 const router = useRouter()
+const toast = inject('toast')
+const confirm = inject('confirm')
 const tree = ref([])
 const loading = ref(false)
 const error = ref('')
+const expandedCategoryIds = ref(new Set())
+
+function setExpanded(nodeId, isExpanded) {
+  const next = new Set(expandedCategoryIds.value)
+  if (isExpanded) next.add(nodeId)
+  else next.delete(nodeId)
+  expandedCategoryIds.value = next
+}
 
 const formVisible = ref(false)
 const submitting = ref(false)
@@ -224,22 +243,24 @@ function openEditCategory(id, name, description) {
 }
 
 async function deleteCategoryAndRefresh(id) {
-  if (!confirm('确定删除该类目？若有子类目或商品将无法删除。')) return
+  if (!(await confirm.confirm({ title: '删除类目', message: '确定删除该类目？若有子类目或商品将无法删除。' }))) return
   try {
     await apiDeleteCategory(id)
     await load()
+    toast.showToast('类目已删除', 'success')
   } catch (e) {
-    error.value = e.response?.data?.message || e.message || '删除失败'
+    toast.showToast(e.response?.data?.message || e.message || '删除失败', 'error')
   }
 }
 
 async function deleteProductAndRefresh(id) {
-  if (!confirm('确定删除该商品？')) return
+  if (!(await confirm.confirm({ title: '删除商品', message: '确定删除该商品？' }))) return
   try {
     await apiDeleteProduct(id)
     await load()
+    toast.showToast('商品已删除', 'success')
   } catch (e) {
-    error.value = e.response?.data?.message || e.message || '删除失败'
+    toast.showToast(e.response?.data?.message || e.message || '删除失败', 'error')
   }
 }
 
@@ -249,6 +270,8 @@ provide('openEditCategory', openEditCategory)
 provide('deleteCategoryAndRefresh', deleteCategoryAndRefresh)
 provide('deleteProductAndRefresh', deleteProductAndRefresh)
 provide('refreshTree', load)
+provide('expandedCategoryIds', expandedCategoryIds)
+provide('setExpanded', setExpanded)
 
 function closeForm() {
   formVisible.value = false
@@ -332,6 +355,9 @@ async function load() {
   error.value = ''
   try {
     tree.value = await getCategoryTree()
+    const next = new Set(expandedCategoryIds.value)
+    tree.value.forEach((n) => next.add(n.id))
+    expandedCategoryIds.value = next
   } catch (e) {
     error.value = errorMessage(e)
   } finally {

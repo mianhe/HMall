@@ -51,6 +51,12 @@ export async function getProduct(id) {
   return data
 }
 
+export async function searchProducts(keyword = '') {
+  const params = keyword ? { keyword } : {}
+  const { data } = await client.get('/products/search', { params })
+  return data
+}
+
 export async function getDimensions(spuId) {
   const { data } = await client.get(`/products/${spuId}/dimensions`)
   return data

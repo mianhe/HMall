@@ -21,7 +21,7 @@
 |------|------|------|----------|
 | `/` | HomePage | 入口；文案说明；跳转「查看 Catalog」「库存管理」 | — |
 | `/catalog` | CatalogPage | 类目 + 商品树形全览；**类目**：hover 显示「+ 子类目」「编辑」「删除」；**叶子类目**另有「新增商品」；**商品行** hover 显示「删除」；刷新、空态与错误提示 | `GET/POST/PUT/DELETE /api/categories`、`GET /api/products`、`POST /api/products`、`DELETE /api/products/{id}` |
-| `/products/:id` | ProductDetailPage | 商品详情：**基础信息**可编辑（名称、描述）与删除；**规格维度**可新增；**选项**可新增/删除；**SKU** 可新增/编辑价格与展示名/删除；产品级与选项级展示图、服务绑定（SERVICE） | `GET/PUT/DELETE /api/products/:id`、`GET/POST /api/products/:id/dimensions`、`POST/DELETE .../options`、`GET/POST/PUT/DELETE .../skus`、图片与绑定 API |
+| `/products/:id` | ProductDetailPage | 商品详情：**基础信息**可编辑（名称、描述）与删除；**规格维度**可新增；**选项**可新增/删除；**SKU** 可新增/编辑价格与展示名/删除；产品级与选项级展示图；**服务绑定**（SERVICE）、**可选服务**（PHYSICAL） | `GET/PUT/DELETE /api/products/:id`、`GET/POST /api/products/:id/dimensions`、`POST/DELETE .../options`、`GET/POST/PUT/DELETE .../skus`、`GET /api/products/search`、`GET /api/products/{spuId}/available-services`、图片与绑定 API |
 | `/inventory` | InventoryPage | 库存管理：平铺表格展示（一级类别、二级子类别、产品、SKU 名称、可用、已占用、操作）；过滤（一级类别、二级子类别、产品名称）；库存直接修改（PUT） | `GET /api/categories`、`GET /api/products`、`GET /api/products/{id}/skus`、`GET/PUT /api/inventory/stock/{skuId}` |
 | `/fulfillment` | FulfillmentPage | 履约管理：列表展示履约单（履约单ID、订单ID、状态、商品摘要、收货人、地址、承运商、物流单号、发货/签收时间、创建时间、操作）；过滤（订单ID、状态）；按状态操作（开始配货、发货、签收） | Fulfillment API |
 | `/engraving-patterns` | EngravingPatternPage | 镭雕图案库：列表展示图案（ID、缩略图、名称、排序、启用状态、操作）；过滤（启用状态）；新增/编辑/删除图案；图片上传或手动输入 URL | `GET/POST /api/engraving-patterns`、`GET/PUT/DELETE /api/engraving-patterns/{id}`、`POST /api/files/upload` |
@@ -44,7 +44,8 @@
 | 类目 | 名称、描述；hover 显示 + 子类目 / 编辑 / 删除（叶子另有「新增商品」） |
 | 商品 | 名称、Badge、描述；点击进详情；hover 显示「删除」 |
 | SKU | 规格组合、价格、展示名（详情页内管理） |
-| 服务绑定 | 商品详情页内、仅 SERVICE 类型管理 |
+| 已绑定的实体商品 | 商品详情页内、仅 SERVICE 类型表格展示（服务 SKU、实体商品、绑定价）；绑定/解绑在实体商品详情页「可选服务」） |
+| 可选服务 | 商品详情页内、仅 PHYSICAL 类型管理（已绑定服务列表 + 搜索绑定/解绑） |
 
 API 封装位置：`frontend/admin/src/shared/api/catalog.js`。契约：`docs/bounded-contexts/catalog/api.yaml`。
 
@@ -56,7 +57,8 @@ API 封装位置：`frontend/admin/src/shared/api/catalog.js`。契约：`docs/b
 - **规格选项**：每个维度下列出选项，每选项可「删除」；维度下「+ 新增选项」输入选项值，`POST .../dimensions/{dimId}/options`、`DELETE .../options/{optId}`。
 - **SKU**：列表展示每 SKU 的价格（元）与展示名，行内可编辑后「保存」或「删除」；「+ 新增 SKU」展开表单（每维度选一选项、价格、展示名），`POST/PUT/DELETE /api/products/{spuId}/skus`。
 - **产品级/选项级展示图**：上传（先 `POST /api/files/upload` 再创建图）、删除。
-- **服务绑定**（仅 SERVICE）：按 SKU 管理绑定，新增（目标 SPU ID、价格）、删除。
+- **已绑定的实体商品**（仅 SERVICE）：表格展示已绑定到该服务各 SKU 的实体商品（列：服务 SKU、实体商品、绑定价），仅展示；绑定/解绑均在实体商品详情页「可选服务」中操作。
+- **可选服务**（仅 PHYSICAL）：实体商品展示「可选服务」区块：已绑定服务列表（服务名、SKU 规格、绑定售价、删除）；「+ 绑定服务」通过关键词搜索商品、筛选 SERVICE 类型、选择服务与 SKU、可选填绑定价后添加绑定；删除即解绑。API：`GET /api/products/search`、`GET /api/products/{spuId}/available-services`、`GET /api/products/{spuId}/skus`（选服务 SKU）、`POST/DELETE /api/skus/{skuId}/service-bindings`。
 - 错误时展示后端返回的 `message`。
 
 ### 2.4 库存管理页（InventoryPage）

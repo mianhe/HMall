@@ -194,7 +194,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch, onMounted } from 'vue'
+import { ref, reactive, inject, onMounted } from 'vue'
 import AppHeader from '../shared/ui/AppHeader.vue'
 import {
   getEngravingPatterns,
@@ -204,6 +204,7 @@ import {
   uploadFile,
 } from '../shared/api/catalog.js'
 
+const confirm = inject('confirm')
 const list = ref([])
 const loading = ref(false)
 const error = ref('')
@@ -233,8 +234,6 @@ async function load() {
     loading.value = false
   }
 }
-
-watch(filterEnabled, () => load())
 
 function openCreate() {
   editingId.value = null
@@ -301,7 +300,7 @@ async function submitForm() {
 }
 
 async function doDelete(row) {
-  if (!confirm(`确定删除图案「${row.name}」？`)) return
+  if (!(await confirm.confirm({ title: '删除图案', message: `确定删除图案「${row.name}」？` }))) return
   deletingId.value = row.id
   error.value = ''
   try {

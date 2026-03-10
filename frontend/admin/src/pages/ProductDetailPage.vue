@@ -85,49 +85,6 @@
           </template>
         </div>
 
-        <!-- 产品级展示图 -->
-        <section class="mb-8">
-          <h2 class="text-lg font-semibold text-gray-800 mb-3">产品级展示图</h2>
-          <div v-if="productImages.length" class="flex flex-wrap gap-3 mb-3">
-            <div
-              v-for="img in productImages"
-              :key="'pi-' + img.id"
-              class="relative group"
-            >
-              <img
-                :src="img.imageUrl"
-                alt="产品图"
-                class="w-24 h-24 object-cover rounded border border-gray-200"
-              />
-              <button
-                type="button"
-                class="absolute top-0 right-0 w-5 h-5 flex items-center justify-center bg-red-500 text-white text-xs rounded-full opacity-0 group-hover:opacity-100"
-                :disabled="deleting === img.id"
-                @click="doDeleteProductImage(img.id)"
-              >
-                ×
-              </button>
-            </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <input
-              ref="productFileInputRef"
-              type="file"
-              accept="image/*"
-              class="hidden"
-              @change="onProductFileChange"
-            />
-            <button
-              type="button"
-              class="px-3 py-1.5 rounded-lg border border-vmall-gray-border text-sm text-vmall-gray-text hover:bg-vmall-gray-bg"
-              :disabled="uploading"
-              @click="productFileInputRef?.click()"
-            >
-              {{ uploading ? '上传中…' : '上传产品级展示图' }}
-            </button>
-          </div>
-        </section>
-
         <!-- 规格维度与选项 -->
         <section class="mb-8">
           <h2 class="text-lg font-semibold text-gray-800 mb-3">规格维度与选项</h2>
@@ -263,41 +220,73 @@
             <div
               v-for="sku in skus"
               :key="'s-' + sku.id"
-              class="flex flex-wrap items-center gap-3 py-2 px-3 border border-vmall-gray-border rounded-lg text-sm"
+              class="flex flex-wrap items-center gap-3 py-2 px-3 border border-vmall-gray-border rounded-lg text-sm group"
             >
-              <span class="text-gray-700 shrink-0">{{ skuDisplay(sku) }}</span>
-              <div class="flex items-center gap-1">
-                <span class="text-vmall-gray-text">¥</span>
+              <template v-if="editingSkuId === sku.id">
+                <span class="text-gray-700 shrink-0">{{ skuDisplay(sku) }}</span>
+                <div class="flex items-center gap-1">
+                  <span class="text-vmall-gray-text">¥</span>
+                  <input
+                    v-model.number="skuEditPrice[sku.id]"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    class="w-24 px-2 py-1 border border-vmall-gray-border rounded"
+                  />
+                </div>
                 <input
-                  v-model.number="skuEditPrice[sku.id]"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  class="w-24 px-2 py-1 border border-vmall-gray-border rounded"
+                  v-model="skuEditDisplayName[sku.id]"
+                  type="text"
+                  class="w-40 px-2 py-1 border border-vmall-gray-border rounded text-vmall-gray-text"
+                  placeholder="展示名（可选）"
                 />
-              </div>
-              <input
-                v-model="skuEditDisplayName[sku.id]"
-                type="text"
-                class="w-40 px-2 py-1 border border-vmall-gray-border rounded text-vmall-gray-text"
-                placeholder="展示名（可选）"
-              />
-              <button
-                type="button"
-                class="px-2 py-1 rounded bg-vmall-red text-white text-xs hover:bg-vmall-red-hover disabled:opacity-50"
-                :disabled="savingSkuId === sku.id"
-                @click="doUpdateSku(sku)"
-              >
-                {{ savingSkuId === sku.id ? '保存中…' : '保存' }}
-              </button>
-              <button
-                type="button"
-                class="px-2 py-1 rounded border border-red-200 text-red-600 text-xs hover:bg-red-50 disabled:opacity-50"
-                :disabled="deletingSkuId === sku.id"
-                @click="doDeleteSku(sku.id)"
-              >
-                {{ deletingSkuId === sku.id ? '删除中…' : '删除' }}
-              </button>
+                <button
+                  type="button"
+                  class="px-2 py-1 rounded bg-vmall-red text-white text-xs hover:bg-vmall-red-hover disabled:opacity-50"
+                  :disabled="savingSkuId === sku.id"
+                  @click="doUpdateSku(sku)"
+                >
+                  {{ savingSkuId === sku.id ? '保存中…' : '保存' }}
+                </button>
+                <button
+                  type="button"
+                  class="px-2 py-1 rounded border border-vmall-gray-border text-vmall-gray-text text-xs hover:bg-vmall-gray-bg"
+                  :disabled="savingSkuId === sku.id"
+                  @click="editingSkuId = null"
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  class="px-2 py-1 rounded border border-red-200 text-red-600 text-xs hover:bg-red-50 disabled:opacity-50"
+                  :disabled="deletingSkuId === sku.id"
+                  @click="doDeleteSku(sku.id)"
+                >
+                  {{ deletingSkuId === sku.id ? '删除中…' : '删除' }}
+                </button>
+              </template>
+              <template v-else>
+                <span class="text-gray-700 shrink-0">{{ skuDisplay(sku) }}</span>
+                <span class="text-vmall-gray-text">{{ (skuEditPrice[sku.id] != null ? skuEditPrice[sku.id] : sku.priceCents / 100).toFixed(2) }} 元</span>
+                <span v-if="skuEditDisplayName[sku.id]" class="text-vmall-gray-text">{{ skuEditDisplayName[sku.id] }}</span>
+                <div class="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    type="button"
+                    class="px-2 py-0.5 text-xs rounded border border-vmall-gray-border text-vmall-gray-text hover:bg-vmall-gray-bg"
+                    @click="editingSkuId = sku.id"
+                  >
+                    编辑
+                  </button>
+                  <button
+                    type="button"
+                    class="px-2 py-0.5 text-xs rounded border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                    :disabled="deletingSkuId === sku.id"
+                    @click="doDeleteSku(sku.id)"
+                  >
+                    {{ deletingSkuId === sku.id ? '删除中…' : '删除' }}
+                  </button>
+                </div>
+              </template>
             </div>
           </div>
           <div v-if="showNewSkuForm" class="border border-vmall-gray-border rounded-lg p-4 mb-3 space-y-3">
@@ -366,72 +355,184 @@
           <p v-if="!skus.length && !showNewSkuForm" class="text-vmall-gray-text text-sm">暂无 SKU，请先添加规格维度与选项，再添加 SKU。</p>
         </section>
 
-        <!-- 服务绑定管理（仅 SERVICE 类型商品） -->
-        <section v-if="product.productType === 'SERVICE' && skus.length" class="mb-8">
-          <h2 class="text-lg font-semibold text-gray-800 mb-3">服务绑定</h2>
-          <div v-for="sku in skus" :key="'sb-' + sku.id" class="mb-6 border border-vmall-gray-border rounded-lg p-4">
-            <h3 class="text-sm font-medium text-gray-700 mb-3">
-              SKU: {{ skuDisplay(sku) }}
-              <span class="text-vmall-gray-text font-normal ml-1">（标准价 ¥{{ (sku.priceCents / 100).toFixed(2) }}）</span>
-            </h3>
-
-            <!-- 已绑定列表 -->
-            <div v-if="bindingsMap[sku.id]?.length" class="space-y-2 mb-3">
-              <div
-                v-for="binding in bindingsMap[sku.id]"
-                :key="'b-' + binding.id"
-                class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded text-sm"
-              >
-                <div class="flex items-center gap-2">
-                  <span class="text-gray-400">→</span>
-                  <span class="text-gray-700">{{ binding.targetSpuName || `SPU#${binding.targetSpuId}` }}</span>
-                  <span class="text-vmall-gray-text">
-                    {{ binding.priceCents != null ? `¥${(binding.priceCents / 100).toFixed(2)}` : '继承标准价' }}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  class="text-red-500 hover:text-red-700 text-xs"
-                  :disabled="deletingBinding === binding.id"
-                  @click="doDeleteBinding(sku.id, binding.id)"
-                >
-                  {{ deletingBinding === binding.id ? '删除中…' : '删除' }}
-                </button>
-              </div>
-            </div>
-            <p v-else class="text-sm text-gray-400 italic mb-3">暂无绑定（可独立售卖）</p>
-
-            <!-- 新增绑定表单 -->
-            <div class="flex items-end gap-2 text-sm">
-              <div>
-                <label class="block text-xs text-vmall-gray-text mb-1">目标商品(SPU) ID</label>
-                <input
-                  v-model.number="newBindingForms[sku.id].targetSpuId"
-                  type="number"
-                  min="1"
-                  class="w-28 px-2 py-1.5 border border-vmall-gray-border rounded text-sm"
-                  placeholder="SPU ID"
-                />
-              </div>
-              <div>
-                <label class="block text-xs text-vmall-gray-text mb-1">价格（元，留空继承标准价）</label>
-                <input
-                  v-model="newBindingForms[sku.id].priceYuan"
-                  type="text"
-                  class="w-28 px-2 py-1.5 border border-vmall-gray-border rounded text-sm"
-                  placeholder="留空=继承"
-                />
-              </div>
+        <!-- 产品级展示图 -->
+        <section class="mb-8">
+          <h2 class="text-lg font-semibold text-gray-800 mb-3">产品级展示图</h2>
+          <div v-if="productImages.length" class="flex flex-wrap gap-3 mb-3">
+            <div
+              v-for="img in productImages"
+              :key="'pi-' + img.id"
+              class="relative group"
+            >
+              <img
+                :src="img.imageUrl"
+                alt="产品图"
+                class="w-24 h-24 object-cover rounded border border-gray-200"
+              />
               <button
                 type="button"
-                class="px-3 py-1.5 rounded-lg bg-vmall-red text-white text-sm hover:bg-red-600 disabled:opacity-50"
-                :disabled="creatingBinding || !newBindingForms[sku.id].targetSpuId"
-                @click="doCreateBinding(sku.id)"
+                class="absolute top-0 right-0 w-5 h-5 flex items-center justify-center bg-red-500 text-white text-xs rounded-full opacity-0 group-hover:opacity-100"
+                :disabled="deleting === img.id"
+                @click="doDeleteProductImage(img.id)"
               >
-                {{ creatingBinding ? '创建中…' : '添加绑定' }}
+                ×
               </button>
             </div>
           </div>
+          <div class="flex items-center gap-2">
+            <input
+              ref="productFileInputRef"
+              type="file"
+              accept="image/*"
+              class="hidden"
+              @change="onProductFileChange"
+            />
+            <button
+              type="button"
+              class="px-3 py-1.5 rounded-lg border border-vmall-gray-border text-sm text-vmall-gray-text hover:bg-vmall-gray-bg"
+              :disabled="uploading"
+              @click="productFileInputRef?.click()"
+            >
+              {{ uploading ? '上传中…' : '上传产品级展示图' }}
+            </button>
+          </div>
+        </section>
+
+        <!-- 可选服务（仅 PHYSICAL 类型商品） -->
+        <section v-if="product.productType === 'PHYSICAL'" class="mb-8">
+          <h2 class="text-lg font-semibold text-gray-800 mb-3">可选服务</h2>
+          <!-- 已绑定列表 -->
+          <div v-if="availableServices.length" class="space-y-4 mb-4">
+            <div
+              v-for="svc in availableServices"
+              :key="'as-' + svc.serviceSpuId"
+              class="border border-vmall-gray-border rounded-lg p-4"
+            >
+              <h3 class="text-sm font-medium text-gray-700 mb-2">{{ svc.name }}</h3>
+              <div class="space-y-2">
+                <div
+                  v-for="b in svc.bindings"
+                  :key="'b-' + b.bindingId"
+                  class="flex items-center justify-between py-2 px-3 bg-gray-50 rounded text-sm"
+                >
+                  <span class="text-vmall-gray-text">{{ bindingSpecDisplay(b) }}</span>
+                  <span class="text-gray-700">¥{{ (b.priceCents / 100).toFixed(2) }}</span>
+                  <button
+                    type="button"
+                    class="text-red-500 hover:text-red-700 text-xs"
+                    :disabled="deletingPhysicalBindingId === b.bindingId"
+                    @click="doDeletePhysicalBinding(b.serviceSkuId, b.bindingId)"
+                  >
+                    {{ deletingPhysicalBindingId === b.bindingId ? '删除中…' : '删除' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p v-else class="text-sm text-gray-400 italic mb-4">暂无已绑定的可选服务。</p>
+          <!-- + 绑定服务 -->
+          <div class="border border-vmall-gray-border rounded-lg p-4 space-y-3">
+            <div class="flex items-center gap-2 flex-wrap">
+              <input
+                v-model.trim="serviceSearchKeyword"
+                type="text"
+                class="w-48 px-2 py-1.5 border border-vmall-gray-border rounded text-sm"
+                placeholder="搜索服务名称"
+                @keyup.enter="doSearchServices"
+              />
+              <button
+                type="button"
+                class="px-3 py-1.5 rounded-lg bg-vmall-red text-white text-sm hover:bg-vmall-red-hover"
+                @click="doSearchServices"
+              >
+                搜索
+              </button>
+            </div>
+            <div v-if="serviceSearchResults.length" class="space-y-1">
+              <p class="text-xs text-vmall-gray-text mb-1">选择要绑定的服务：</p>
+              <button
+                v-for="p in serviceSearchResults"
+                :key="p.id"
+                type="button"
+                class="block w-full text-left px-3 py-2 rounded border text-sm"
+                :class="selectedServiceForBinding?.id === p.id ? 'border-vmall-red bg-red-50' : 'border-vmall-gray-border hover:bg-gray-50'"
+                @click="selectServiceForBinding(p)"
+              >
+                {{ p.name }} <span class="text-vmall-gray-text">#{{ p.id }}</span>
+              </button>
+            </div>
+            <div v-if="selectedServiceForBinding && serviceSkusForBinding.length" class="space-y-2 pt-2 border-t border-vmall-gray-border">
+              <p class="text-xs text-vmall-gray-text">选择 SKU：</p>
+              <select
+                v-model="newBindingSkuId"
+                class="w-full max-w-md px-2 py-1.5 border border-vmall-gray-border rounded text-sm"
+              >
+                <option :value="null">请选择</option>
+                <option
+                  v-for="sku in serviceSkusForBinding"
+                  :key="sku.id"
+                  :value="sku.id"
+                >
+                  {{ skuDisplay(sku) }} — ¥{{ (sku.priceCents / 100).toFixed(2) }}
+                </option>
+              </select>
+              <div class="flex items-center gap-2">
+                <label class="text-sm text-vmall-gray-text">绑定价（元，留空继承）：</label>
+                <input
+                  v-model="newBindingPriceYuan"
+                  type="text"
+                  class="w-24 px-2 py-1.5 border border-vmall-gray-border rounded text-sm"
+                  placeholder="可选"
+                />
+              </div>
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  class="px-3 py-1.5 rounded-lg bg-vmall-red text-white text-sm hover:bg-vmall-red-hover disabled:opacity-50"
+                  :disabled="creatingPhysicalBinding || !newBindingSkuId"
+                  @click="doCreatePhysicalBinding"
+                >
+                  {{ creatingPhysicalBinding ? '添加中…' : '添加绑定' }}
+                </button>
+                <button
+                  type="button"
+                  class="px-3 py-1.5 rounded-lg border border-vmall-gray-border text-sm text-vmall-gray-text hover:bg-vmall-gray-bg"
+                  :disabled="creatingPhysicalBinding"
+                  @click="clearServiceBindingForm"
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 已绑定的实体商品（仅 SERVICE 类型商品，仅展示；绑定/解绑在实体商品详情页「可选服务」操作） -->
+        <section v-if="product.productType === 'SERVICE' && skus.length" class="mb-8">
+          <h2 class="text-lg font-semibold text-gray-800 mb-3">已绑定的实体商品</h2>
+          <div v-if="bindingTableRows.length" class="overflow-x-auto border border-vmall-gray-border rounded-lg">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-gray-50 border-b border-vmall-gray-border">
+                  <th class="text-left py-2 px-3 font-medium text-gray-700">服务 SKU</th>
+                  <th class="text-left py-2 px-3 font-medium text-gray-700">实体商品</th>
+                  <th class="text-left py-2 px-3 font-medium text-gray-700">绑定价</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="row in bindingTableRows"
+                  :key="row.key"
+                  class="border-b border-gray-100 last:border-b-0 hover:bg-gray-50/50"
+                >
+                  <td class="py-2 px-3 text-gray-700">{{ row.skuLabel }}</td>
+                  <td class="py-2 px-3 text-gray-700">{{ row.targetName }}</td>
+                  <td class="py-2 px-3 text-vmall-gray-text">{{ row.priceText }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p v-else class="text-sm text-gray-400 italic">暂无绑定（可独立售卖）。需绑定时请到对应实体商品详情页「可选服务」中操作。</p>
         </section>
       </template>
     </main>
@@ -439,7 +540,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppHeader from '../shared/ui/AppHeader.vue'
 import {
@@ -448,6 +549,8 @@ import {
   getProductImages,
   getSkus,
   getServiceBindings,
+  getAvailableServices,
+  searchProducts,
   createServiceBinding,
   deleteServiceBinding,
   uploadFile,
@@ -467,6 +570,8 @@ import {
 
 const route = useRoute()
 const router = useRouter()
+const toast = inject('toast')
+const confirm = inject('confirm')
 const product = ref(null)
 const editingBasic = ref(false)
 const editName = ref('')
@@ -481,10 +586,7 @@ const uploading = ref(false)
 const deleting = ref(null)
 const productFileInputRef = ref(null)
 const optionFileInputs = ref({}) // key: `${dimensionId}-${optionId}`
-const bindingsMap = ref({})     // key: skuId → ServiceBinding[]
-const newBindingForms = ref({}) // key: skuId → { targetSpuId, priceYuan }
-const creatingBinding = ref(false)
-const deletingBinding = ref(null)
+const bindingsMap = ref({})     // key: skuId → ServiceBinding[]（仅 SERVICE 展示用）
 const showNewDimensionForm = ref(false)
 const newDimensionName = ref('')
 const newDimensionRequired = ref(false)
@@ -496,11 +598,22 @@ const skuEditPrice = ref({})
 const skuEditDisplayName = ref({})
 const savingSkuId = ref(null)
 const deletingSkuId = ref(null)
+const editingSkuId = ref(null)
 const showNewSkuForm = ref(false)
 const newSkuOptionIds = ref({})
 const newSkuPriceYuan = ref('')
 const newSkuDisplayName = ref('')
 const creatingSku = ref(false)
+// PHYSICAL 可选服务
+const availableServices = ref([])
+const serviceSearchKeyword = ref('')
+const serviceSearchResults = ref([])
+const selectedServiceForBinding = ref(null)
+const serviceSkusForBinding = ref([])
+const newBindingSkuId = ref(null)
+const newBindingPriceYuan = ref('')
+const creatingPhysicalBinding = ref(false)
+const deletingPhysicalBindingId = ref(null)
 
 const spuId = computed(() => {
   const id = route.params.id
@@ -515,6 +628,26 @@ const canCreateSku = computed(() => {
   }
   const price = Number(newSkuPriceYuan.value)
   return newSkuPriceYuan.value !== '' && !Number.isNaN(price) && price >= 0
+})
+
+// SERVICE 详情页：已绑定实体商品表格行（扁平化 skus + bindingsMap）
+const bindingTableRows = computed(() => {
+  const rows = []
+  const skuList = skus.value
+  const map = bindingsMap.value
+  skuList.forEach((sku) => {
+    const bindings = map[sku.id] || []
+    const skuLabel = `${skuDisplay(sku)}（标准价 ¥${(sku.priceCents / 100).toFixed(2)}）`
+    bindings.forEach((b) => {
+      rows.push({
+        key: 'b-' + b.id,
+        skuLabel,
+        targetName: b.targetSpuName || `SPU#${b.targetSpuId}`,
+        priceText: b.priceCents != null ? `¥${(b.priceCents / 100).toFixed(2)}` : '继承标准价',
+      })
+    })
+  })
+  return rows
 })
 
 function setOptionFileInput(el, dimensionId, optionId) {
@@ -552,6 +685,11 @@ async function load() {
     if (p.productType === 'SERVICE') {
       await loadAllBindings(s || [])
     }
+    if (p.productType === 'PHYSICAL') {
+      availableServices.value = await getAvailableServices(spuId.value)
+    } else {
+      availableServices.value = []
+    }
   } catch (e) {
     error.value = e.response?.data?.message || e.message || '加载失败'
   } finally {
@@ -569,8 +707,9 @@ async function onProductFileChange(e) {
     const { url } = await uploadFile(file)
     await addProductImage(spuId.value, { imageUrl: url })
     productImages.value = await getProductImages(spuId.value)
+    toast.showToast('产品图上传成功', 'success')
   } catch (err) {
-    error.value = err.response?.data?.message || err.message || '上传失败'
+    toast.showToast(err.response?.data?.message || err.message || '上传失败', 'error')
   } finally {
     uploading.value = false
   }
@@ -586,8 +725,9 @@ async function onOptionFileChange(e, dimensionId, optionId) {
     const { url } = await uploadFile(file)
     await addOptionImage(spuId.value, dimensionId, optionId, { imageUrl: url })
     dimensions.value = await getDimensions(spuId.value)
+    toast.showToast('选项图上传成功', 'success')
   } catch (err) {
-    error.value = err.response?.data?.message || err.message || '上传失败'
+    toast.showToast(err.response?.data?.message || err.message || '上传失败', 'error')
   } finally {
     uploading.value = false
   }
@@ -600,8 +740,9 @@ async function doDeleteProductImage(imageId) {
   try {
     await deleteProductImage(spuId.value, imageId)
     productImages.value = await getProductImages(spuId.value)
+    toast.showToast('已删除', 'success')
   } catch (err) {
-    error.value = err.response?.data?.message || err.message || '删除失败'
+    toast.showToast(err.response?.data?.message || err.message || '删除失败', 'error')
   } finally {
     deleting.value = null
   }
@@ -614,56 +755,107 @@ async function doDeleteOptionImage(dimensionId, optionId, imageId) {
   try {
     await deleteOptionImage(spuId.value, dimensionId, optionId, imageId)
     dimensions.value = await getDimensions(spuId.value)
+    toast.showToast('已删除', 'success')
   } catch (err) {
-    error.value = err.response?.data?.message || err.message || '删除失败'
+    toast.showToast(err.response?.data?.message || err.message || '删除失败', 'error')
   } finally {
     deleting.value = null
   }
 }
 
+// 并发限制 5，待后端提供 GET /api/service-bindings/batch?skuIds=... 后可改为单次请求
+const BINDINGS_CONCURRENCY = 5
 async function loadAllBindings(skuList) {
   const map = {}
-  const forms = {}
-  await Promise.all(
-    skuList.map(async (sku) => {
-      map[sku.id] = await getServiceBindings(sku.id)
-      forms[sku.id] = { targetSpuId: null, priceYuan: '' }
-    })
-  )
+  for (let i = 0; i < skuList.length; i += BINDINGS_CONCURRENCY) {
+    const chunk = skuList.slice(i, i + BINDINGS_CONCURRENCY)
+    const results = await Promise.all(
+      chunk.map(async (sku) => {
+        const bindings = await getServiceBindings(sku.id)
+        return [sku.id, bindings]
+      })
+    )
+    results.forEach(([id, bindings]) => { map[id] = bindings })
+  }
   bindingsMap.value = map
-  newBindingForms.value = forms
 }
 
-async function doCreateBinding(skuId) {
-  const form = newBindingForms.value[skuId]
-  if (!form?.targetSpuId) return
-  creatingBinding.value = true
+function bindingSpecDisplay(binding) {
+  if (binding.specValues?.length) {
+    return binding.specValues.map((v) => v.optionValue).join(' · ')
+  }
+  return 'SKU#' + binding.serviceSkuId
+}
+
+async function doSearchServices() {
   error.value = ''
   try {
-    const priceCents = form.priceYuan !== '' && form.priceYuan != null
-      ? Math.round(Number(form.priceYuan) * 100)
-      : null
-    await createServiceBinding(skuId, { targetSpuId: form.targetSpuId, priceCents })
-    bindingsMap.value[skuId] = await getServiceBindings(skuId)
-    form.targetSpuId = null
-    form.priceYuan = ''
+    const list = await searchProducts(serviceSearchKeyword.value)
+    serviceSearchResults.value = (list || []).filter((p) => p.productType === 'SERVICE')
   } catch (err) {
-    error.value = err.response?.data?.message || err.message || '创建绑定失败'
-  } finally {
-    creatingBinding.value = false
+    error.value = err.response?.data?.message || err.message || '搜索失败'
+    serviceSearchResults.value = []
   }
 }
 
-async function doDeleteBinding(skuId, bindingId) {
-  deletingBinding.value = bindingId
+async function selectServiceForBinding(p) {
+  selectedServiceForBinding.value = p
+  newBindingSkuId.value = null
+  newBindingPriceYuan.value = ''
   error.value = ''
   try {
-    await deleteServiceBinding(skuId, bindingId)
-    bindingsMap.value[skuId] = await getServiceBindings(skuId)
+    serviceSkusForBinding.value = await getSkus(p.id)
   } catch (err) {
-    error.value = err.response?.data?.message || err.message || '删除绑定失败'
+    error.value = err.response?.data?.message || err.message || '加载 SKU 失败'
+    serviceSkusForBinding.value = []
+  }
+}
+
+function clearServiceBindingForm() {
+  selectedServiceForBinding.value = null
+  serviceSkusForBinding.value = []
+  newBindingSkuId.value = null
+  newBindingPriceYuan.value = ''
+}
+
+async function doCreatePhysicalBinding() {
+  if (!spuId.value || !newBindingSkuId.value) return
+  creatingPhysicalBinding.value = true
+  error.value = ''
+  try {
+    const priceCents =
+      newBindingPriceYuan.value !== '' && newBindingPriceYuan.value != null
+        ? Math.round(Number(newBindingPriceYuan.value) * 100)
+        : null
+    if (priceCents !== null && (Number.isNaN(priceCents) || priceCents < 0)) {
+      toast.showToast('绑定价无效', 'error')
+      return
+    }
+    await createServiceBinding(newBindingSkuId.value, {
+      targetSpuId: spuId.value,
+      priceCents: priceCents ?? undefined,
+    })
+    availableServices.value = await getAvailableServices(spuId.value)
+    clearServiceBindingForm()
+    toast.showToast('服务绑定成功', 'success')
+  } catch (err) {
+    toast.showToast(err.response?.data?.message || err.message || '添加绑定失败', 'error')
   } finally {
-    deletingBinding.value = null
+    creatingPhysicalBinding.value = false
+  }
+}
+
+async function doDeletePhysicalBinding(serviceSkuId, bindingId) {
+  deletingPhysicalBindingId.value = bindingId
+  error.value = ''
+  try {
+    await deleteServiceBinding(serviceSkuId, bindingId)
+    availableServices.value = await getAvailableServices(spuId.value)
+    toast.showToast('绑定已解除', 'success')
+  } catch (err) {
+    toast.showToast(err.response?.data?.message || err.message || '删除绑定失败', 'error')
+  } finally {
+    deletingPhysicalBindingId.value = null
   }
 }
 
@@ -680,8 +872,9 @@ async function doCreateDimension() {
     showNewDimensionForm.value = false
     newDimensionName.value = ''
     newDimensionRequired.value = false
+    toast.showToast('维度创建成功', 'success')
   } catch (err) {
-    error.value = err.response?.data?.message || err.message || '创建维度失败'
+    toast.showToast(err.response?.data?.message || err.message || '创建维度失败', 'error')
   } finally {
     creatingDimension.value = false
   }
@@ -696,8 +889,9 @@ async function doCreateOption(dimensionId) {
     await createOption(spuId.value, dimensionId, { optionValue: val })
     dimensions.value = await getDimensions(spuId.value)
     newOptionValues.value[dimensionId] = ''
+    toast.showToast('选项添加成功', 'success')
   } catch (err) {
-    error.value = err.response?.data?.message || err.message || '创建选项失败'
+    toast.showToast(err.response?.data?.message || err.message || '创建选项失败', 'error')
   } finally {
     creatingOptionDimId.value = null
   }
@@ -705,13 +899,14 @@ async function doCreateOption(dimensionId) {
 
 async function doDeleteOption(dimensionId, optionId) {
   if (!spuId.value) return
+  if (!(await confirm.confirm({ title: '删除选项', message: '删除该选项可能影响已有 SKU，确定删除？' }))) return
   deletingOptionId.value = optionId
-  error.value = ''
   try {
     await apiDeleteOption(spuId.value, dimensionId, optionId)
     dimensions.value = await getDimensions(spuId.value)
+    toast.showToast('选项已删除', 'success')
   } catch (err) {
-    error.value = err.response?.data?.message || err.message || '删除选项失败'
+    toast.showToast(err.response?.data?.message || err.message || '删除选项失败', 'error')
   } finally {
     deletingOptionId.value = null
   }
@@ -745,8 +940,9 @@ async function saveBasic() {
     })
     product.value = await getProduct(spuId.value)
     editingBasic.value = false
+    toast.showToast('保存成功', 'success')
   } catch (e) {
-    error.value = e.response?.data?.message || e.message || '保存失败'
+    toast.showToast(e.response?.data?.message || e.message || '保存失败', 'error')
   } finally {
     savingBasic.value = false
   }
@@ -754,13 +950,13 @@ async function saveBasic() {
 
 async function doDeleteProduct() {
   if (!spuId.value) return
-  if (!confirm('确定删除该商品？此操作不可恢复。')) return
-  error.value = ''
+  if (!(await confirm.confirm({ title: '删除商品', message: '确定删除该商品？此操作不可恢复。' }))) return
   try {
     await apiDeleteProduct(spuId.value)
+    toast.showToast('商品已删除', 'success')
     router.push('/catalog')
   } catch (e) {
-    error.value = e.response?.data?.message || e.message || '删除失败'
+    toast.showToast(e.response?.data?.message || e.message || '删除失败', 'error')
   }
 }
 
@@ -801,8 +997,9 @@ async function doCreateSku() {
     skuEditDisplayName.value = displayMap
     if (product.value?.productType === 'SERVICE') await loadAllBindings(skus.value)
     closeNewSkuForm()
+    toast.showToast('SKU 创建成功', 'success')
   } catch (err) {
-    error.value = err.response?.data?.message || err.message || '创建 SKU 失败'
+    toast.showToast(err.response?.data?.message || err.message || '创建 SKU 失败', 'error')
   } finally {
     creatingSku.value = false
   }
@@ -822,8 +1019,10 @@ async function doUpdateSku(sku) {
     skus.value = await getSkus(spuId.value)
     skuEditPrice.value[sku.id] = priceCents / 100
     skuEditDisplayName.value[sku.id] = skuEditDisplayName.value[sku.id]?.trim() ?? ''
+    editingSkuId.value = null
+    toast.showToast('SKU 保存成功', 'success')
   } catch (err) {
-    error.value = err.response?.data?.message || err.message || '保存 SKU 失败'
+    toast.showToast(err.response?.data?.message || err.message || '保存 SKU 失败', 'error')
   } finally {
     savingSkuId.value = null
   }
@@ -831,9 +1030,8 @@ async function doUpdateSku(sku) {
 
 async function doDeleteSku(skuId) {
   if (!spuId.value) return
-  if (!confirm('确定删除该 SKU？')) return
+  if (!(await confirm.confirm({ title: '删除 SKU', message: '确定删除该 SKU？' }))) return
   deletingSkuId.value = skuId
-  error.value = ''
   try {
     await apiDeleteSku(spuId.value, skuId)
     skus.value = await getSkus(spuId.value)
@@ -846,8 +1044,9 @@ async function doDeleteSku(skuId) {
     skuEditPrice.value = priceMap
     skuEditDisplayName.value = displayMap
     if (product.value?.productType === 'SERVICE') await loadAllBindings(skus.value)
+    toast.showToast('SKU 已删除', 'success')
   } catch (err) {
-    error.value = err.response?.data?.message || err.message || '删除 SKU 失败'
+    toast.showToast(err.response?.data?.message || err.message || '删除 SKU 失败', 'error')
   } finally {
     deletingSkuId.value = null
   }

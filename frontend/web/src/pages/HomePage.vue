@@ -86,6 +86,9 @@
                 <p class="p-3 text-sm font-medium text-gray-800 group-hover:text-vmall-red truncate">
                   {{ p.name }}
                 </p>
+                <p v-if="productMinPrice(p)" class="px-3 pb-3 text-sm text-vmall-red font-medium">
+                  {{ productMinPrice(p) }} 起
+                </p>
               </router-link>
             </div>
           </main>
@@ -101,6 +104,7 @@
 import { ref, reactive, watch } from 'vue'
 import { useAuth } from '../shared/auth.js'
 import { getCategoryTree, getProducts } from '../shared/api/catalog.js'
+import { formatPrice } from '../shared/utils/price.js'
 
 const { isLoggedIn, username } = useAuth()
 
@@ -116,6 +120,13 @@ const products = ref([])
 const productsLoading = ref(false)
 
 const productsCache = reactive({})
+
+function productMinPrice(p) {
+  const skus = p.skus || []
+  if (!skus.length) return null
+  const min = Math.min(...skus.map((s) => s.priceCents))
+  return formatPrice(min)
+}
 
 async function loadCategoryTree() {
   navError.value = ''
@@ -159,7 +170,7 @@ function selectSub(sub) {
   }
   products.value = []
   productsLoading.value = true
-  getProducts(sub.id)
+  getProducts(sub.id, { include: 'skus' })
     .then((list) => {
       productsCache[sub.id] = list
       products.value = list
