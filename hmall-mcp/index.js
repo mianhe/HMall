@@ -17,6 +17,7 @@ import { registerInventoryResources } from './resources/inventory-domain.js'
 import { registerCartOrderResources } from './resources/cart-order-domain.js'
 import { registerFulfillmentResources } from './resources/fulfillment-domain.js'
 import { registerActivityResources } from './resources/activity-domain.js'
+import { registerOntologyResources } from './resources/ontology.js'
 
 const server = new McpServer({
   name: 'hmall-mcp',
@@ -38,6 +39,7 @@ registerInventoryResources(server)
 registerCartOrderResources(server)
 registerFulfillmentResources(server)
 registerActivityResources(server)
+registerOntologyResources(server)
 
 // 启动
 async function main() {

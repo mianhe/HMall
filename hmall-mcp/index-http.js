@@ -21,6 +21,7 @@ import { registerInventoryResources } from './resources/inventory-domain.js'
 import { registerCartOrderResources } from './resources/cart-order-domain.js'
 import { registerFulfillmentResources } from './resources/fulfillment-domain.js'
 import { registerActivityResources } from './resources/activity-domain.js'
+import { registerOntologyResources } from './resources/ontology.js'
 
 function createServer() {
   const server = new McpServer({
@@ -39,13 +40,15 @@ function createServer() {
   registerCartOrderResources(server)
   registerFulfillmentResources(server)
   registerActivityResources(server)
+  registerOntologyResources(server)
   return server
 }
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000
 const transports = {}
 
-const ALLOWED_HOSTS = (process.env.MCP_ALLOWED_HOSTS || 'localhost,hmall-mcp')
+// 本地 Java（smart-interaction-service）连 127.0.0.1:3000 时 Host 为 127.0.0.1，须放行
+const ALLOWED_HOSTS = (process.env.MCP_ALLOWED_HOSTS || 'localhost,127.0.0.1,hmall-mcp')
   .split(',').map(h => h.trim()).filter(Boolean)
 const app = createMcpExpressApp({ allowedHosts: ALLOWED_HOSTS })
 
