@@ -11,3 +11,6 @@ scripts
 .idea
 .vscode
 *.iml
+
+# MCP 构建需要此文件
+!docs/ontology.md
