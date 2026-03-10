@@ -33,6 +33,7 @@
 
 - **递归加载**：根类目 → 每类目下子类目与商品 → 每商品下维度（含选项及展示图）、SKU。
 - **树形展示**（`CatalogTree` / `CatalogTreeNode`），只读。
+- **新增商品**：顶部「新增商品」按钮 → 弹窗表单（所属类目、名称、描述、商品类型、服务分类）→ 创建成功后跳转商品详情页。类目下拉仅展示叶子类目（路径格式如"手机 > Mate 系列"）。商品类型为 SERVICE 时显示服务分类下拉（ENGRAVING/WARRANTY/INSURANCE/OTHER）。API: `POST /api/products`。
 - **刷新按钮**：重新请求并渲染整棵树。
 - **错误与空态**：请求失败显示错误信息（含 5xx 重试与友好提示）；无数据时提示「暂无数据，请通过 MCP 添加类目与商品」。
 - **商品类型标签**：商品名称旁显示 `productType` Badge（PHYSICAL 灰色、SERVICE 蓝色）；SERVICE 且 `serviceKind=ENGRAVING` 时显示「镭雕」Badge。

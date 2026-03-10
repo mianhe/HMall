@@ -109,6 +109,13 @@ export async function deleteOptionImage(spuId, dimensionId, optionId, imageId) {
   )
 }
 
+// ---------- 商品（SPU）写操作 ----------
+
+export async function createProduct(body) {
+  const { data } = await client.post('/products', body)
+  return data
+}
+
 // ---------- 镭雕图案库（EngravingPattern） ----------
 
 export async function getEngravingPatterns(enabled = null) {
