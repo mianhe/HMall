@@ -6,6 +6,8 @@ import com.hmall.catalog.api.dto.EngravingPatternUpdateDto;
 import com.hmall.catalog.application.EngravingPatternApplicationService;
 import com.hmall.catalog.application.EngravingPatternBadRequestException;
 import com.hmall.catalog.domain.EngravingPattern;
+import com.hmall.filestorage.FileStorageService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,9 +18,13 @@ import java.util.List;
 public class EngravingPatternController {
 
     private final EngravingPatternApplicationService applicationService;
+    private final FileStorageService fileStorageService;
 
-    public EngravingPatternController(EngravingPatternApplicationService applicationService) {
+    public EngravingPatternController(
+            EngravingPatternApplicationService applicationService,
+            @Autowired(required = false) FileStorageService fileStorageService) {
         this.applicationService = applicationService;
+        this.fileStorageService = fileStorageService;
     }
 
     @PostMapping("/api/engraving-patterns")
@@ -63,7 +69,11 @@ public class EngravingPatternController {
     }
 
     private EngravingPatternDto toDto(EngravingPattern p) {
+        String imageUrl = p.getImageUrl();
+        if (fileStorageService != null) {
+            imageUrl = fileStorageService.toServeUrlIfMinio(imageUrl);
+        }
         return new EngravingPatternDto(
-            p.getId(), p.getName(), p.getImageUrl(), p.getSortOrder(), p.isEnabled());
+            p.getId(), p.getName(), imageUrl, p.getSortOrder(), p.isEnabled());
     }
 }

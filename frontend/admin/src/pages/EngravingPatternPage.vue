@@ -67,7 +67,7 @@
               <td class="py-2 px-4">
                 <img
                   v-if="row.imageUrl"
-                  :src="row.imageUrl"
+                  :src="imageUrlForDisplay(row.imageUrl)"
                   :alt="row.name"
                   class="w-12 h-12 object-cover rounded border border-gray-200"
                 />
@@ -151,7 +151,7 @@
               </div>
               <img
                 v-if="form.imageUrl"
-                :src="form.imageUrl"
+                :src="imageUrlForDisplay(form.imageUrl)"
                 alt="预览"
                 class="mt-2 w-20 h-20 object-cover rounded border border-gray-200"
                 @error="form.imageUrl = ''"
@@ -221,6 +221,23 @@ const submitting = ref(false)
 const uploading = ref(false)
 const deletingId = ref(null)
 const formFileInputRef = ref(null)
+
+/** 将内网 MinIO 的 imageUrl 转为同源 /api/files/serve，供缩略图显示（后端未返回代理 URL 时兜底） */
+function imageUrlForDisplay(url) {
+  if (!url) return ''
+  if (url.startsWith('/api/files/serve') || (url.startsWith('/') && !url.startsWith('//'))) return url
+  try {
+    const u = new URL(url)
+    const isMinio =
+      u.port === '9000' &&
+      (u.hostname === 'minio' || u.hostname === 'hmall-minio' || u.hostname === 'localhost' || u.hostname === '127.0.0.1')
+    if (isMinio && u.pathname) {
+      const path = u.pathname.replace(/^\//, '')
+      return '/api/files/serve?path=' + encodeURIComponent(path)
+    }
+  } catch (_) {}
+  return url
+}
 
 async function load() {
   loading.value = true
