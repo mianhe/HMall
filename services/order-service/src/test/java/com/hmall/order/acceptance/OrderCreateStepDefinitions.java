@@ -204,6 +204,14 @@ public class OrderCreateStepDefinitions {
     @And("应已发布 OrderCreated")
     public void 应已发布OrderCreated() {
         assertThat(orderEventCapture.wasOrderCreatedPublished()).isTrue();
+        var events = orderEventCapture.getOrderCreatedEvents();
+        var last = events.get(events.size() - 1);
+        assertThat(last.userId()).isNotNull();
+        assertThat(last.totalAmountCents()).isNotNull();
+        assertThat(last.items()).isNotNull();
+        assertThat(last.items()).isNotEmpty();
+        assertThat(last.items().get(0).spuId()).isNotNull();
+        assertThat(last.items().get(0).unitPriceCents()).isGreaterThanOrEqualTo(0);
     }
 
     @And("返回的订单总价为 {long} 分")

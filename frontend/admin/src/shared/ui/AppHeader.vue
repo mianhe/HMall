@@ -10,6 +10,7 @@
         <router-link to="/engraving-patterns" class="hover:underline opacity-95">图案库</router-link>
         <router-link to="/events" class="hover:underline opacity-95">事件</router-link>
         <router-link to="/activity" class="hover:underline opacity-95">监控</router-link>
+        <router-link to="/ops" class="hover:underline opacity-95">智能运营</router-link>
         <router-link to="/settings" class="hover:underline opacity-95">设置</router-link>
       </nav>
     </div>

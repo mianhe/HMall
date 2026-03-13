@@ -76,6 +76,7 @@ API 封装位置：`frontend/admin/src/shared/api/catalog.js`。契约：`docs/b
 | 时间范围切换 | 今日 / 最近7天 / 最近30天 快捷选择 + 自定义日期 | 同上 |
 | 最近活动流水 | 最近事件列表（时间、事件类型、订单 ID、Topic） | `GET /api/activities/recent?limit=20` |
 | 订单旅程入口 | 输入框 + 按钮，输入 orderId 跳转旅程页 | — |
+| 多维查询（智能运营 Step 1） | 按订单 ID / 用户 ID / SPU ID / SKU ID 任一查询，结果表格展示 | `GET /api/activities?orderId\|userId\|skuId\|spuId=&limit=50` |
 
 ### 2.6 订单旅程回放页（OrderJourneyPage）
 
@@ -108,6 +109,19 @@ AI Chat 以全局 Drawer 形式存在，从右侧滑出，所有路由页面共�
 | 模型切换 | 可选择不同 LLM 提供商 | `GET /api/ai/models` |
 
 后端需求见 `docs/bounded-contexts/smart-interaction/requirements.md`。技术设计见 `docs/bounded-contexts/smart-interaction/architecture.md`。
+
+### 2.8 智能运营页（OpsPage）
+
+路由：`/ops`。三栏布局：固定指标栏 + 动态画布 + AI 侧边栏。
+
+| 功能 | 说明 | API |
+|------|------|-----|
+| 固定指标栏 | 今日核心指标（订单/支付/发货/库存），页面加载时自动获取 | `GET /api/activities/stats?period=today` |
+| 动态画布 | AI 驱动的多面板可视化区域，支持 line_chart / bar_chart / pie_chart / stat_cards / timeline / table / event_list | 通过 `ops_canvas` MCP 工具驱动 |
+| 多面板布局 | 同一轮对话可渲染多个面板（如指标卡 + 趋势图），自适应网格排列 | — |
+| AI 侧边栏 | 常驻右侧，对话式运营分析，与画布联动 | `POST /api/ai/chat` (SSE) |
+| 画布上下文 | 当前画布面板摘要传入 AI 上下文，支持追问引用当前画布 | — |
+| 生成演示数据 | 数据为空时显示按钮，生成 30 天模拟数据 | `POST /api/activities/seed` |
 
 ---
 

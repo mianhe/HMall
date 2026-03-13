@@ -24,19 +24,37 @@ public class KafkaOrderOutboundEventPublisher implements OrderOutboundEventPubli
 
     @Override
     public void publish(OrderCreatedEvent event) {
-        kafkaTemplate.send(kafkaProperties.getOrderCreated(), String.valueOf(event.orderId()),
-                OrderCreatedMessage.from(event.orderId(), event.items()));
+        String topic = kafkaProperties.getOrderCreated();
+        log.info("发布 OrderCreated: orderId={}, topic={}", event.orderId(), topic);
+        kafkaTemplate.send(topic, String.valueOf(event.orderId()), OrderCreatedMessage.from(event))
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("OrderCreated 发送失败: orderId={}", event.orderId(), ex);
+                    }
+                });
     }
 
     @Override
     public void publish(OrderCancelledEvent event) {
-        kafkaTemplate.send(kafkaProperties.getOrderCancelled(), String.valueOf(event.orderId()),
-                OrderCancelledMessage.from(event.orderId()));
+        String topic = kafkaProperties.getOrderCancelled();
+        log.info("发布 OrderCancelled: orderId={}, topic={}", event.orderId(), topic);
+        kafkaTemplate.send(topic, String.valueOf(event.orderId()), OrderCancelledMessage.from(event))
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("OrderCancelled 发送失败: orderId={}", event.orderId(), ex);
+                    }
+                });
     }
 
     @Override
     public void publish(OrderCompletedEvent event) {
-        kafkaTemplate.send(kafkaProperties.getOrderCompleted(), String.valueOf(event.orderId()),
-                OrderCompletedMessage.from(event.orderId()));
+        String topic = kafkaProperties.getOrderCompleted();
+        log.info("发布 OrderCompleted: orderId={}, topic={}", event.orderId(), topic);
+        kafkaTemplate.send(topic, String.valueOf(event.orderId()), OrderCompletedMessage.from(event))
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.error("OrderCompleted 发送失败: orderId={}", event.orderId(), ex);
+                    }
+                });
     }
 }

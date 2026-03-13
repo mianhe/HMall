@@ -1,5 +1,6 @@
 package com.hmall.order.application;
 
+import com.hmall.order.application.event.ItemSnapshot;
 import com.hmall.order.application.event.OrderCancelledEvent;
 import com.hmall.order.application.event.OrderCreatedEvent;
 import com.hmall.order.application.port.*;
@@ -119,10 +120,11 @@ public class OrderApplicationService {
             throw new OrderBadRequestException("创建支付失败");
         }
 
-        outboundEventPublisher.publish(new OrderCreatedEvent(saved.getOrderId(),
-                occupyItems.stream()
-                        .map(iq -> new OrderCreatedEvent.ItemQuantity(iq.skuId(), iq.quantity()))
-                        .toList()));
+        List<ItemSnapshot> itemSnapshots = saved.getItems().stream()
+                .map(li -> new ItemSnapshot(li.getSkuId(), li.getSpuId(), li.getQuantity(), li.getUnitPriceCents()))
+                .toList();
+        outboundEventPublisher.publish(new OrderCreatedEvent(saved.getOrderId(), saved.getUserId(),
+                saved.getTotalAmountCents(), itemSnapshots));
 
         return toDto(saved);
     }
@@ -172,7 +174,11 @@ public class OrderApplicationService {
                 Instant.now()
         );
         orderRepository.save(cancelled);
-        outboundEventPublisher.publish(new OrderCancelledEvent(orderId));
+        List<ItemSnapshot> cancelSnapshots = order.getItems().stream()
+                .map(li -> new ItemSnapshot(li.getSkuId(), li.getSpuId(), li.getQuantity(), li.getUnitPriceCents()))
+                .toList();
+        outboundEventPublisher.publish(new OrderCancelledEvent(orderId, order.getUserId(),
+                order.getTotalAmountCents(), cancelSnapshots));
     }
 
     @Transactional(readOnly = true)

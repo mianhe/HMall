@@ -99,7 +99,7 @@ overview.md 由四个章节组成，分别对应 Phase A 的四个步骤：
 
 ### L2 中分析
 
-关键事件/状态变化 + 数据依赖 + 步骤说明 + 影响。
+关键事件/状态变化 + 数据依赖 + 步骤说明 + 影响。**前端场景**：说明页面数据流向、关键组件边界、与 API 的对接点。
 
 ### L1 轻分析
 
@@ -154,9 +154,34 @@ overview.md 由四个章节组成，分别对应 Phase A 的四个步骤：
 
 场景分析从跨 BC 视角讲事件流全貌（横切）；变更分析从单 BC 视角讲具体变更（纵切）。两者互补、不重复。
 
-### BC 间数据流
+### 前端变更（若有显著前端改动）
 
-变更分析末尾附 BC 间数据流，明确跨 BC 数据传递链：
+前端变更与各 BC 子节并列，**不归属任何 BC**：
+
+```markdown
+### 前端（frontend/admin）（🔲 全新）
+
+#### 新增页面与组件
+- `pages/OpsPage.vue`：智能运营主页面，三区域布局（固定指标栏 / 动态画布 / AI 侧边栏）
+- `shared/composables/useOpsCanvas.js`：画布状态管理，监听 tool_result 更新渲染状态
+- `shared/ui/ops/OpsStatsPanel.vue`：统计数据卡片组，props: `{ data: StatsObject }`
+
+#### 数据流与状态
+- `useOpsCanvas` 通过 `onToolCallSuccess` 回调订阅全局 `aiChat`，工具名 → 画布状态机
+- 画布状态：`EMPTY | LOADING | STATS | TIMELINE | RECENT`
+
+#### 界面规格（粗粒度）
+（ASCII 布局图或文字描述，细节留给 `frontend-development` Skill）
+
+#### 手工验收 checklist
+- [ ] 进入页面，固定指标栏展示今日统计
+- [ ] AI 侧边栏常驻可见，可正常发消息
+- [ ] 输入「最近发生了什么」→ 画布渲染事件列表
+```
+
+纯 CRUD 或简单展示的前端改动不需要此节，在迭代计划的「前端」行说明即可。
+
+### BC 间数据流
 
 ```markdown
 ### BC 间数据流

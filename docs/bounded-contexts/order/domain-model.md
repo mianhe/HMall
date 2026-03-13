@@ -161,7 +161,7 @@ end note
 
 ## 事件与状态
 
-Order 发布：OrderCreated, OrderCancelled, OrderCompleted（定义见 [event-flow.md](./event-flow.md)）。
+Order 发布：OrderCreated, OrderCancelled, OrderCompleted（定义见 [event-flow.md](./event-flow.md)）。Kafka 消息体已增强为携带 userId、totalAmountCents、items 含 spuId/unitPriceCents 快照（来自业务需求 [智能运营 Step 1](../../business-requirements/intelligent-ops-step1/overview.md)）。
 
 订阅事件 → status 映射：
 

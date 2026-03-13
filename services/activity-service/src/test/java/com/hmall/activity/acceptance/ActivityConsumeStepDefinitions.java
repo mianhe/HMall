@@ -41,7 +41,7 @@ public class ActivityConsumeStepDefinitions {
     @当("收到事件 eventId {string} eventType {string} topic {string} orderId {long} occurredAt {string}")
     public void 收到事件(String eventId, String eventType, String topic, long orderId, String occurredAtStr) {
         Instant occurredAt = Instant.parse(occurredAtStr);
-        applicationService.record(new RecordActivityCommand(eventId, eventType, topic, orderId, "{}", occurredAt));
+        applicationService.record(new RecordActivityCommand(eventId, eventType, topic, orderId, null, null, "{}", occurredAt));
     }
 
     @那么("应存在一条活动记录 eventId {string} eventType {string} topic {string} orderId {long}")
@@ -86,13 +86,13 @@ public class ActivityConsumeStepDefinitions {
     public void 已存在活动记录(String eventId, String eventType, String topic, long orderId, String occurredAtStr) {
         repository.deleteByOrderId(orderId);
         Instant occurredAt = Instant.parse(occurredAtStr);
-        applicationService.record(new RecordActivityCommand(eventId, eventType, topic, orderId, "{}", occurredAt));
+        applicationService.record(new RecordActivityCommand(eventId, eventType, topic, orderId, null, null, "{}", occurredAt));
     }
 
     @当("再次收到相同事件 eventId {string} eventType {string} topic {string} orderId {long} occurredAt {string}")
     public void 再次收到相同事件(String eventId, String eventType, String topic, long orderId, String occurredAtStr) {
         Instant occurredAt = Instant.parse(occurredAtStr);
-        applicationService.record(new RecordActivityCommand(eventId, eventType, topic, orderId, "{}", occurredAt));
+        applicationService.record(new RecordActivityCommand(eventId, eventType, topic, orderId, null, null, "{}", occurredAt));
     }
 
     @那么("订单 {long} 的活动记录数应为 {int}")

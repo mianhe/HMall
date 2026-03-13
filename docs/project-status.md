@@ -52,9 +52,25 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 
 > 镭雕复用虚拟商品基础设施，不依赖拆单。镭雕 SERVICE 不拆成 VIRTUAL 履约单，雕刻内容附属实体履约单，须 completeEngraving 后才能 ship。[业务需求方案](business-requirements/laser-engraving/overview.md)
 
+#### 智能运营（Intelligent Operations）
+
+以业务流程为中心的事件架构演进，支撑四级智能运营能力（效率分析 → 实时监控 → 智能洞察 → 自主策略）。Smart Interaction 在 Step 1 完成后即接入（Step 2），此后每步同时交付：后端数据 + 前端展示 + AI 可感知。架构设计见 [business-process-architecture.md](business-process-architecture.md)。
+
+| Step | 名称 | 可见结果 | 主要影响 BC | 状态 |
+|------|------|---------|-----------|------|
+| **1** | 多维事件基座 | Admin 多维查询事件（orderId/userId/skuId/spuId） | Order, Activity | ✅ 已完成 |
+| **2** | Smart Interaction 接入 + 对话驱动页面 MVP | `/ops` 智能运营页面；对话-画布联动；AI 统一可见出口 | Smart Interaction, MCP, 前端 admin | ✅ 已完成 |
+| **3** | 生命周期 + Level 1 分析 | 用户转化漏斗 + 商品经营概览仪表盘；AI 解读首购/首销 | Catalog, Activity, 前端 admin, Smart Interaction | 🔲 待开发 |
+| **4** | 派生引擎 + Level 2 监控 | 预警页（流失/库存告急/销量下滑）；AI 解读预警并溯源 | Activity, Smart Interaction | 🔲 待开发 |
+| **5** | 跨流程洞察 Level 3 | AI 跨用户/商品/交易三流程关联分析，回答「为什么」并给建议 | Smart Interaction, Activity | 🔲 待开发 |
+| **6** | 行为事件 + 导购流程 | 转化漏斗（浏览→加购→下单）；AI 覆盖浏览到成交全链路 | 前端, Activity, Smart Interaction | 🔲 待开发 |
+| **7** | 自主智能 Level 4 | 策略引擎；安全边界内跨流程自主行动；可审计日志 | Activity, 相关 BC | 🔲 待开发 |
+
+> 每个 Step 进入执行时，通过 `analyze-requirement` 产出详细设计文档。
+
 #### 其他待推进
 
-1. **Smart Interaction 后续**：对话历史持久化、MCP 工具扩展（Fulfillment/Activity/Address）
+1. **Smart Interaction 后续**：对话历史持久化、User MCP 工具、Fulfillment/Address MCP 工具扩展
 2. **Pricing BC**：创建订单时同步算价（规划中）
 
 ---
@@ -63,7 +79,7 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 
 | 前端 | 职责 | 状态 | 已实现页面 |
 |------|------|------|-----------|
-| **frontend/admin** | 管理后台 | ✅ 基本完成 | Catalog、Inventory、Fulfillment、Activity、AI Chat、镭雕图案库 |
+| **frontend/admin** | 管理后台 | ✅ 基本完成 | Catalog、Inventory、Fulfillment、Activity、AI Chat、镭雕图案库、智能运营（/ops） |
 | **frontend/web** | 消费者端 | ✅ 阶段完成 | 首页、登录注册、商品详情、购物车、结账、订单列表/详情、地址管理、我的、AI Chat |
 
 ---
@@ -102,6 +118,10 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 | SP5 | Order BC 提供补购聚合查询 API | Order 内部调用 Catalog 获取可选服务并去重已购 | 2026-03-01 |
 | SP6 | 纯服务订单 ShippingAddress 可选 | 补购订单无物理配送，收货地址非必填 | 2026-03-01 |
 | LE1 | 镭雕不拆成 VIRTUAL 履约单 | 雕刻内容附属实体履约单；须 completeEngraving 后才能 ship | 2026-03-04 |
+| IO1 | 以业务流程为中心重构事件架构 | 事件按 BC 分类不足以支撑多流程智能运营；四个核心一级流程（交易/用户发展/商品运营/导购）；事件分原子/派生 × 里程碑/过程 | 2026-03-11 |
+| IO2 | 事件 payload 增强一步到位 | 一次变更完整增加 userId、spuId、unitPriceCents 等多流程字段，避免多轮 schema 变更 | 2026-03-11 |
+| IO3 | 智能运营七步迭代、Smart Interaction 提前接入 | Step 2 起立即接入 Smart Interaction，后续每步同时交付后端数据+前端展示+AI 可感知；多流程并行推进不逐流程串行 | 2026-03-11 |
+| IO4 | Smart Interaction 在每步完成后同步增强 | 避免前几步只做仪表盘而结果不直观；Step 3/4 各自在内部包含 AI 知识更新交付物 | 2026-03-12 |
 
 ---
 
@@ -109,6 +129,10 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 
 | 日期 | 变更内容 |
 |------|---------|
+| 2026-03-12 | 智能运营 Step 2 交付：`/ops` 智能运营页面（三区域布局：固定指标栏 + 动态画布 + 常驻 AI 侧边栏）；`activity_query` 扩展多维参数 + `_raw` 结构化返回；`useOpsCanvas` 画布状态机 + 对话-画布联动；McpToolBridge `_raw` 透传；新增 `intelligent-ops-domain` MCP Resource；「智能运营助手」Skill；BIZ-IO2-001 E2E 3 用例全绿 |
+| 2026-03-12 | 智能运营演进路线重整：取消 Step 1.5 编号，整理为 Step 1→7；Smart Interaction 接入提前为 Step 2，Step 3/4 各自包含 AI 同步增强交付物；business-process-architecture.md 完整重写第七章 |
+| 2026-03-11 | 智能运营路线调整：Step 1.5 插入「Smart Interaction 接入」，保证每步可见结果 |
+| 2026-03-11 | 智能运营 Step 1（多维事件基座）交付：Order 三事件 payload 增强（userId/totalAmountCents/items 快照）；Activity BusinessActivity 新增 userId/correlationKeys、EventMetadata 新增 origin/processRoles、多维查询 API；admin ActivityPage 多维查询区；BIZ-IO1-001 E2E 通过 |
 | 2026-03-04 | 镭雕迭代 3（订单与履约详情展示）完成：Order 详情 API 返回 serviceAttributes；Fulfillment 发布 EngravingCompleted 事件；Activity 注册消费；frontend/web OrderDetailPage 展示镭雕内容及「镭雕已完成」；BIZ-LE-007 已添加 |
 | 2026-03-04 | 镭雕迭代 2（下单与履约）完成：Order PlaceOrder 接纳 serviceAttributes + createFulfillment 传参；Fulfillment engravingInfo 合并、completeEngraving、ship 门禁、查询返回；web 结账页传 serviceAttributes；admin FulfillmentPage 镭雕列、完成镭雕按钮、ship 门禁；BIZ-LE-005 E2E 全绿（Page Object 修正镭雕选择器） |
 | 2026-03-04 | 镭雕迭代 1（镭雕服务配置与选品）完成：Catalog SPU.serviceKind + available-services 返回 serviceKind（74 scenario）；admin 镭雕 Badge；web 详情页镭雕可选 + 图案库 + 文字输入；BIZ-LE-004；Smoke P0 通过 |

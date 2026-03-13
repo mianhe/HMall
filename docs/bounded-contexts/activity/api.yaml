@@ -8,10 +8,32 @@ paths:
   /api/activities:
     get:
       summary: 按条件查询业务活动
+      description: 支持按 orderId、userId、skuId、spuId 任一或组合查询；参数为 AND 关系。来自智能运营 Step 1 的多维查询能力。
       parameters:
         - name: orderId
           in: query
           required: false
+          schema:
+            type: integer
+            format: int64
+        - name: userId
+          in: query
+          required: false
+          description: 按用户维度查询
+          schema:
+            type: integer
+            format: int64
+        - name: skuId
+          in: query
+          required: false
+          description: 按 SKU 维度查询（correlationKeys 含该 skuId）
+          schema:
+            type: integer
+            format: int64
+        - name: spuId
+          in: query
+          required: false
+          description: 按 SPU 维度查询（correlationKeys 含该 spuId）
           schema:
             type: integer
             format: int64
@@ -68,7 +90,22 @@ paths:
   /api/activities/stats:
     get:
       summary: 查询统计（支持时间范围，用于仪表盘）
+      description: 可选传入 userId、spuId 做维度筛选（Step 1 仅预留参数，筛选逻辑可延至 Step 2）。
       parameters:
+        - name: userId
+          in: query
+          required: false
+          description: 按用户维度筛选统计（预留）
+          schema:
+            type: integer
+            format: int64
+        - name: spuId
+          in: query
+          required: false
+          description: 按 SPU 维度筛选统计（预留）
+          schema:
+            type: integer
+            format: int64
         - name: from
           in: query
           required: false
@@ -119,6 +156,11 @@ components:
           format: int64
           nullable: true
           description: 关联订单 ID；与订单无关的事件为 null
+        userId:
+          type: integer
+          format: int64
+          nullable: true
+          description: 关联用户 ID；从事件 payload 提取，无则 null（智能运营 Step 1）
         payload:
           type: string
         occurredAt:
@@ -153,6 +195,15 @@ components:
           type: string
           nullable: true
           description: 仅补偿事件有值，表示它补偿的正向事件类型（如 StockReleased 补偿 StockReserved）
+        origin:
+          type: string
+          enum: [domain, behavioral, derived]
+          description: 事件来源类型（智能运营 Step 1）
+        processRoles:
+          type: object
+          additionalProperties:
+            type: string
+          description: 事件在各一级流程中的角色，key=流程标识，value=MILESTONE 或 PROGRESSION
 
     StatsDto:
       type: object

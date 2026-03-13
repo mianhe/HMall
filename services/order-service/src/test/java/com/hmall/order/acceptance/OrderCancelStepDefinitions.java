@@ -134,5 +134,10 @@ public class OrderCancelStepDefinitions {
     public void 应发布OrderCancelled() {
         assertThat(lastResponseContext.getLastStatusCode()).isEqualTo(200);
         assertThat(orderEventCapture.wasOrderCancelledPublished()).isTrue();
+        var events = orderEventCapture.getOrderCancelledEvents();
+        var last = events.get(events.size() - 1);
+        assertThat(last.userId()).isNotNull();
+        assertThat(last.totalAmountCents()).isNotNull();
+        assertThat(last.items()).isNotNull();
     }
 }

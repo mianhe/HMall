@@ -119,6 +119,8 @@ flowchart TB
 
 端到端业务流程（价值流、事件流、路径枚举、测试覆盖映射）见 **[business-flows.md](business-flows.md)**。
 
+业务流程体系（一级流程定义、事件分类与管理、智能化分层、演进路线）见 **[business-process-architecture.md](business-process-architecture.md)**。
+
 ---
 
 ## 文档位置
@@ -127,6 +129,7 @@ flowchart TB
 docs/
 ├── context-map.md           # 本文件 - 系统结构、集成关系、集成技术
 ├── business-flows.md        # 业务流程 - 价值流、事件流、事件总表、路径枚举、测试覆盖
+├── business-process-architecture.md  # 业务流程架构 - 流程体系、事件分类、智能化、演进路线
 ├── design-principles.md     # 设计原则
 ├── project-status.md        # 项目状态
 ├── bounded-contexts/        # 各 BC 文档（requirements、domain-model、api.yaml 等）

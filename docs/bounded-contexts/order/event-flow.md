@@ -99,9 +99,11 @@ Order 发布的三个事件直接发送至 Kafka，供其他应用（如 Invento
 
 | Topic | 事件 | 消息体（JSON） |
 |-------|------|----------------|
-| `order.created` | OrderCreated | eventType, orderId, items: [{ skuId, quantity }], occurredAt |
-| `order.cancelled` | OrderCancelled | eventType, orderId, occurredAt |
-| `order.completed` | OrderCompleted | eventType, orderId, occurredAt |
+| `order.created` | OrderCreated | eventType, orderId, userId, totalAmountCents, items: [{ skuId, spuId, quantity, unitPriceCents }], occurredAt |
+| `order.cancelled` | OrderCancelled | eventType, orderId, userId, totalAmountCents, items: [{ skuId, spuId, quantity, unitPriceCents }], occurredAt |
+| `order.completed` | OrderCompleted | eventType, orderId, userId, totalAmountCents, items: [{ skuId, spuId, quantity, unitPriceCents }], occurredAt |
+
+> 以上 payload 增强来自业务需求 [智能运营 Step 1](../../business-requirements/intelligent-ops-step1/overview.md)：userId、totalAmountCents、items 含价格快照，供多流程分析（用户发展、商品运营）使用。
 
 配置：`application.yml` 中 `spring.kafka.bootstrap-servers`、`order.kafka.topic.*`。运行前需启动 Kafka（如 `docker compose -f infra/docker-compose.yml up -d`）。Kafka 默认启用，测试中排除 `KafkaAutoConfiguration`。
 

@@ -42,7 +42,12 @@ public class KafkaFulfillmentEventConsumer {
     public void onFulfillmentDelivered(Map<String, Object> message) {
         Long orderId = toLong(message.get("orderId"));
         log.info("收到 FulfillmentDelivered: orderId={}", orderId);
-        orderEventService.onFulfillmentDelivered(orderId);
+        try {
+            orderEventService.onFulfillmentDelivered(orderId);
+        } catch (Exception e) {
+            log.error("处理 FulfillmentDelivered 失败: orderId={}, message={}", orderId, message, e);
+            throw e;
+        }
     }
 
     @KafkaListener(topics = "${order.kafka.topic.service-activated:fulfillment.service.activated}",

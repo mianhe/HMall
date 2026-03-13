@@ -15,6 +15,15 @@ public interface BusinessActivityJpaRepository extends JpaRepository<BusinessAct
 
     List<BusinessActivityEntity> findByOrderIdOrderByOccurredAtAsc(Long orderId, Pageable pageable);
 
+    List<BusinessActivityEntity> findByUserIdOrderByOccurredAtAsc(Long userId, Pageable pageable);
+
+    @Query("SELECT e FROM BusinessActivityEntity e WHERE e.correlationKeys IS NOT NULL AND " +
+        "(e.correlationKeys LIKE :p1 OR e.correlationKeys LIKE :p2 OR e.correlationKeys LIKE :p3 OR e.correlationKeys LIKE :p4) " +
+        "ORDER BY e.occurredAt ASC")
+    List<BusinessActivityEntity> findByCorrelationKeyPatterns(@Param("p1") String p1, @Param("p2") String p2,
+                                                             @Param("p3") String p3, @Param("p4") String p4,
+                                                             Pageable pageable);
+
     @Query("SELECT e.eventType, COUNT(e) FROM BusinessActivityEntity e " +
            "WHERE e.occurredAt >= :from AND e.occurredAt < :to GROUP BY e.eventType")
     List<Object[]> countGroupByEventType(@Param("from") Instant from, @Param("to") Instant to);
@@ -24,6 +33,33 @@ public interface BusinessActivityJpaRepository extends JpaRepository<BusinessAct
     List<String> findPayloadsByEventTypeInRange(@Param("eventType") String eventType,
                                                 @Param("from") Instant from,
                                                 @Param("to") Instant to);
+
+    @Query(value = "SELECT CAST(occurred_at AS DATE) as d, event_type, COUNT(*) as cnt " +
+           "FROM business_activity " +
+           "WHERE occurred_at >= :from AND occurred_at < :to " +
+           "GROUP BY CAST(occurred_at AS DATE), event_type " +
+           "ORDER BY d", nativeQuery = true)
+    List<Object[]> countGroupByDayAndEventType(@Param("from") Instant from, @Param("to") Instant to);
+
+    @Query(value = "SELECT CAST(occurred_at AS DATE) as d, payload " +
+           "FROM business_activity " +
+           "WHERE event_type = 'PaymentCompleted' AND occurred_at >= :from AND occurred_at < :to " +
+           "ORDER BY d", nativeQuery = true)
+    List<Object[]> findPaymentPayloadsByDay(@Param("from") Instant from, @Param("to") Instant to);
+
+    @Query("SELECT COUNT(DISTINCT e.userId) FROM BusinessActivityEntity e " +
+           "WHERE e.eventType IN :eventTypes AND e.occurredAt >= :from AND e.occurredAt < :to AND e.userId IS NOT NULL")
+    long countDistinctUserIdByEventTypesInRange(@Param("eventTypes") List<String> eventTypes,
+                                                @Param("from") Instant from,
+                                                @Param("to") Instant to);
+
+    @Query(value = "SELECT CAST(occurred_at AS DATE) as d, COUNT(DISTINCT user_id) as cnt " +
+           "FROM business_activity " +
+           "WHERE event_type IN :eventTypes AND occurred_at >= :from AND occurred_at < :to AND user_id IS NOT NULL " +
+           "GROUP BY CAST(occurred_at AS DATE) ORDER BY d", nativeQuery = true)
+    List<Object[]> countDistinctUserIdByEventTypesGroupByDay(@Param("eventTypes") List<String> eventTypes,
+                                                              @Param("from") Instant from,
+                                                              @Param("to") Instant to);
 
     @Modifying
     @Query("DELETE FROM BusinessActivityEntity e WHERE e.orderId = :orderId")

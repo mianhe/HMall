@@ -1,10 +1,13 @@
 package com.hmall.order.application;
 
+import com.hmall.order.application.event.ItemSnapshot;
 import com.hmall.order.application.event.OrderCompletedEvent;
 import com.hmall.order.application.port.CreateFulfillmentPort;
 import com.hmall.order.application.port.OrderOutboundEventPublisher;
 import com.hmall.order.application.port.ReleaseInventoryPort;
 import com.hmall.order.domain.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -15,6 +18,8 @@ import java.util.List;
 /** 处理 Order 订阅的外部事件，更新订单状态并触发下游动作。 */
 @Service
 public class OrderEventService {
+
+    private static final Logger log = LoggerFactory.getLogger(OrderEventService.class);
 
     private final OrderRepository orderRepository;
     private final CreateFulfillmentPort createFulfillmentPort;
@@ -92,9 +97,19 @@ public class OrderEventService {
         Order order = orderRepository.findById(orderId)
             .orElseThrow(() -> new IllegalArgumentException("订单不存在: " + orderId));
         Order updated = updateOrder(order, OrderStatus.DELIVERED, true, order.isServiceActivated());
-        boolean serviceReady = !updated.hasServiceItems() || updated.isServiceActivated();
+        boolean hasService = updated.hasServiceItems();
+        boolean activated = updated.isServiceActivated();
+        boolean serviceReady = !hasService || activated;
+        log.info("onFulfillmentDelivered: orderId={}, hasServiceItems={}, serviceActivated={}, serviceReady={}",
+                orderId, hasService, activated, serviceReady);
         if (serviceReady) {
-            outboundEventPublisher.publish(new OrderCompletedEvent(orderId));
+            List<ItemSnapshot> snapshots = updated.getItems().stream()
+                    .map(li -> new ItemSnapshot(li.getSkuId(), li.getSpuId(), li.getQuantity(), li.getUnitPriceCents()))
+                    .toList();
+            outboundEventPublisher.publish(new OrderCompletedEvent(orderId, updated.getUserId(),
+                    updated.getTotalAmountCents(), snapshots));
+        } else {
+            log.info("onFulfillmentDelivered: orderId={}, 等待 ServiceActivated 到达后再发布 OrderCompleted", orderId);
         }
     }
 
@@ -104,9 +119,19 @@ public class OrderEventService {
             .orElseThrow(() -> new IllegalArgumentException("订单不存在: " + orderId));
         OrderStatus newStatus = order.hasPhysicalItems() ? order.getStatus() : OrderStatus.DELIVERED;
         Order updated = updateOrder(order, newStatus, order.isPhysicalDelivered(), true);
-        boolean physicalReady = !updated.hasPhysicalItems() || updated.isPhysicalDelivered();
+        boolean hasPhysical = updated.hasPhysicalItems();
+        boolean delivered = updated.isPhysicalDelivered();
+        boolean physicalReady = !hasPhysical || delivered;
+        log.info("onServiceActivated: orderId={}, hasPhysicalItems={}, physicalDelivered={}, physicalReady={}",
+                orderId, hasPhysical, delivered, physicalReady);
         if (physicalReady) {
-            outboundEventPublisher.publish(new OrderCompletedEvent(orderId));
+            List<ItemSnapshot> snapshots = updated.getItems().stream()
+                    .map(li -> new ItemSnapshot(li.getSkuId(), li.getSpuId(), li.getQuantity(), li.getUnitPriceCents()))
+                    .toList();
+            outboundEventPublisher.publish(new OrderCompletedEvent(orderId, updated.getUserId(),
+                    updated.getTotalAmountCents(), snapshots));
+        } else {
+            log.info("onServiceActivated: orderId={}, 等待 FulfillmentDelivered 到达后再发布 OrderCompleted", orderId);
         }
     }
 

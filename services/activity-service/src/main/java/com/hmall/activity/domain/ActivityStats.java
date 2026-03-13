@@ -13,7 +13,8 @@ public record ActivityStats(
     int fulfillmentCreated,
     int fulfillmentAllocated,
     int fulfillmentShipped,
-    int fulfillmentDelivered
+    int fulfillmentDelivered,
+    long distinctBuyerCount
 ) {
     public int paymentAttempts() {
         return paymentSuccess + paymentFailed + paymentExpired;

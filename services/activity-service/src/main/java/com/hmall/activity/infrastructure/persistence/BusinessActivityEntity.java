@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 import java.time.Instant;
 
 @Entity
-@Table(name = "business_activity")
+@Table(name = "business_activity", indexes = @Index(columnList = "userId"))
 public class BusinessActivityEntity {
 
     @Id
@@ -24,6 +24,12 @@ public class BusinessActivityEntity {
     @Column(nullable = true)
     private Long orderId;
 
+    @Column(nullable = true)
+    private Long userId;
+
+    @Column(columnDefinition = "text", nullable = true)
+    private String correlationKeys;
+
     @Column(columnDefinition = "text")
     private String payload;
 
@@ -39,6 +45,8 @@ public class BusinessActivityEntity {
         e.eventType = domain.eventType();
         e.topic = domain.topic();
         e.orderId = domain.orderId();
+        e.userId = domain.userId();
+        e.correlationKeys = domain.correlationKeys();
         e.payload = domain.payload();
         e.occurredAt = domain.occurredAt();
         e.receivedAt = domain.receivedAt();
@@ -46,7 +54,7 @@ public class BusinessActivityEntity {
     }
 
     public BusinessActivity toDomain() {
-        return new BusinessActivity(id, eventId, eventType, topic, orderId, payload, occurredAt, receivedAt);
+        return new BusinessActivity(id, eventId, eventType, topic, orderId, userId, correlationKeys, payload, occurredAt, receivedAt);
     }
 
     public Long getId() { return id; }
@@ -54,6 +62,8 @@ public class BusinessActivityEntity {
     public String getEventType() { return eventType; }
     public String getTopic() { return topic; }
     public Long getOrderId() { return orderId; }
+    public Long getUserId() { return userId; }
+    public String getCorrelationKeys() { return correlationKeys; }
     public String getPayload() { return payload; }
     public Instant getOccurredAt() { return occurredAt; }
     public Instant getReceivedAt() { return receivedAt; }

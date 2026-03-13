@@ -8,6 +8,7 @@ const routes = [
   { path: '/fulfillment', name: 'Fulfillment', component: () => import('../pages/FulfillmentPage.vue'), meta: { title: '履约管理' } },
   { path: '/engraving-patterns', name: 'EngravingPatterns', component: () => import('../pages/EngravingPatternPage.vue'), meta: { title: '镭雕图案库' } },
   { path: '/activity', name: 'Activity', component: () => import('../pages/ActivityPage.vue'), meta: { title: '活动监控' } },
+  { path: '/ops', name: 'Ops', component: () => import('../pages/OpsPage.vue'), meta: { title: '智能运营', hideGlobalChatButton: true } },
   { path: '/events', name: 'Events', component: () => import('../pages/EventsPage.vue'), meta: { title: '事件' } },
   { path: '/events/journey/:orderId?', redirect: '/events' },
   { path: '/activity/journey/:orderId?', redirect: '/events' },

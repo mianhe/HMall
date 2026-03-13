@@ -18,6 +18,8 @@
 
 - ✅ 1.1 收到**任一已订阅的领域事件**后应记录一条业务活动（eventId、eventType、topic、orderId、occurredAt、payload、receivedAt 正确落库）
 - ✅ 1.2 重复事件（同一 eventId）不应重复记录
+- ✅ 1.3 收到含 **userId** 的事件后，BusinessActivity 的 userId 字段正确填充（来自业务需求 [智能运营 Step 1](../../business-requirements/intelligent-ops-step1/overview.md)）
+- ✅ 1.4 收到含 **items** 的事件后，从 items 提取 spuId/skuId 去重，correlationKeys 正确落库为 JSON `{"spuIds":[...],"skuIds":[...]}`
 
 > **镭雕服务**（来自业务需求 [镭雕服务](../../business-requirements/laser-engraving/overview.md)）：🔲 若 Fulfillment 发布 EngravingCompleted 事件，Activity 订阅 `fulfillment.engraving.completed`，订单旅程可展示「镭雕已完成」节点。新增事件时在 Examples 表增加一行，并注册 event-metadata。
 
@@ -30,8 +32,11 @@
 - ✅ 2.1 按 orderId 查询：同一订单的多条事件按 occurredAt **正序**返回（事件时间线）
 - ✅ 2.2 按 orderId 查询：orderId 不存在时返回空列表
 - ✅ 2.3 查询最近活动：跨所有订单，按 occurredAt **倒序**返回，默认 limit=20
-- ✅ 2.4 活动记录中嵌入事件元数据：每条 ActivityDto 附带 `metadata` 字段（boundedContext、label、category、compensatesEventType），前端直接使用，无需硬编码
-- ✅ 2.5 查询事件元数据列表：`GET /api/activities/event-metadata` 返回所有已注册事件类型的元数据，供前端初始化使用
+- ✅ 2.4 活动记录中嵌入事件元数据：每条 ActivityDto 附带 `metadata` 字段（boundedContext、label、category、compensatesEventType、**origin、processRoles**），以及 **userId** 字段（可空）；前端直接使用，无需硬编码（来自 [智能运营 Step 1](../../business-requirements/intelligent-ops-step1/overview.md)）
+- ✅ 2.5 查询事件元数据列表：`GET /api/activities/event-metadata` 返回所有已注册事件类型的元数据（含 **origin、processRoles**），供前端初始化使用
+- ✅ 2.6 按 **userId** 查询：`GET /api/activities?userId=...` 返回该用户关联的所有事件，按 occurredAt 正序
+- ✅ 2.7 按 **spuId** 查询：`GET /api/activities?spuId=...` 返回 correlationKeys 中含该 SPU 的所有事件
+- ✅ 2.8 按 **skuId** 查询：`GET /api/activities?skuId=...` 返回 correlationKeys 中含该 SKU 的所有事件
 
 ## 3. 统计与仪表盘
 

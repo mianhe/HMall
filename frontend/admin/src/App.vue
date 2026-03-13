@@ -2,8 +2,8 @@
   <div class="min-h-screen bg-vmall-gray-bg text-gray-800">
     <router-view />
 
-    <AiChatButton @toggle="chatOpen = !chatOpen" />
-    <AiChatPanel :open="chatOpen" @close="chatOpen = false" />
+    <AiChatButton v-if="!route.meta.hideGlobalChatButton" @toggle="chatOpen = !chatOpen" />
+    <AiChatPanel v-if="!route.meta.hideGlobalChatButton" :open="chatOpen" @close="chatOpen = false" />
     <AppToast />
     <ConfirmDialog />
   </div>
@@ -11,6 +11,7 @@
 
 <script setup>
 import { ref, provide, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAiChat } from './shared/composables/useAiChat.js'
 import { useToast } from './shared/composables/useToast.js'
 import AiChatButton from './shared/ui/ai-chat/AiChatButton.vue'
@@ -23,6 +24,7 @@ const chatOpen = ref(false)
 const chat = useAiChat()
 const toast = useToast()
 const confirm = useConfirm()
+const route = useRoute()
 
 provide('aiChat', chat)
 provide('toast', toast)

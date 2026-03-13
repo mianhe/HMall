@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Map;
 
 public class ActivityStatsStepDefinitions {
@@ -23,6 +24,7 @@ public class ActivityStatsStepDefinitions {
     private final ActivityApplicationService applicationService;
 
     private ResponseEntity<Map<String, Object>> lastStatsResponse;
+    private ResponseEntity<List<Map<String, Object>>> lastDailyResponse;
 
     public ActivityStatsStepDefinitions(
             TestRestTemplate restTemplate,
@@ -35,12 +37,18 @@ public class ActivityStatsStepDefinitions {
     public void 今日存在以下活动记录(DataTable dataTable) {
         Instant now = Instant.now();
         for (Map<String, String> row : dataTable.asMaps()) {
+            String userIdStr = row.get("userId");
+            Long userId = (userIdStr != null && !userIdStr.isBlank()) ? Long.parseLong(userIdStr) : null;
+            String payload = row.getOrDefault("payload", "{}");
+            if (payload == null || payload.isBlank()) payload = "{}";
             applicationService.record(new RecordActivityCommand(
                 row.get("eventId"),
                 row.get("eventType"),
                 row.get("topic"),
                 Long.parseLong(row.get("orderId")),
-                "{}",
+                userId,
+                null,
+                payload,
                 now
             ));
         }
@@ -58,6 +66,8 @@ public class ActivityStatsStepDefinitions {
                 row.get("eventType"),
                 row.get("topic"),
                 Long.parseLong(row.get("orderId")),
+                null,
+                null,
                 "{}",
                 yesterday
             ));
@@ -130,6 +140,38 @@ public class ActivityStatsStepDefinitions {
         }
         if (!expectedTo.equals(actualTo)) {
             throw new AssertionError("期望 to=" + expectedTo + "，实际 " + actualTo);
+        }
+    }
+
+    @当("查询每日统计 from {string} to {string}")
+    public void 查询每日统计fromTo(String from, String to) {
+        lastDailyResponse = restTemplate.exchange(
+            "/api/activities/stats/daily?from=" + from + "&to=" + to,
+            HttpMethod.GET, null,
+            new ParameterizedTypeReference<>() {});
+    }
+
+    @那么("每日统计应包含 {int} 天的数据")
+    public void 每日统计应包含N天(int expected) {
+        List<Map<String, Object>> body = lastDailyResponse.getBody();
+        if (body == null || body.size() != expected) {
+            throw new AssertionError("期望 " + expected + " 天，实际 "
+                + (body == null ? 0 : body.size()));
+        }
+    }
+
+    @并且("日期 {string} 的 {word} 应为 {long}")
+    public void 日期某字段应为(String date, String field, long expected) {
+        List<Map<String, Object>> body = lastDailyResponse.getBody();
+        if (body == null) throw new AssertionError("每日统计结果为 null");
+        Map<String, Object> dayData = body.stream()
+            .filter(m -> date.equals(m.get("date")))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("未找到日期 " + date + " 的数据"));
+        Number actual = (Number) dayData.get(field);
+        if (actual == null || actual.longValue() != expected) {
+            throw new AssertionError("日期 " + date + " 期望 " + field + "=" + expected
+                + "，实际 " + actual);
         }
     }
 }

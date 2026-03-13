@@ -13,9 +13,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -46,7 +51,6 @@ public class AiChatService {
 
     public static final String DEFAULT_ADMIN_BASE_PROMPT = """
             你是 HMall 智能助手，帮助管理员通过自然语言管理电商系统。
-            当前页面：%s
 
             规则：
             - 必须通过工具获取数据，严禁编造
@@ -57,7 +61,6 @@ public class AiChatService {
 
     public static final String DEFAULT_CONSUMER_BASE_PROMPT = """
             你是 HMall 购物助手，帮用户找商品、管购物车、下单。语气友好自然。
-            当前页面：%s
 
             规则：
             - 必须通过工具获取数据，严禁编造商品名、价格、skuId、orderId
@@ -114,7 +117,9 @@ public class AiChatService {
             } else {
                 tools = mcpToolBridge.getTools();
             }
-            var messages = buildMessages(request, matchedSkills, !tools.isEmpty());
+            String providerId = request.provider() != null && !request.provider().isBlank()
+                ? request.provider() : config.defaultProvider();
+            var messages = buildMessages(request, matchedSkills, !tools.isEmpty(), providerId, provider.model());
             int maxRounds = resolveMaxRounds(request.maxToolCallRounds());
             streamWithToolCallLoop(provider, messages, tools, maxRounds, userId, emitter);
         } catch (Exception e) {
@@ -311,11 +316,11 @@ public class AiChatService {
             sendEvent(emitter, "tool_call", ChatEvent.toolCall(tc.id(), tc.name(), args));
 
             Object argsForMcp = injectUserId(args, userId);
-            String toolResult = mcpToolBridge.executeTool(tc.name(), argsForMcp);
-            log.info("Tool result: {} | {}", tc.name(), toolResult);
-            sendEvent(emitter, "tool_result", ChatEvent.toolResult(tc.id(), tc.name(), toolResult));
+            var execResult = mcpToolBridge.executeTool(tc.name(), argsForMcp);
+            log.info("Tool result: {} | {}", tc.name(), execResult.textForLlm());
+            sendEvent(emitter, "tool_result", ChatEvent.toolResult(tc.id(), tc.name(), execResult.resultForClient()));
 
-            messages.add(Map.of("role", "tool", "tool_call_id", tc.id(), "content", toolResult));
+            messages.add(Map.of("role", "tool", "tool_call_id", tc.id(), "content", execResult.textForLlm()));
         }
     }
 
@@ -406,10 +411,12 @@ public class AiChatService {
 
     private List<Map<String, Object>> buildMessages(ChatRequest request,
                                                      List<Skill> skills,
-                                                     boolean hasTools) {
+                                                     boolean hasTools,
+                                                     String providerId,
+                                                     String modelName) {
         List<Map<String, Object>> messages = new ArrayList<>();
 
-        String systemPrompt = buildSystemPrompt(request, skills, hasTools);
+        String systemPrompt = buildSystemPrompt(request, skills, hasTools, providerId, modelName);
         messages.add(Map.of("role", "system", "content", systemPrompt));
 
         for (ChatRequest.Message msg : request.messages()) {
@@ -419,10 +426,12 @@ public class AiChatService {
     }
 
     private String buildSystemPrompt(ChatRequest request, List<Skill> skills,
-                                     boolean hasTools) {
+                                     boolean hasTools,
+                                     String providerId,
+                                     String modelName) {
         String basePrompt = buildDefaultSystemPrompt(request);
-
         var sb = new StringBuilder(basePrompt);
+        sb.append("\n\n---\n当前实际调用的模型由系统配置决定，本次为：").append(providerId).append("（").append(modelName).append("）。若用户询问你使用的模型，请如实回答此信息，不要编造其他型号（如不要自称 Claude）。");
 
         if (!hasTools) {
             sb.append("\n\n").append(NO_TOOLS_DIRECTIVE);
@@ -499,8 +508,25 @@ public class AiChatService {
         String clientType = request.clientType();
         boolean isConsumer = "consumer".equals(clientType);
 
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Shanghai"));
+        String dateStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE);
+        String dayOfWeek = today.getDayOfWeek().getDisplayName(TextStyle.FULL, Locale.CHINESE);
+
         String template = resolveBasePromptTemplate(isConsumer);
-        return template.formatted(currentPage);
+        var sb = new StringBuilder(template);
+        sb.append("\n当前页面：").append(currentPage);
+        sb.append("\n当前日期：").append(dateStr).append("（").append(dayOfWeek).append("）");
+
+        var ctx = request.context();
+        if (ctx != null && ctx.canvasPanels() != null && !ctx.canvasPanels().isEmpty()) {
+            sb.append("\n当前画布展示：");
+            var descriptions = ctx.canvasPanels().stream()
+                    .map(p -> p.type().toLowerCase() + " \"" + p.title() + "\"")
+                    .toList();
+            sb.append(String.join("、", descriptions));
+        }
+
+        return sb.toString();
     }
 
     private String resolveBasePromptTemplate(boolean isConsumer) {

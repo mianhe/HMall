@@ -10,7 +10,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaListener;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -45,7 +49,9 @@ public class ActivityKafkaEventConsumer {
         String topic = record.topic();
         String eventType = (String) message.get("eventType");
         Long orderId = toLong(message.get("orderId"));
+        Long userId = toLong(message.get("userId"));
         Instant occurredAt = parseInstant(message.get("occurredAt"));
+        String correlationKeys = extractCorrelationKeys(message.get("items"));
 
         String eventId = deterministicEventId(topic, eventType, orderId, occurredAt);
         String payload = toJson(message);
@@ -53,7 +59,7 @@ public class ActivityKafkaEventConsumer {
         log.info("收到事件: topic={}, eventType={}, orderId={}, eventId={}", topic, eventType, orderId, eventId);
 
         applicationService.record(new RecordActivityCommand(
-            eventId, eventType, topic, orderId, payload, occurredAt
+            eventId, eventType, topic, orderId, userId, correlationKeys, payload, occurredAt
         ));
     }
 
@@ -92,6 +98,37 @@ public class ActivityKafkaEventConsumer {
             return Instant.parse(String.valueOf(value));
         } catch (Exception e) {
             return Instant.now();
+        }
+    }
+
+    /**
+     * 从事件 payload 的 items 字段提取 spuId/skuId 集合，序列化为 JSON {"spuIds":[...],"skuIds":[...]}。
+     * 无 items 或解析失败时返回 null。
+     */
+    private String extractCorrelationKeys(Object itemsObj) {
+        if (itemsObj == null || !(itemsObj instanceof List<?> list) || list.isEmpty()) {
+            return null;
+        }
+        Set<Long> spuIds = new LinkedHashSet<>();
+        Set<Long> skuIds = new LinkedHashSet<>();
+        for (Object elem : list) {
+            if (elem instanceof Map<?, ?> map) {
+                Long skuId = toLong(map.get("skuId"));
+                Long spuId = toLong(map.get("spuId"));
+                if (skuId != null) skuIds.add(skuId);
+                if (spuId != null) spuIds.add(spuId);
+            }
+        }
+        if (spuIds.isEmpty() && skuIds.isEmpty()) return null;
+        try {
+            Map<String, List<Long>> out = Map.of(
+                "spuIds", new ArrayList<>(spuIds),
+                "skuIds", new ArrayList<>(skuIds)
+            );
+            return objectMapper.writeValueAsString(out);
+        } catch (Exception e) {
+            log.warn("序列化 correlationKeys 失败", e);
+            return null;
         }
     }
 }

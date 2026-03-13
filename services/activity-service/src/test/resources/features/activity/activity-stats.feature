@@ -21,6 +21,17 @@
       | ordersCreated | ordersCancelled | ordersCompleted | paymentAttempts | paymentSuccess | paymentFailed | paymentExpired | stockReserved | stockReleased |
       | 2             | 1               | 0               | 3               | 1              | 1             | 1              | 1             | 0             |
 
+  场景: 统计去重购买用户数
+    假如 今日存在以下活动记录:
+      | eventId                              | eventType        | topic             | orderId | userId |
+      | b0000001-0000-0000-0000-000000000001 | OrderCreated     | order.created     | 901     | 1      |
+      | b0000001-0000-0000-0000-000000000002 | OrderCreated     | order.created     | 902     | 1      |
+      | b0000001-0000-0000-0000-000000000003 | OrderCreated     | order.created     | 903     | 2      |
+      | b0000001-0000-0000-0000-000000000004 | PaymentCompleted | payment.completed | 904     |        |
+    当 查询统计不传参数
+    那么 统计结果中 distinctBuyerCount 应为 2
+    并且 统计结果中 paymentSuccess 应为 1
+
   场景: 按起止日期查询统计
     假如 存在以下活动记录:
       | eventId                              | eventType        | topic             | orderId | occurredAt           |
@@ -42,3 +53,21 @@
     当 查询统计 period "last7"
     那么 统计结果中 ordersCreated 应为 1
     并且 统计结果中 ordersCompleted 应为 1
+
+  场景: 按日统计
+    假如 存在以下活动记录:
+      | eventId                              | eventType        | topic             | orderId | occurredAt           | payload                |
+      | d0000001-0000-0000-0000-000000000001 | OrderCreated     | order.created     | 801     | 2025-01-15T10:00:00Z |                        |
+      | d0000001-0000-0000-0000-000000000002 | PaymentCompleted | payment.completed | 801     | 2025-01-15T12:00:00Z | {"amountCents": 10000} |
+      | d0000001-0000-0000-0000-000000000003 | OrderCreated     | order.created     | 802     | 2025-01-16T10:00:00Z |                        |
+      | d0000001-0000-0000-0000-000000000004 | OrderCreated     | order.created     | 803     | 2025-01-16T11:00:00Z |                        |
+      | d0000001-0000-0000-0000-000000000005 | OrderCancelled   | order.cancelled   | 804     | 2025-01-16T14:00:00Z |                        |
+      | d0000001-0000-0000-0000-000000000006 | PaymentCompleted | payment.completed | 802     | 2025-01-16T15:00:00Z | {"amountCents": 20000} |
+    当 查询每日统计 from "2025-01-15" to "2025-01-16"
+    那么 每日统计应包含 2 天的数据
+    并且 日期 "2025-01-15" 的 ordersCreated 应为 1
+    并且 日期 "2025-01-15" 的 paymentSuccess 应为 1
+    并且 日期 "2025-01-15" 的 paymentTotalCents 应为 10000
+    并且 日期 "2025-01-16" 的 ordersCreated 应为 2
+    并且 日期 "2025-01-16" 的 ordersCancelled 应为 1
+    并且 日期 "2025-01-16" 的 paymentTotalCents 应为 20000

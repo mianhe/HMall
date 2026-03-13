@@ -16,12 +16,14 @@ import { registerOrderTools } from './tools/order.js'
 import { registerFulfillmentTools } from './tools/fulfillment.js'
 import { registerUserTools } from './tools/user.js'
 import { registerActivityTools } from './tools/activity.js'
+import { registerOpsCanvasTools } from './tools/ops-canvas.js'
 import { registerCatalogResources } from './resources/catalog-domain.js'
 import { registerInventoryResources } from './resources/inventory-domain.js'
 import { registerCartOrderResources } from './resources/cart-order-domain.js'
 import { registerFulfillmentResources } from './resources/fulfillment-domain.js'
 import { registerActivityResources } from './resources/activity-domain.js'
 import { registerOntologyResources } from './resources/ontology.js'
+import { registerIntelligentOpsResources } from './resources/intelligent-ops-domain.js'
 
 function createServer() {
   const server = new McpServer({
@@ -35,12 +37,14 @@ function createServer() {
   registerFulfillmentTools(server)
   registerUserTools(server)
   registerActivityTools(server)
+  registerOpsCanvasTools(server)
   registerCatalogResources(server)
   registerInventoryResources(server)
   registerCartOrderResources(server)
   registerFulfillmentResources(server)
   registerActivityResources(server)
   registerOntologyResources(server)
+  registerIntelligentOpsResources(server)
   return server
 }
 

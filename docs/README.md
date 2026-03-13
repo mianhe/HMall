@@ -9,6 +9,7 @@ docs/
 ├── README.md                     # 本索引
 ├── context-map.md                # 系统结构（BC 总览、集成关系、集成技术选型）
 ├── business-flows.md             # 业务流程（价值流、事件流、事件总表、路径枚举、测试覆盖）
+├── business-process-architecture.md  # 业务流程架构（流程体系、事件分类、智能化分层、演进路线）
 ├── design-principles.md          # 系统设计原则（架构、分层、数据隔离、约定）
 ├── project-status.md             # 项目状态与路线图
 ├── business-requirements/                        # 跨 BC 业务需求的整体方案
@@ -73,6 +74,7 @@ docs/
 |------|-----------|
 | [context-map.md](./context-map.md) | 系统有哪些部件、怎么连接、用什么技术 |
 | [business-flows.md](./business-flows.md) | 有哪些业务流程、怎么流转、怎么验证 |
+| [business-process-architecture.md](./business-process-architecture.md) | 业务流程体系是什么、事件如何组织、智能化如何分层、系统向何处演进 |
 | [design-principles.md](./design-principles.md) | 怎么设计和实现 |
 | [project-status.md](./project-status.md) | 做到哪了 |
 | `business-requirements/<name>/overview.md` | 某个业务需求的方案、设计决策、迭代计划 |

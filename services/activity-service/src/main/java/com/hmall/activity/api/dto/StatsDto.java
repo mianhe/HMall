@@ -19,6 +19,7 @@ public record StatsDto(
     int fulfillmentAllocated,
     int fulfillmentShipped,
     int fulfillmentDelivered,
+    long distinctBuyerCount,
     String from,
     String to
 ) {
@@ -29,6 +30,7 @@ public record StatsDto(
             s.paymentTotalCents(),
             s.stockReserved(), s.stockReleased(),
             s.fulfillmentCreated(), s.fulfillmentAllocated(), s.fulfillmentShipped(), s.fulfillmentDelivered(),
+            s.distinctBuyerCount(),
             fromDate.toString(), toDate.toString()
         );
     }

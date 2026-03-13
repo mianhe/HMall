@@ -7,6 +7,8 @@ public record RecordActivityCommand(
     String eventType,
     String topic,
     Long orderId,
+    Long userId,
+    String correlationKeys,
     String payload,
     Instant occurredAt
 ) {}

@@ -64,7 +64,9 @@ public class McpToolBridge {
                 .toList();
     }
 
-    public String executeTool(String toolName, Object arguments) {
+    public record ToolExecutionResult(String textForLlm, String resultForClient) {}
+
+    public ToolExecutionResult executeTool(String toolName, Object arguments) {
         try {
             log.info("Executing MCP tool: {} with session: {}", toolName, sessionId.get());
             ObjectNode params = objectMapper.createObjectNode();
@@ -72,22 +74,33 @@ public class McpToolBridge {
             params.set("arguments", objectMapper.valueToTree(arguments));
 
             JsonNode response = callWithSessionRetry("tools/call", params);
-            JsonNode content = response.path("result").path("content");
+            JsonNode resultNode = response.path("result");
+            JsonNode content = resultNode.path("content");
             if (content.isArray() && !content.isEmpty()) {
-                String result = content.get(0).path("text").asText("");
-                log.info("MCP tool {} completed, result length: {}", toolName, result.length());
-                return result;
+                String text = content.get(0).path("text").asText("");
+                log.info("MCP tool {} completed, result length: {}", toolName, text.length());
+                JsonNode rawNode = resultNode.path("_raw");
+                if (!rawNode.isMissingNode()) {
+                    ObjectNode clientResult = objectMapper.createObjectNode();
+                    clientResult.put("text", text);
+                    clientResult.set("_raw", rawNode);
+                    return new ToolExecutionResult(text, clientResult.toString());
+                }
+                return new ToolExecutionResult(text, text);
             }
             JsonNode error = response.path("error");
             if (!error.isMissingNode()) {
                 String errorMsg = error.path("message").asText("Unknown MCP error");
                 log.warn("MCP tool {} returned error: {}", toolName, errorMsg);
-                return "工具执行错误：" + errorMsg;
+                String msg = "工具执行错误：" + errorMsg;
+                return new ToolExecutionResult(msg, msg);
             }
-            return response.path("result").toString();
+            String fallback = resultNode.toString();
+            return new ToolExecutionResult(fallback, fallback);
         } catch (Exception e) {
             log.error("MCP tool execution failed: {}", toolName, e);
-            return "工具执行错误：" + e.getMessage();
+            String msg = "工具执行错误：" + e.getMessage();
+            return new ToolExecutionResult(msg, msg);
         }
     }
 

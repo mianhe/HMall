@@ -115,6 +115,11 @@ public class OrderEventsStepDefinitions {
     @And("应已发布 OrderCompleted")
     public void 应已发布OrderCompleted() {
         assertThat(orderEventCapture.wasOrderCompletedPublished()).isTrue();
+        var events = orderEventCapture.getOrderCompletedEvents();
+        var last = events.get(events.size() - 1);
+        assertThat(last.userId()).isNotNull();
+        assertThat(last.totalAmountCents()).isNotNull();
+        assertThat(last.items()).isNotNull();
     }
 
     @And("应未发布 OrderCompleted")

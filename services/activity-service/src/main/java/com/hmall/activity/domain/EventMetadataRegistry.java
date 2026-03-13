@@ -14,27 +14,28 @@ public class EventMetadataRegistry {
     private static final Map<String, EventMetadata> REGISTRY = new LinkedHashMap<>();
 
     static {
-        // Order
-        register(EventMetadata.normal("OrderCreated", "Order", "订单创建"));
-        register(EventMetadata.compensation("OrderCancelled", "Order", "订单取消", "OrderCreated"));
-        register(EventMetadata.normal("OrderCompleted", "Order", "订单完成"));
+        // Order (智能运营 Step 1: processRoles)
+        register(EventMetadata.normal("OrderCreated", "Order", "订单创建", EventOrigin.DOMAIN, Map.of("trading", "MILESTONE")));
+        register(EventMetadata.compensation("OrderCancelled", "Order", "订单取消", "OrderCreated", EventOrigin.DOMAIN, Map.of("trading", "MILESTONE")));
+        register(EventMetadata.normal("OrderCompleted", "Order", "订单完成", EventOrigin.DOMAIN,
+                Map.of("trading", "MILESTONE", "user_development", "PROGRESSION", "product_ops", "PROGRESSION")));
 
         // Inventory
-        register(EventMetadata.normal("StockReserved", "Inventory", "库存锁定"));
-        register(EventMetadata.compensation("StockReleased", "Inventory", "库存释放", "StockReserved"));
+        register(EventMetadata.normal("StockReserved", "Inventory", "库存锁定", EventOrigin.DOMAIN, Map.of("trading", "PROGRESSION")));
+        register(EventMetadata.compensation("StockReleased", "Inventory", "库存释放", "StockReserved", EventOrigin.DOMAIN, Map.of("trading", "PROGRESSION")));
 
         // Payment
-        register(EventMetadata.normal("PaymentCompleted", "Payment", "支付成功"));
-        register(EventMetadata.exception("PaymentFailed", "Payment", "支付失败"));
-        register(EventMetadata.exception("PaymentExpired", "Payment", "支付超时"));
+        register(EventMetadata.normal("PaymentCompleted", "Payment", "支付成功", EventOrigin.DOMAIN, Map.of("trading", "MILESTONE")));
+        register(EventMetadata.exception("PaymentFailed", "Payment", "支付失败", EventOrigin.DOMAIN, Map.of("trading", "PROGRESSION")));
+        register(EventMetadata.exception("PaymentExpired", "Payment", "支付超时", EventOrigin.DOMAIN, Map.of("trading", "PROGRESSION")));
 
         // Fulfillment
-        register(EventMetadata.normal("FulfillmentOrderCreated", "Fulfillment", "履约单创建"));
-        register(EventMetadata.normal("FulfillmentOrderAllocated", "Fulfillment", "开始配货"));
-        register(EventMetadata.normal("FulfillmentShipped", "Fulfillment", "已发货"));
-        register(EventMetadata.normal("FulfillmentDelivered", "Fulfillment", "已签收"));
-        register(EventMetadata.normal("ServiceActivated", "Fulfillment", "服务已激活"));
-        register(EventMetadata.normal("EngravingCompleted", "Fulfillment", "镭雕已完成"));
+        register(EventMetadata.normal("FulfillmentOrderCreated", "Fulfillment", "履约单创建", EventOrigin.DOMAIN, Map.of("trading", "PROGRESSION")));
+        register(EventMetadata.normal("FulfillmentOrderAllocated", "Fulfillment", "开始配货", EventOrigin.DOMAIN, Map.of("trading", "PROGRESSION")));
+        register(EventMetadata.normal("FulfillmentShipped", "Fulfillment", "已发货", EventOrigin.DOMAIN, Map.of("trading", "PROGRESSION")));
+        register(EventMetadata.normal("FulfillmentDelivered", "Fulfillment", "已签收", EventOrigin.DOMAIN, Map.of("trading", "MILESTONE")));
+        register(EventMetadata.normal("ServiceActivated", "Fulfillment", "服务已激活", EventOrigin.DOMAIN, Map.of("trading", "PROGRESSION")));
+        register(EventMetadata.normal("EngravingCompleted", "Fulfillment", "镭雕已完成", EventOrigin.DOMAIN, Map.of("trading", "PROGRESSION")));
     }
 
     private static void register(EventMetadata metadata) {

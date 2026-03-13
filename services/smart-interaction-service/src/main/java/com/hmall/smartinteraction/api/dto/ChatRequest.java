@@ -13,7 +13,9 @@ public record ChatRequest(
 ) {
     public record Message(String role, String content) {}
 
-    public record Context(String page) {}
+    public record Context(String page, List<CanvasPanel> canvasPanels) {}
+
+    public record CanvasPanel(String type, String title) {}
 
     public ChatRequest {
         if (messages == null || messages.isEmpty()) {

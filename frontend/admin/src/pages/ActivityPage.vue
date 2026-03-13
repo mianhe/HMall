@@ -125,6 +125,83 @@
           </div>
         </section>
       </template>
+
+      <!-- 多维查询（智能运营 Step 1） -->
+      <section class="mb-8">
+        <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">多维查询</h2>
+        <div class="bg-white rounded-lg border border-vmall-gray-border p-4 flex flex-wrap items-end gap-3">
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">订单 ID</label>
+            <input
+              v-model.number="queryOrderId"
+              data-testid="activity-query-orderId"
+              type="number"
+              placeholder="orderId"
+              class="w-28 px-2 py-2 rounded-lg border border-vmall-gray-border text-gray-700 text-sm"
+            />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">用户 ID</label>
+            <input
+              v-model.number="queryUserId"
+              type="number"
+              placeholder="userId"
+              class="w-28 px-2 py-2 rounded-lg border border-vmall-gray-border text-gray-700 text-sm"
+            />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">SPU ID</label>
+            <input
+              v-model.number="querySpuId"
+              type="number"
+              placeholder="spuId"
+              class="w-28 px-2 py-2 rounded-lg border border-vmall-gray-border text-gray-700 text-sm"
+            />
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-xs text-gray-500">SKU ID</label>
+            <input
+              v-model.number="querySkuId"
+              type="number"
+              placeholder="skuId"
+              class="w-28 px-2 py-2 rounded-lg border border-vmall-gray-border text-gray-700 text-sm"
+            />
+          </div>
+          <button
+            data-testid="activity-query-submit"
+            @click="runQuery"
+            :disabled="queryLoading || !hasQueryParam"
+            class="px-4 py-2 rounded-lg bg-vmall-red text-white text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {{ queryLoading ? '查询中…' : '查询' }}
+          </button>
+        </div>
+        <p v-if="!hasQueryParam" class="mt-2 text-sm text-gray-400">输入任一维度后点击查询</p>
+        <div v-if="queryError" class="mt-2 text-sm text-vmall-red">{{ queryError }}</div>
+        <div v-if="queryResult.length > 0" class="mt-4 bg-white rounded-lg border border-vmall-gray-border overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-left text-gray-500">
+              <tr>
+                <th class="px-4 py-2 font-medium">时间</th>
+                <th class="px-4 py-2 font-medium">事件类型</th>
+                <th class="px-4 py-2 font-medium">Topic</th>
+                <th class="px-4 py-2 font-medium">订单 ID</th>
+                <th class="px-4 py-2 font-medium">用户 ID</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="a in queryResult" :key="a.eventId" class="border-t border-vmall-gray-border hover:bg-gray-50">
+                <td class="px-4 py-2 text-gray-600">{{ formatOccurredAt(a.occurredAt) }}</td>
+                <td class="px-4 py-2 font-medium">{{ a.eventType }}</td>
+                <td class="px-4 py-2 text-gray-600">{{ a.topic }}</td>
+                <td class="px-4 py-2">{{ a.orderId ?? '—' }}</td>
+                <td class="px-4 py-2">{{ a.userId ?? '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p v-else-if="queryDone && queryResult.length === 0" class="mt-2 text-sm text-gray-400">无匹配记录</p>
+      </section>
     </main>
   </div>
 </template>
@@ -134,7 +211,7 @@ import { ref, computed, onMounted } from 'vue'
 import AppHeader from '../shared/ui/AppHeader.vue'
 import StatCard from '../shared/ui/StatCard.vue'
 import FunnelStep from '../shared/ui/FunnelStep.vue'
-import { getActivityStats } from '../shared/api/activity.js'
+import { getActivityStats, getActivities } from '../shared/api/activity.js'
 
 const periodOptions = [
   { value: 'today', label: '今日' },
@@ -148,6 +225,22 @@ const customTo = ref('')
 const stats = ref(null)
 const statsLoading = ref(false)
 const statsError = ref('')
+
+const queryOrderId = ref(null)
+const queryUserId = ref(null)
+const querySpuId = ref(null)
+const querySkuId = ref(null)
+const queryResult = ref([])
+const queryLoading = ref(false)
+const queryError = ref('')
+const queryDone = ref(false)
+
+const hasQueryParam = computed(() =>
+  (queryOrderId.value != null && queryOrderId.value !== '') ||
+  (queryUserId.value != null && queryUserId.value !== '') ||
+  (querySpuId.value != null && querySpuId.value !== '') ||
+  (querySkuId.value != null && querySkuId.value !== '')
+)
 
 const successRate = computed(() => {
   if (!stats.value || stats.value.paymentAttempts === 0) return 0
@@ -195,6 +288,37 @@ async function loadStats(params) {
     statsError.value = e.response?.data?.message || e.message || '加载统计失败'
   } finally {
     statsLoading.value = false
+  }
+}
+
+function formatOccurredAt(iso) {
+  if (!iso) return '—'
+  try {
+    const d = new Date(iso)
+    return d.toLocaleString('zh-CN', { dateStyle: 'short', timeStyle: 'medium' })
+  } catch {
+    return iso
+  }
+}
+
+async function runQuery() {
+  if (!hasQueryParam.value) return
+  queryLoading.value = true
+  queryError.value = ''
+  queryDone.value = false
+  try {
+    const params = {}
+    if (queryOrderId.value != null && queryOrderId.value !== '') params.orderId = queryOrderId.value
+    if (queryUserId.value != null && queryUserId.value !== '') params.userId = queryUserId.value
+    if (querySpuId.value != null && querySpuId.value !== '') params.spuId = querySpuId.value
+    if (querySkuId.value != null && querySkuId.value !== '') params.skuId = querySkuId.value
+    queryResult.value = await getActivities({ ...params, limit: 50 })
+    queryDone.value = true
+  } catch (e) {
+    queryError.value = e.response?.data?.message || e.message || '查询失败'
+    queryResult.value = []
+  } finally {
+    queryLoading.value = false
   }
 }
 

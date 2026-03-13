@@ -46,6 +46,8 @@ public class ActivityQueryStepDefinitions {
                 row.get("eventType"),
                 row.get("topic"),
                 orderId,
+                null,
+                null,
                 "{}",
                 Instant.parse(row.get("occurredAt"))
             ));
@@ -55,12 +57,16 @@ public class ActivityQueryStepDefinitions {
     @假如("存在以下活动记录:")
     public void 存在以下活动记录(DataTable dataTable) {
         for (Map<String, String> row : dataTable.asMaps()) {
+            String payload = row.get("payload");
+            if (payload == null || payload.isBlank()) payload = "{}";
             applicationService.record(new RecordActivityCommand(
                 row.get("eventId"),
                 row.get("eventType"),
                 row.get("topic"),
                 Long.parseLong(row.get("orderId")),
-                "{}",
+                null,
+                null,
+                payload,
                 Instant.parse(row.get("occurredAt"))
             ));
         }

@@ -2,7 +2,7 @@
 
 系统支持的端到端业务流程。是**需求分析**、**E2E 测试设计**和**事件定义**的统一依据。
 
-> 系统结构与 BC 集成关系见 [context-map.md](context-map.md)；前端测试策略见 [frontend/web/testing.md](frontend/web/testing.md)。
+> 系统结构与 BC 集成关系见 [context-map.md](context-map.md)；业务流程体系与演进方向见 [business-process-architecture.md](business-process-architecture.md)；前端测试策略见 [frontend/web/testing.md](frontend/web/testing.md)。
 
 ---
 
@@ -202,9 +202,9 @@ flowchart LR
 
 | 事件 | 触发 | Topic | 订阅方 | 关键 Payload |
 |------|------|-------|--------|-------------|
-| OrderCreated | ⌘ PlaceOrder | `order.created` | — | orderId, items[{skuId, quantity}], occurredAt |
-| OrderCancelled | ⟳ PaymentExpired 或 ⌘ CancelOrder | `order.cancelled` | — | orderId, occurredAt |
-| OrderCompleted | ⟳ 全部履约单完成 | `order.completed` | — | orderId, occurredAt |
+| OrderCreated | ⌘ PlaceOrder | `order.created` | — | orderId, userId, totalAmountCents, items[{skuId, spuId, quantity, unitPriceCents}], occurredAt |
+| OrderCancelled | ⟳ PaymentExpired 或 ⌘ CancelOrder | `order.cancelled` | — | orderId, userId, totalAmountCents, items[{skuId, spuId, quantity, unitPriceCents}], occurredAt |
+| OrderCompleted | ⟳ 全部履约单完成 | `order.completed` | — | orderId, userId, totalAmountCents, items[{skuId, spuId, quantity, unitPriceCents}], occurredAt |
 
 ### Payment 发布
 

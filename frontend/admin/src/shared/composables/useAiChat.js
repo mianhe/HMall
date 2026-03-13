@@ -17,9 +17,12 @@ export function useAiChat() {
   const skillMode = ref('auto')
   const selectedSkillId = ref(null)
   const lastMatchedSkills = ref([])
+  const contextExtras = ref({})
   const route = useRoute()
 
   const toolCallCallbacks = []
+  const toolCallStartCallbacks = []
+  const doneCallbacks = []
   let abortController = null
 
   async function loadModels() {
@@ -98,7 +101,7 @@ export function useAiChat() {
 
       const payload = {
         messages: chatMessages,
-        context: { page: route.path },
+        context: { page: route.path, ...contextExtras.value },
         provider: selectedProvider.value,
         clientType: 'admin',
       }
@@ -176,15 +179,19 @@ export function useAiChat() {
           result: null,
           status: 'calling',
         })
+        for (const cb of toolCallStartCallbacks) {
+          try { cb(data.name, data.arguments) } catch {}
+        }
         break
 
       case 'tool_result': {
         const tc = assistantMsg.toolCalls.find(t => t.id === data.id)
+        console.log('[AiChat] tool_result:', data.name, 'found:', !!tc, 'callbacks:', toolCallCallbacks.length)
         if (tc) {
           tc.result = data.result
           tc.status = 'success'
           for (const cb of toolCallCallbacks) {
-            try { cb(data.name, data.result) } catch {}
+            try { cb(data.name, data.result) } catch (e) { console.error('[AiChat] callback error:', e) }
           }
         }
         break
@@ -204,6 +211,9 @@ export function useAiChat() {
 
       case 'done':
         assistantMsg.loading = false
+        for (const cb of doneCallbacks) {
+          try { cb() } catch {}
+        }
         break
     }
   }
@@ -215,6 +225,26 @@ export function useAiChat() {
 
   function onToolCallSuccess(callback) {
     toolCallCallbacks.push(callback)
+    return () => {
+      const idx = toolCallCallbacks.indexOf(callback)
+      if (idx > -1) toolCallCallbacks.splice(idx, 1)
+    }
+  }
+
+  function onToolCallStart(callback) {
+    toolCallStartCallbacks.push(callback)
+    return () => {
+      const idx = toolCallStartCallbacks.indexOf(callback)
+      if (idx > -1) toolCallStartCallbacks.splice(idx, 1)
+    }
+  }
+
+  function onDone(callback) {
+    doneCallbacks.push(callback)
+    return () => {
+      const idx = doneCallbacks.indexOf(callback)
+      if (idx > -1) doneCallbacks.splice(idx, 1)
+    }
   }
 
   return {
@@ -236,5 +266,8 @@ export function useAiChat() {
     stopStreaming,
     clearMessages,
     onToolCallSuccess,
+    onToolCallStart,
+    onDone,
+    contextExtras,
   }
 }
