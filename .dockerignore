@@ -12,5 +12,6 @@ scripts
 .vscode
 *.iml
 
-# MCP 构建需要此文件
+# MCP 构建需要这些文件
 !docs/ontology.md
+!docs/intelligent-ops-ontology.md
