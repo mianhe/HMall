@@ -49,6 +49,8 @@ EventMetadataRegistry.java           ← 已注册的事件类型（哪些事件
 | FulfillmentOrderAllocated | orderId, fulfillmentOrderId |
 | FulfillmentShipped | orderId, fulfillmentOrderId |
 | FulfillmentDelivered | orderId, fulfillmentOrderId |
+| EngravingCompleted | orderId, fulfillmentOrderId, completedAt |
+| ServiceActivated | orderId, fulfillmentOrderId, serviceSkuId, activatedAt, expiresAt |
 
 ### 3. userId 覆盖范围（与真实管道一致）
 
@@ -64,6 +66,7 @@ EventMetadataRegistry.java           ← 已注册的事件类型（哪些事件
 ```
 OrderCreated → StockReserved → PaymentCompleted
   → FulfillmentOrderCreated → FulfillmentOrderAllocated
+  → [EngravingCompleted?] → [ServiceActivated?]
   → FulfillmentShipped → FulfillmentDelivered → OrderCompleted
 ```
 
@@ -77,22 +80,54 @@ OrderCreated → StockReserved → OrderCancelled → StockReleased
 OrderCreated → StockReserved → PaymentExpired → OrderCancelled → StockReleased
 ```
 
+**Cancel Path (支付失败后超时):**
+```
+OrderCreated → StockReserved → PaymentFailed → PaymentExpired → OrderCancelled → StockReleased
+```
+
 关键规则：
 - [ ] Happy path 中**不出现** StockReleased（StockReleased 是 COMPENSATION 事件，仅出现在补偿路径）
 - [ ] PaymentExpired 后才有 OrderCancelled（因果链：超时→取消）
+- [ ] PaymentFailed 不直接导致 StockReleased（用户可重试支付；最终走 PaymentExpired 路径）
 - [ ] FulfillmentDelivered 后才有 OrderCompleted（因果链：签收→完成）
+- [ ] EngravingCompleted 仅出现在有镭雕服务的订单（~10%）
+- [ ] ServiceActivated 仅出现在有延保服务的订单（~10%）
 
-### 5. correlationKeys
+### 5. 镭雕与延保（增值服务）
+
+镭雕和延保是两种**独立的**增值服务，各自 ~10% 的订单命中：
+
+- [ ] `hasEngraving` 和 `hasWarranty` 独立采样（约 1% 同时命中）
+- [ ] 镭雕订单：items 第一项含 `serviceAttributes`（engravingPatternId/Name/Text），生成 `EngravingCompleted` 事件
+- [ ] 延保订单：items 第一项含 `warrantyAttributes`（warrantyName/Duration），生成 `ServiceActivated` 事件
+- [ ] 两者可同时出现在同一订单中
+
+### 6. correlationKeys
 
 - [ ] 含 items 的事件同时设置 `correlationKeys`（JSON：`{"spuIds":[...],"skuIds":[...]}`）
 - [ ] 不含 items 的事件 correlationKeys 可为 null 或沿用上游
 
-### 6. 数据合理性
+### 7. 数据合理性
 
 - [ ] 事件时间严格递增（同一订单内后续事件的 occurredAt > 前一个）
 - [ ] 金额一致：OrderCreated 的 totalAmountCents = items 各行 quantity × unitPriceCents 之和
 - [ ] PaymentCompleted 的 amountCents 与同一订单的 totalAmountCents 一致
 - [ ] 近期订单可能未走完全流程（如今天的订单可能还在配送中，没有 Delivered/Completed）
+- [ ] ~25% 订单有多商品行（2-3 个 items），支持多 spuId/skuId 的 correlationKeys
+
+---
+
+## 数据量规划
+
+API 参数：`POST /api/activities/seed?days=<天数>&ordersPerDay=<每日均值>&maxOrders=<上限>`
+
+| 场景 | days | ordersPerDay | maxOrders | 预估订单 | 预估事件 |
+|------|------|--------------|-----------|---------|---------|
+| 快速演示 | 7 | 5 | 0 | ~35 | ~280 |
+| 标准演示 | 30 | 5 | 0 | ~150 | ~1200 |
+| 完整演示 | 90 | 5 | 400 | ~400 | ~3200 |
+
+订单流程比例：~85% happy path, ~8% 用户取消, ~4% 支付超时, ~3% 支付失败后超时
 
 ---
 
@@ -119,12 +154,18 @@ cd services/activity-service && mvn test -q
 全绿后，可通过 API 验证种子数据质量：
 
 ```bash
-# 生成种子数据
-curl -X POST 'http://localhost:8086/api/activities/seed?days=7&ordersPerDay=5'
+# 清除旧数据
+curl -X DELETE 'http://localhost:8086/api/activities'
+
+# 生成种子数据（3个月、约400订单）
+curl -X POST 'http://localhost:8086/api/activities/seed?days=90&ordersPerDay=5&maxOrders=400'
 
 # 验证：检查 OrderCompleted 事件的 payload 是否完整
 curl -s 'http://localhost:8086/api/activities?orderId=<某orderId>&limit=20' | jq '.[].payload | fromjson'
 
 # 验证：检查 distinctBuyerCount 是否 > 0
-curl -s 'http://localhost:8086/api/activities/stats?period=last7' | jq '.distinctBuyerCount'
+curl -s 'http://localhost:8086/api/activities/stats?period=last30' | jq '.distinctBuyerCount'
+
+# 验证：检查镭雕和延保事件各约占 10%
+curl -s 'http://localhost:8086/api/activities?limit=5000' | jq '[.[] | .eventType] | group_by(.) | map({type: .[0], count: length})'
 ```

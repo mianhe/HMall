@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -37,15 +38,25 @@ public class SeedDataGenerator {
     private static final long[] SAMPLE_SPU_IDS = {1, 2, 3, 5, 8};
     private static final long[] SAMPLE_SKU_IDS = {1, 2, 3, 4, 5, 6, 7, 8, 10, 12};
     private static final int[] SAMPLE_PRICES_CENTS = {9900, 19900, 29900, 49900, 59900, 99900, 199900, 299900};
-    /** 镭雕图案样例（与图案库一致），用于种子数据 items.serviceAttributes */
+
     private static final Object[][] SAMPLE_ENGRAVING = {
-        new Object[]{1L, "山峦", "刻字"},
-        new Object[]{2L, "莲花", "赠"},
-        new Object[]{3L, "星座", "姓名"},
-        new Object[]{4L, "浮世绘·浪", "定制"},
-        new Object[]{5L, "墨竹", "祝福"},
-        new Object[]{6L, "木竹2", "纪念"},
+        {1L, "山峦", "刻字"},
+        {2L, "莲花", "赠"},
+        {3L, "星座", "姓名"},
+        {4L, "浮世绘·浪", "定制"},
+        {5L, "墨竹", "祝福"},
+        {6L, "木竹2", "纪念"},
     };
+
+    private static final String[][] SAMPLE_WARRANTIES = {
+        {"华为 Care+ 一年期", "1年"},
+        {"华为 Care+ 两年期", "2年"},
+        {"碎屏险 一年期", "1年"},
+        {"碎屏险 两年期", "2年"},
+    };
+
+    private static final double ENGRAVING_RATIO = 0.10;
+    private static final double WARRANTY_RATIO = 0.10;
 
     public SeedDataGenerator(ActivityRepository repository, ObjectMapper objectMapper) {
         this.repository = repository;
@@ -78,32 +89,54 @@ public class SeedDataGenerator {
                 if (capped && totalOrders >= maxOrders) break;
                 long orderId = orderIdBase++;
                 long userId = SAMPLE_USER_IDS[rng.nextInt(SAMPLE_USER_IDS.length)];
-                long spuId = SAMPLE_SPU_IDS[rng.nextInt(SAMPLE_SPU_IDS.length)];
-                long skuId = SAMPLE_SKU_IDS[rng.nextInt(SAMPLE_SKU_IDS.length)];
-                int priceCents = SAMPLE_PRICES_CENTS[rng.nextInt(SAMPLE_PRICES_CENTS.length)];
-                int qty = rng.nextInt(1, 4);
-                long totalCents = (long) priceCents * qty;
+                int itemCount = rng.nextDouble() < 0.25 ? rng.nextInt(2, 4) : 1;
+
+                boolean hasEngraving = rng.nextDouble() < ENGRAVING_RATIO;
+                boolean hasWarranty = rng.nextDouble() < WARRANTY_RATIO;
+
+                List<Map<String, Object>> itemsList = new ArrayList<>();
+                long totalCents = 0;
+                List<Long> spuIds = new ArrayList<>();
+                List<Long> skuIds = new ArrayList<>();
+                List<Map<String, Object>> stockItems = new ArrayList<>();
+
+                for (int i = 0; i < itemCount; i++) {
+                    long spuId = SAMPLE_SPU_IDS[rng.nextInt(SAMPLE_SPU_IDS.length)];
+                    long skuId = SAMPLE_SKU_IDS[rng.nextInt(SAMPLE_SKU_IDS.length)];
+                    int priceCents = SAMPLE_PRICES_CENTS[rng.nextInt(SAMPLE_PRICES_CENTS.length)];
+                    int qty = rng.nextInt(1, 4);
+                    totalCents += (long) priceCents * qty;
+                    spuIds.add(spuId);
+                    skuIds.add(skuId);
+                    stockItems.add(Map.of("skuId", skuId, "quantity", qty));
+
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("skuId", skuId);
+                    item.put("spuId", spuId);
+                    item.put("quantity", qty);
+                    item.put("unitPriceCents", priceCents);
+                    if (i == 0 && hasEngraving) {
+                        item.put("serviceAttributes", buildEngravingAttributes(rng));
+                    }
+                    if (i == 0 && hasWarranty) {
+                        item.put("warrantyAttributes", buildWarrantyAttributes(rng));
+                    }
+                    itemsList.add(item);
+                }
+
                 long paymentId = orderId * 10 + 1;
-
-                // 约 45% 订单带镭雕/虚拟服务（items 含 serviceAttributes，并产生 EngravingCompleted + ServiceActivated），使约 100 条事件带服务/镭雕
-                boolean hasServiceOrEngraving = rng.nextDouble() < 0.45;
-                List<Map<String, Object>> itemsList = buildItemsList(skuId, spuId, qty, priceCents, hasServiceOrEngraving, rng);
-
                 Instant orderTime = dayStart.plusSeconds(rng.nextLong(0, 86400));
-                String corrKeys = toJson(Map.of("spuIds", List.of(spuId), "skuIds", List.of(skuId)));
+                String corrKeys = toJson(Map.of("spuIds", spuIds, "skuIds", skuIds));
 
                 double fate = rng.nextDouble();
 
-                // === OrderCreated (Order BC → userId ✅) ===
                 batch.add(orderEvent("OrderCreated", "order.created", orderId, userId, corrKeys, orderTime,
                     Map.of("eventType", "OrderCreated", "orderId", orderId, "userId", userId,
                            "totalAmountCents", totalCents, "items", itemsList)));
 
-                // === StockReserved (Inventory BC → userId null) ===
                 Instant t = orderTime.plusSeconds(rng.nextLong(1, 5));
                 batch.add(nonOrderEvent("StockReserved", "inventory.stock.reserved", orderId, corrKeys, t,
-                    Map.of("eventType", "StockReserved", "orderId", orderId,
-                           "items", List.of(Map.of("skuId", skuId, "quantity", qty)))));
+                    Map.of("eventType", "StockReserved", "orderId", orderId, "items", stockItems)));
 
                 if (fate < 0.08) {
                     // ~8% cancel before payment
@@ -118,19 +151,7 @@ public class SeedDataGenerator {
                 }
 
                 if (fate < 0.12) {
-                    // ~4% payment failed
-                    t = t.plusSeconds(rng.nextLong(10, 300));
-                    batch.add(nonOrderEvent("PaymentFailed", "payment.failed", orderId, corrKeys, t,
-                        Map.of("eventType", "PaymentFailed", "orderId", orderId)));
-                    // PaymentFailed 不取消订单，用户可重试；但种子数据中模拟用户放弃
-                    batch.add(nonOrderEvent("StockReleased", "inventory.stock.released", orderId, corrKeys, t.plusSeconds(1),
-                        Map.of("eventType", "StockReleased", "orderId", orderId)));
-                    totalOrders++;
-                    continue;
-                }
-
-                if (fate < 0.15) {
-                    // ~3% payment expired → auto cancel
+                    // ~4% payment expired → auto cancel
                     t = t.plus(Duration.ofMinutes(rng.nextLong(15, 30)));
                     batch.add(nonOrderEvent("PaymentExpired", "payment.expired", orderId, corrKeys, t,
                         Map.of("eventType", "PaymentExpired", "orderId", orderId)));
@@ -143,45 +164,61 @@ public class SeedDataGenerator {
                     continue;
                 }
 
-                // === PaymentCompleted (Payment BC → userId null) ===
+                if (fate < 0.15) {
+                    // ~3% payment failed (user retries then gives up → eventually expires)
+                    t = t.plusSeconds(rng.nextLong(10, 300));
+                    batch.add(nonOrderEvent("PaymentFailed", "payment.failed", orderId, corrKeys, t,
+                        Map.of("eventType", "PaymentFailed", "orderId", orderId)));
+                    t = t.plus(Duration.ofMinutes(rng.nextLong(15, 30)));
+                    batch.add(nonOrderEvent("PaymentExpired", "payment.expired", orderId, corrKeys, t,
+                        Map.of("eventType", "PaymentExpired", "orderId", orderId)));
+                    batch.add(orderEvent("OrderCancelled", "order.cancelled", orderId, userId, corrKeys, t.plusSeconds(1),
+                        Map.of("eventType", "OrderCancelled", "orderId", orderId, "userId", userId,
+                               "totalAmountCents", totalCents, "items", itemsList)));
+                    batch.add(nonOrderEvent("StockReleased", "inventory.stock.released", orderId, corrKeys, t.plusSeconds(2),
+                        Map.of("eventType", "StockReleased", "orderId", orderId)));
+                    totalOrders++;
+                    continue;
+                }
+
+                // === Happy Path: PaymentCompleted ===
                 t = t.plusSeconds(rng.nextLong(3, 30));
                 batch.add(nonOrderEvent("PaymentCompleted", "payment.completed", orderId, corrKeys, t,
                     Map.of("eventType", "PaymentCompleted", "orderId", orderId,
                            "paymentId", paymentId, "amountCents", totalCents)));
 
-                // === FulfillmentOrderCreated (Fulfillment BC → userId null) ===
                 t = t.plusSeconds(rng.nextLong(1, 10));
                 long fulfillmentOrderId = orderId * 10 + 2;
                 batch.add(nonOrderEvent("FulfillmentOrderCreated", "fulfillment.order.created", orderId, corrKeys, t,
                     Map.of("eventType", "FulfillmentOrderCreated", "orderId", orderId,
                            "fulfillmentOrderIds", List.of(fulfillmentOrderId))));
 
-                // === FulfillmentOrderAllocated ===
                 t = t.plus(Duration.ofMinutes(rng.nextLong(30, 360)));
                 batch.add(nonOrderEvent("FulfillmentOrderAllocated", "fulfillment.order.allocated", orderId, corrKeys, t,
                     Map.of("eventType", "FulfillmentOrderAllocated", "orderId", orderId,
                            "fulfillmentOrderId", fulfillmentOrderId)));
 
-                // === 镭雕/虚拟服务：EngravingCompleted + ServiceActivated（仅 hasServiceOrEngraving 订单）===
-                if (hasServiceOrEngraving) {
+                if (hasEngraving) {
                     t = t.plus(Duration.ofMinutes(rng.nextLong(10, 120)));
-                    String iso = t.toString();
                     batch.add(nonOrderEvent("EngravingCompleted", "fulfillment.engraving.completed", orderId, corrKeys, t,
                         Map.of("eventType", "EngravingCompleted", "orderId", orderId,
-                               "fulfillmentOrderId", fulfillmentOrderId, "completedAt", iso, "occurredAt", iso)));
-                    t = t.plusSeconds(rng.nextLong(1, 30));
+                               "fulfillmentOrderId", fulfillmentOrderId, "completedAt", t.toString())));
+                }
+
+                if (hasWarranty) {
+                    t = t.plusSeconds(rng.nextLong(1, 60));
                     long serviceSkuId = 300 + rng.nextLong(1, 5);
                     String actIso = t.toString();
                     String expIso = t.plus(Duration.ofDays(365)).toString();
                     batch.add(nonOrderEvent("ServiceActivated", "fulfillment.service.activated", orderId, corrKeys, t,
                         Map.of("eventType", "ServiceActivated", "orderId", orderId,
                                "fulfillmentOrderId", fulfillmentOrderId, "serviceSkuId", serviceSkuId,
-                               "activatedAt", actIso, "expiresAt", expIso, "occurredAt", actIso)));
+                               "activatedAt", actIso, "expiresAt", expIso)));
                 }
 
                 // === FulfillmentShipped ===
                 t = t.plus(Duration.ofHours(rng.nextLong(2, 24)));
-                if (d < 1 && rng.nextDouble() < 0.3) {
+                if (d < 2 && rng.nextDouble() < 0.4) {
                     totalOrders++;
                     continue;
                 }
@@ -236,21 +273,19 @@ public class SeedDataGenerator {
             toJson(payload), occurredAt, occurredAt.plusSeconds(1));
     }
 
-    /** 构建订单 items：无服务时为普通 item；有镭雕/服务时附加 serviceAttributes（对齐 ontology） */
-    private List<Map<String, Object>> buildItemsList(long skuId, long spuId, int qty, int priceCents,
-                                                      boolean hasServiceOrEngraving, ThreadLocalRandom rng) {
-        if (!hasServiceOrEngraving) {
-            return List.of(Map.<String, Object>of(
-                "skuId", skuId, "spuId", spuId, "quantity", qty, "unitPriceCents", priceCents));
-        }
+    private Map<String, Object> buildEngravingAttributes(ThreadLocalRandom rng) {
         Object[] sample = SAMPLE_ENGRAVING[rng.nextInt(SAMPLE_ENGRAVING.length)];
-        Map<String, Object> serviceAttributes = Map.of(
+        return Map.of(
             "engravingPatternId", sample[0],
             "engravingPatternName", sample[1],
             "engravingText", sample[2]);
-        return List.of(Map.<String, Object>of(
-            "skuId", skuId, "spuId", spuId, "quantity", qty, "unitPriceCents", priceCents,
-            "serviceAttributes", serviceAttributes));
+    }
+
+    private Map<String, Object> buildWarrantyAttributes(ThreadLocalRandom rng) {
+        String[] sample = SAMPLE_WARRANTIES[rng.nextInt(SAMPLE_WARRANTIES.length)];
+        return Map.of(
+            "warrantyName", sample[0],
+            "warrantyDuration", sample[1]);
     }
 
     private String toJson(Object obj) {
