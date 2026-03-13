@@ -81,10 +81,12 @@ public class ActivityController {
     @PostMapping("/seed")
     public ResponseEntity<Map<String, Object>> seed(
             @RequestParam(defaultValue = "30") int days,
-            @RequestParam(defaultValue = "5") int ordersPerDay) {
+            @RequestParam(defaultValue = "5") int ordersPerDay,
+            @RequestParam(defaultValue = "0") int maxOrders) {
         var result = seedDataGenerator.generate(
             Math.min(days, 90),
-            Math.min(ordersPerDay, 50)
+            Math.min(ordersPerDay, 50),
+            maxOrders <= 0 ? 0 : Math.min(maxOrders, 500)
         );
         return ResponseEntity.ok(Map.of(
             "ordersGenerated", result.ordersGenerated(),
