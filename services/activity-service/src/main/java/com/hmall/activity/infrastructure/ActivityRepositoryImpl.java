@@ -152,4 +152,32 @@ public class ActivityRepositoryImpl implements ActivityRepository {
     public void deleteAll() {
         jpaRepository.deleteAllInBatch();
     }
+
+    @Override
+    @Transactional
+    public void deleteBySeedBatch(String seedBatch) {
+        jpaRepository.deleteBySeedBatch(seedBatch);
+    }
+
+    @Override
+    @Transactional
+    public void deleteAllSeedData() {
+        jpaRepository.deleteAllSeedData();
+    }
+
+    @Override
+    @Transactional
+    public void deleteSeedDataInRange(Instant from, Instant to) {
+        jpaRepository.deleteSeedDataInRange(from, to);
+    }
+
+    @Override
+    public List<Object[]> findSeedBatchSummaries() {
+        return jpaRepository.findSeedBatchSummaries();
+    }
+
+    @Override
+    public List<Long> findDistinctOrderIds() {
+        return jpaRepository.findDistinctOrderIds();
+    }
 }

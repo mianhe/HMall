@@ -34,4 +34,14 @@ public interface ActivityRepository {
     void deleteByOrderId(Long orderId);
 
     void deleteAll();
+
+    void deleteBySeedBatch(String seedBatch);
+
+    void deleteAllSeedData();
+
+    void deleteSeedDataInRange(Instant from, Instant to);
+
+    List<Object[]> findSeedBatchSummaries();
+
+    List<Long> findDistinctOrderIds();
 }

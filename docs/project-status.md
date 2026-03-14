@@ -27,7 +27,7 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 | **Order** | 创建、取消、查询、事件驱动状态流转、补购服务 | ✅ 已完成 | 5 feature，32 scenario |
 | **Inventory** | 同步占用/释放、库存管理 | ✅ 已完成 | 3 feature，14 scenario |
 | **Payment** | 扣款/退款/超时检测 | ✅ 已完成 | 5 feature，19 scenario |
-| **Activity** | 事件消费、活动查询、统计仪表盘、订单旅程回放 | ✅ 已完成 | 3 feature，16 scenario |
+| **Activity** | 事件消费、活动查询、统计仪表盘、订单旅程回放、订单事实投影与分析 | ✅ 已完成 | 4 feature，26 scenario |
 | **Cart** | 增删改查、结算预览 | ✅ 已完成 | 5 feature，17 scenario |
 | **Fulfillment** | 创建、配货、发货、签收、取消、查询 | ✅ 已完成 | 6 feature，24 scenario |
 | **Smart Interaction** | LLM + MCP 智能交互、Skill 管理与自动匹配 | 🔄 演进中 | 4 feature，24 scenario |
@@ -60,7 +60,7 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 |------|------|---------|-----------|------|
 | **1** | 多维事件基座 | Admin 多维查询事件（orderId/userId/skuId/spuId） | Order, Activity | ✅ 已完成 |
 | **2** | Smart Interaction 接入 + 对话驱动页面 MVP | `/ops` 智能运营页面；对话-画布联动；AI 统一可见出口 | Smart Interaction, MCP, 前端 admin | ✅ 已完成 |
-| **3** | 生命周期 + Level 1 分析 | 用户转化漏斗 + 商品经营概览仪表盘；AI 解读首购/首销 | Catalog, Activity, 前端 admin, Smart Interaction | 🔲 待开发 |
+| **3** | 订单事实分析 + Level 2 多维分析 | OrderFact/OrderItemFact 读模型；VAS渗透率/客单价/商品排名/效率指标；order_fact_query MCP 工具；AI 可感知 | Activity, hmall-mcp, Smart Interaction | ✅ 已完成。[业务需求方案](business-requirements/intelligent-ops-step3/overview.md) |
 | **4** | 派生引擎 + Level 2 监控 | 预警页（流失/库存告急/销量下滑）；AI 解读预警并溯源 | Activity, Smart Interaction | 🔲 待开发 |
 | **5** | 跨流程洞察 Level 3 | AI 跨用户/商品/交易三流程关联分析，回答「为什么」并给建议 | Smart Interaction, Activity | 🔲 待开发 |
 | **6** | 行为事件 + 导购流程 | 转化漏斗（浏览→加购→下单）；AI 覆盖浏览到成交全链路 | 前端, Activity, Smart Interaction | 🔲 待开发 |
@@ -138,6 +138,7 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 | 2026-03-04 | 镭雕迭代 1（镭雕服务配置与选品）完成：Catalog SPU.serviceKind + available-services 返回 serviceKind（74 scenario）；admin 镭雕 Badge；web 详情页镭雕可选 + 图案库 + 文字输入；BIZ-LE-004；Smoke P0 通过 |
 | 2026-03-04 | 镭雕迭代 0（图案库）完成：Catalog EngravingPattern CRUD + 6 scenario 全绿（总 72 scenario）；BFF 新增 `/api/engraving-patterns` 路由；frontend/admin 图案库管理页（`/engraving-patterns`）+ Business E2E 3 用例全绿（BIZ-LE-001～003）；admin 测试基础设施首次搭建（Playwright）；deliver-requirement Skill 优化（E2E 闭环 + 环境准备） |
 | 2026-03-04 | 镭雕服务 Phase B 落地：overview.md 变更分析已写入各 BC 文档（Catalog EngravingPattern、Order serviceAttributes、Fulfillment engravingInfo/completeEngraving/ship 门禁）；context-map、business-flows、project-status 同步更新；新增 N2O-6、O2F-4 路径 |
+| 2026-03-14 | 智能运营 Step 3 完成：OrderFact/OrderItemFact CQRS 读模型（投影 + 4 个分析 API + rebuild）；order_fact_query MCP 工具；Ontology 第七章；智能运营助手 Skill 更新（+order_fact_query, catalog_query）；10 个新验收场景（Activity BC 4 feature 26 scenario 全绿） |
 | 2026-03-01 | 保障服务补购迭代 1 完成：后端全链路（域对象+基础设施+应用服务+API+验收测试 7 scenario 全绿，总 41 test）；前端订单详情页补购区域（查询可补购服务 + 一键补购下单）；api.yaml/ui-spec.md 同步更新 |
 | 2026-03-01 | 保障服务补购业务需求分析完成：overview.md + Order BC 文档增量变更（requirements/domain-model/event-flow）；新增 N2O-5 路径；仅影响 Order BC（🟡 中等），其余 BC 无变更 |
 | 2026-02-28 | Smoke E2E 分级机制（P0/P1）：P0 核心交易链路、P1 重要非核心；超时降级审查；`npm run test:smoke:e2e:p0` 仅跑 P0；Business E2E 断言深度统一为"链路能走通"；testing.md / design-principles / Skills 全面同步 |

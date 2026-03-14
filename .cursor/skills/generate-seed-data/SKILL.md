@@ -157,7 +157,7 @@ cd services/activity-service && mvn test -q
 # 清除旧数据
 curl -X DELETE 'http://localhost:8086/api/activities'
 
-# 生成种子数据（3个月、约400订单）
+# 生成种子数据（3个月、约400订单）— OrderFact 会自动重建
 curl -X POST 'http://localhost:8086/api/activities/seed?days=90&ordersPerDay=5&maxOrders=400'
 
 # 验证：检查 OrderCompleted 事件的 payload 是否完整

@@ -196,3 +196,74 @@ PROGRESSION 事件：OrderCompleted（每次完成订单推动用户价值成长
 反映商品的市场表现。
 
 PROGRESSION 事件：OrderCompleted（每次成交贡献商品销售数据）
+
+---
+
+## 七、订单事实分析（Order Fact Analytics）
+
+### 概述
+
+基于 BusinessActivity 事件流投影的 CQRS 读模型，提供以订单和商品为中心的多维运营分析能力。通过 `order_fact_query` MCP 工具访问。
+
+### 读模型
+
+| 读模型 | 粒度 | 说明 |
+|--------|------|------|
+| **OrderFact** | 每个订单一行 | 从事件推导：当前阶段、VAS 标记、时间戳、持续时间 |
+| **OrderItemFact** | 每个订单行项一行 | 从 OrderCreated.items[] 展开，冗余订单级字段 |
+
+### 关键派生字段
+
+| 字段 | 推导逻辑 |
+|------|---------|
+| currentStage | 按优先级：CANCELLED > COMPLETED > DELIVERED > SHIPPED > FULFILLING > PAID > CREATED |
+| hasEngraving | EngravingCompleted 事件存在 → true |
+| hasWarranty | ServiceActivated 事件存在 → true |
+| cancelReason | CANCELLED 时：有 PaymentExpired → TIMEOUT，否则 MANUAL |
+| isAbnormal | 存在 PaymentFailed 或 PaymentExpired → true |
+| paymentDurationSec | createdAt → paidAt 的秒数差 |
+| fulfillmentDurationSec | paidAt → deliveredAt 的秒数差 |
+
+### order_fact_query 工具
+
+| action | 说明 | 典型用途 |
+|--------|------|---------|
+| stats | 订单事实聚合统计 | VAS 渗透率、客单价对比、取消原因、支付/履约效率、复购率 |
+| stats_daily | 按日统计趋势 | VAS 趋势、日订单/收入波动 |
+| product_ranking | 商品排名 | 销量/收入排行、含 VAS 商品分布 |
+| list | 订单事实列表 | 按 VAS/阶段/用户筛选具体订单 |
+
+### stats 指标字段
+
+| 字段 | 含义 |
+|------|------|
+| totalOrders | 总订单数 |
+| completedOrders / cancelledOrders / inProgressOrders | 各阶段分布 |
+| cancelByTimeout / cancelByManual | 取消原因分布 |
+| ordersWithEngraving / ordersWithWarranty / ordersWithAnyVas | VAS 渗透 |
+| multiItemOrders | 多件订单数 |
+| totalRevenueCents / avgOrderAmountCents | 收入与客单价 |
+| avgVasOrderAmountCents / avgNonVasOrderAmountCents | VAS vs 非 VAS 客单价 |
+| avgPaymentDurationSec / avgFulfillmentDurationSec | 效率指标 |
+| distinctBuyerCount / repeatBuyerCount | 用户指标 |
+
+### 与 activity_query 的关系
+
+| 工具 | 视角 | 回答 |
+|------|------|------|
+| activity_query | 事件级（ODS 原始层） | "发生了什么？"——按事件计数、事件流水 |
+| order_fact_query | 订单级（DWD 分析层） | "整体状况如何？"——VAS 渗透率、客单价、商品排名、效率 |
+
+### 典型分析场景
+
+| 场景 | 工具调用 |
+|------|---------|
+| 近 7 天 VAS 渗透率 | order_fact_query stats period=last7 → ordersWithAnyVas / totalOrders |
+| VAS 客单价对比 | order_fact_query stats → avgVasOrderAmountCents vs avgNonVasOrderAmountCents |
+| 取消原因分析 | order_fact_query stats → cancelByTimeout / cancelByManual |
+| 商品销量排行 | order_fact_query product_ranking rankBy=quantity |
+| 含镭雕商品分布 | order_fact_query product_ranking hasEngraving=true |
+| 用户复购率 | order_fact_query stats → repeatBuyerCount / distinctBuyerCount |
+| 查看某用户含 VAS 订单 | order_fact_query list userId=42 hasEngraving=true |
+| 按日 VAS 趋势 | order_fact_query stats_daily → vasOrders / totalOrders 逐日 |
+| 商品名称查询 | 先 order_fact_query product_ranking 获取 spuId，再 catalog_query 获取名称 |

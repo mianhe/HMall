@@ -6,6 +6,7 @@ import com.hmall.activity.api.dto.EventMetadataDto;
 import com.hmall.activity.api.dto.StatsDto;
 import com.hmall.activity.application.ActivityApplicationService;
 import com.hmall.activity.application.SeedDataGenerator;
+import com.hmall.activity.application.SeedRequest;
 import com.hmall.activity.domain.ActivityStats;
 import com.hmall.activity.domain.BusinessActivity;
 import com.hmall.activity.domain.EventMetadataRegistry;
@@ -13,7 +14,11 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -79,20 +84,69 @@ public class ActivityController {
     }
 
     @PostMapping("/seed")
-    public ResponseEntity<Map<String, Object>> seed(
-            @RequestParam(defaultValue = "30") int days,
-            @RequestParam(defaultValue = "5") int ordersPerDay,
-            @RequestParam(defaultValue = "0") int maxOrders) {
-        var result = seedDataGenerator.generate(
-            Math.min(days, 90),
-            Math.min(ordersPerDay, 50),
-            maxOrders <= 0 ? 0 : Math.min(maxOrders, 500)
-        );
-        return ResponseEntity.ok(Map.of(
-            "ordersGenerated", result.ordersGenerated(),
-            "eventsGenerated", result.eventsGenerated(),
-            "timeRange", result.timeRange()
-        ));
+    public ResponseEntity<Map<String, Object>> seed(@RequestBody(required = false) SeedRequest body,
+            @RequestParam(required = false) Integer days,
+            @RequestParam(required = false) Integer ordersPerDay,
+            @RequestParam(required = false) Integer maxOrders) {
+
+        SeedRequest request;
+        if (body != null) {
+            request = body;
+        } else {
+            int d = days != null ? Math.min(days, 365) : 30;
+            int opd = ordersPerDay != null ? Math.min(ordersPerDay, 50) : 5;
+            int mo = maxOrders != null && maxOrders > 0 ? Math.min(maxOrders, 5000) : 0;
+            LocalDate today = LocalDate.now();
+            request = new SeedRequest(today.minusDays(d - 1), today, opd, mo, null,
+                null, null, null, null, null, null);
+        }
+
+        var result = seedDataGenerator.generate(request);
+        int rebuiltOrders = applicationService.rebuildOrderFacts();
+        Map<String, Object> response = new HashMap<>();
+        response.put("ordersGenerated", result.ordersGenerated());
+        response.put("eventsGenerated", result.eventsGenerated());
+        response.put("timeRange", result.timeRange());
+        response.put("batchTag", result.batchTag());
+        response.put("orderFactsRebuilt", rebuiltOrders);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/seed/batches")
+    public ResponseEntity<List<Map<String, Object>>> seedBatches() {
+        List<Object[]> summaries = applicationService.getSeedBatchSummaries();
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object[] row : summaries) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("batchTag", row[0]);
+            item.put("eventCount", ((Number) row[1]).longValue());
+            item.put("orderCount", ((Number) row[2]).longValue());
+            item.put("minOccurredAt", row[3]);
+            item.put("maxOccurredAt", row[4]);
+            result.add(item);
+        }
+        return ResponseEntity.ok(result);
+    }
+
+    @DeleteMapping("/seed")
+    public ResponseEntity<Map<String, Object>> deleteSeedData(
+            @RequestParam(required = false) String batchTag,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+
+        if (batchTag != null && !batchTag.isBlank()) {
+            applicationService.deleteSeedByBatch(batchTag);
+            return ResponseEntity.ok(Map.of("deleted", true, "scope", "batchTag=" + batchTag));
+        }
+        if (from != null && to != null) {
+            ZoneId zone = ZoneId.systemDefault();
+            Instant fromInstant = from.atStartOfDay(zone).toInstant();
+            Instant toInstant = to.plusDays(1).atStartOfDay(zone).toInstant();
+            applicationService.deleteSeedDataInRange(fromInstant, toInstant);
+            return ResponseEntity.ok(Map.of("deleted", true, "scope", "range=" + from + "~" + to));
+        }
+        applicationService.deleteAllSeedData();
+        return ResponseEntity.ok(Map.of("deleted", true, "scope", "allSeedData"));
     }
 
     @GetMapping("/stats/daily")

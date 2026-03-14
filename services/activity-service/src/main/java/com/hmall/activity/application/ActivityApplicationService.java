@@ -6,6 +6,13 @@ import com.hmall.activity.domain.ActivityRepository;
 import com.hmall.activity.domain.ActivityStats;
 import com.hmall.activity.domain.BusinessActivity;
 import com.hmall.activity.domain.DailyActivityStats;
+import com.hmall.activity.domain.OrderFact;
+import com.hmall.activity.domain.OrderFactDailyStats;
+import com.hmall.activity.domain.OrderFactProjection;
+import com.hmall.activity.domain.OrderFactRepository;
+import com.hmall.activity.domain.OrderFactStats;
+import com.hmall.activity.domain.OrderItemFact;
+import com.hmall.activity.domain.ProductRanking;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -15,8 +22,12 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class ActivityApplicationService {
@@ -24,10 +35,17 @@ public class ActivityApplicationService {
     private static final Logger log = LoggerFactory.getLogger(ActivityApplicationService.class);
 
     private final ActivityRepository repository;
+    private final OrderFactRepository orderFactRepository;
+    private final OrderFactProjection orderFactProjection;
     private final ObjectMapper objectMapper;
 
-    public ActivityApplicationService(ActivityRepository repository, ObjectMapper objectMapper) {
+    public ActivityApplicationService(ActivityRepository repository,
+                                      OrderFactRepository orderFactRepository,
+                                      OrderFactProjection orderFactProjection,
+                                      ObjectMapper objectMapper) {
         this.repository = repository;
+        this.orderFactRepository = orderFactRepository;
+        this.orderFactProjection = orderFactProjection;
         this.objectMapper = objectMapper;
     }
 
@@ -137,6 +155,25 @@ public class ActivityApplicationService {
     }
 
     @Transactional
+    public void deleteSeedByBatch(String batchTag) {
+        repository.deleteBySeedBatch(batchTag);
+    }
+
+    @Transactional
+    public void deleteAllSeedData() {
+        repository.deleteAllSeedData();
+    }
+
+    @Transactional
+    public void deleteSeedDataInRange(Instant from, Instant to) {
+        repository.deleteSeedDataInRange(from, to);
+    }
+
+    public List<Object[]> getSeedBatchSummaries() {
+        return repository.findSeedBatchSummaries();
+    }
+
+    @Transactional
     public void record(RecordActivityCommand command) {
         if (repository.existsByEventId(command.eventId())) {
             return;
@@ -153,5 +190,104 @@ public class ActivityApplicationService {
             Instant.now()
         );
         repository.save(activity);
+
+        if (command.orderId() != null) {
+            orderFactProjection.projectOrder(command.orderId());
+        }
+    }
+
+    public java.util.Optional<OrderFact> getOrderFact(Long orderId) {
+        return orderFactRepository.findByOrderId(orderId);
+    }
+
+    public List<OrderItemFact> getOrderItemFacts(Long orderId) {
+        return orderFactRepository.findItemsByOrderId(orderId);
+    }
+
+    public int rebuildOrderFacts() {
+        return orderFactProjection.rebuildAll();
+    }
+
+    public OrderFactStats getOrderFactStats(LocalDate from, LocalDate to) {
+        List<OrderFact> facts = orderFactRepository.findByDateRange(from, to);
+        return OrderFactStats.compute(facts, from, to);
+    }
+
+    public List<OrderFactDailyStats> getOrderFactDailyStats(LocalDate from, LocalDate to) {
+        List<OrderFact> facts = orderFactRepository.findByDateRange(from, to);
+        Map<LocalDate, List<OrderFact>> grouped = facts.stream()
+            .collect(Collectors.groupingBy(OrderFact::createdDate, LinkedHashMap::new, Collectors.toList()));
+
+        List<OrderFactDailyStats> result = new ArrayList<>();
+        for (LocalDate day = from; !day.isAfter(to); day = day.plusDays(1)) {
+            List<OrderFact> dayFacts = grouped.getOrDefault(day, List.of());
+            int total = dayFacts.size();
+            int completed = (int) dayFacts.stream().filter(f -> "COMPLETED".equals(f.currentStage())).count();
+            int cancelled = (int) dayFacts.stream().filter(f -> "CANCELLED".equals(f.currentStage())).count();
+            int vas = (int) dayFacts.stream().filter(f -> f.hasEngraving() || f.hasWarranty()).count();
+            int engraving = (int) dayFacts.stream().filter(OrderFact::hasEngraving).count();
+            int warranty = (int) dayFacts.stream().filter(OrderFact::hasWarranty).count();
+            long revenue = dayFacts.stream().mapToLong(OrderFact::totalAmountCents).sum();
+            long avg = total > 0 ? revenue / total : 0;
+            result.add(new OrderFactDailyStats(day, total, completed, cancelled, vas, engraving, warranty, revenue, avg));
+        }
+        return result;
+    }
+
+    public ProductRanking getProductRanking(LocalDate from, LocalDate to, String rankBy,
+                                            Boolean hasEngraving, Boolean hasWarranty,
+                                            String groupBy, int limit) {
+        List<OrderItemFact> items = orderFactRepository.findItemsByDateRange(from, to);
+
+        if (hasEngraving != null && hasEngraving) {
+            items = items.stream().filter(OrderItemFact::orderHasEngraving).toList();
+        }
+        if (hasWarranty != null && hasWarranty) {
+            items = items.stream().filter(OrderItemFact::orderHasWarranty).toList();
+        }
+
+        boolean bySku = "sku".equals(groupBy);
+        Map<Long, ProductRanking.ProductRankingItem> grouped = new HashMap<>();
+
+        for (OrderItemFact item : items) {
+            Long key = bySku ? item.skuId() : item.spuId();
+            if (key == null) continue;
+            Long finalKey = key;
+            grouped.merge(key,
+                new ProductRanking.ProductRankingItem(
+                    bySku ? null : finalKey, bySku ? finalKey : null,
+                    item.quantity(), item.lineTotalCents(), 1,
+                    "CANCELLED".equals(item.orderCurrentStage()) ? 1 : 0),
+                (a, b) -> new ProductRanking.ProductRankingItem(
+                    a.spuId(), a.skuId(),
+                    a.totalQuantity() + b.totalQuantity(),
+                    a.totalRevenueCents() + b.totalRevenueCents(),
+                    a.orderCount() + b.orderCount(),
+                    a.cancelledOrderCount() + b.cancelledOrderCount()));
+        }
+
+        Comparator<ProductRanking.ProductRankingItem> cmp = switch (rankBy != null ? rankBy : "revenue") {
+            case "quantity" -> Comparator.comparingInt(ProductRanking.ProductRankingItem::totalQuantity).reversed();
+            case "orderCount" -> Comparator.comparingInt(ProductRanking.ProductRankingItem::orderCount).reversed();
+            default -> Comparator.comparingLong(ProductRanking.ProductRankingItem::totalRevenueCents).reversed();
+        };
+
+        List<ProductRanking.ProductRankingItem> ranked = grouped.values().stream()
+            .sorted(cmp)
+            .limit(limit)
+            .toList();
+
+        return new ProductRanking(rankBy != null ? rankBy : "revenue", ranked, from, to);
+    }
+
+    public List<OrderFact> listOrderFacts(LocalDate from, LocalDate to,
+                                          Boolean hasEngraving, Boolean hasWarranty,
+                                          String currentStage, Long userId, int limit) {
+        return orderFactRepository.findByFilters(from, to, hasEngraving, hasWarranty, currentStage, userId, limit);
+    }
+
+    @Transactional
+    public void deleteOrderFacts() {
+        orderFactRepository.deleteAll();
     }
 }

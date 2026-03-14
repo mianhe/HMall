@@ -24,6 +24,8 @@ alwaysApply: true
 - 需求分析或方案澄清：`analyze-requirement`
 - 业务需求交付编排/E2E 验收：`deliver-requirement`
 - 部署/发布/更新服务器/上线：`deploy`
+- 生成/查询/删除测试数据（activity 事件数据）：`generate-test-data`
+- 维护 SeedDataGenerator 代码（对齐 Ontology、修复因果链）：`generate-seed-data`
 
 > **易混淆场景**：用户报告"某个功能不对/缺少/不生效"属于缺陷修复，走 `fix-bug-or-adjust-feature`；用户要求"加一个新页面/新功能"属于新增，走 `frontend-development` 或 `evolve-feature`。
 

@@ -251,3 +251,27 @@ OrderCreated → StockReserved → PaymentFailed → ... → PaymentCompleted �
 | MCP 工具 | `activity_query`（action=list, orderId）| ✅ AI 对话中也可查 |
 
 **结论**：后端数据层完全就绪，不需要新增 API 或修改领域模型。核心工作量在前端可视化实现。
+
+---
+
+## 5. 订单事实投影
+
+`order-fact.feature`
+
+来自业务需求 [智能运营 Step 3](../../business-requirements/intelligent-ops-step3/overview.md)。将 BusinessActivity 事件流投影为以订单为中心的 OrderFact 和以行项为中心的 OrderItemFact 读模型，支持多维运营分析。
+
+### 5.1 投影机制
+
+- 每次 `record()` 写入事件后，自动重新投影该 orderId 的 OrderFact 和 OrderItemFact
+- 支持 `POST /api/order-facts/rebuild` 批量重建所有订单的投影（用于历史数据回填和种子数据生成后）
+
+### 5.2 需求场景
+
+| # | Scenario | 验收要点 | 状态 |
+|---|----------|----------|------|
+| 5.1 | OrderCreated 生成初始 OrderFact | 记录 OrderCreated 后，OrderFact 存在，currentStage=CREATED，itemCount/totalQuantity/totalAmountCents 正确 | ✅ |
+| 5.2 | PaymentCompleted 推进阶段 | 补充 PaymentCompleted 后，currentStage=PAID，paidAt 非空 | ✅ |
+| 5.3 | EngravingCompleted 标记镭雕 | 补充 EngravingCompleted 后，hasEngraving=true | ✅ |
+| 5.4 | OrderCancelled 标记取消及原因 | PaymentExpired + OrderCancelled 后，currentStage=CANCELLED，cancelReason=TIMEOUT，isAbnormal=true | ✅ |
+| 5.5 | 完整生命周期含 ServiceActivated | 全链路事件后，currentStage=COMPLETED，hasWarranty=true，各时间戳和持续时间非空 | ✅ |
+| 5.10 | 批量重建投影 | 清空事实后调用 rebuild，所有订单 OrderFact 重新生成 | ✅ |

@@ -12,6 +12,7 @@ import { registerOrderTools } from './tools/order.js'
 import { registerFulfillmentTools } from './tools/fulfillment.js'
 import { registerUserTools } from './tools/user.js'
 import { registerActivityTools } from './tools/activity.js'
+import { registerOrderFactTools } from './tools/order-fact.js'
 import { registerCatalogResources } from './resources/catalog-domain.js'
 import { registerInventoryResources } from './resources/inventory-domain.js'
 import { registerCartOrderResources } from './resources/cart-order-domain.js'
@@ -32,6 +33,7 @@ registerOrderTools(server)
 registerFulfillmentTools(server)
 registerUserTools(server)
 registerActivityTools(server)
+registerOrderFactTools(server)
 
 // 注册领域知识 resources
 registerCatalogResources(server)

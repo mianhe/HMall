@@ -16,8 +16,10 @@ public record BusinessActivity(
     String correlationKeys,
     String payload,
     Instant occurredAt,
-    Instant receivedAt
+    Instant receivedAt,
+    String seedBatch
 ) {
+    /** Kafka 消费链路使用：seedBatch 为 null（真实事件） */
     public static BusinessActivity of(
         String eventId,
         String eventType,
@@ -30,6 +32,23 @@ public record BusinessActivity(
         Instant receivedAt
     ) {
         return new BusinessActivity(null, eventId, eventType, topic, orderId, userId, correlationKeys,
-                payload, occurredAt, receivedAt);
+                payload, occurredAt, receivedAt, null);
+    }
+
+    /** 种子数据生成使用：携带 seedBatch 标记 */
+    public static BusinessActivity seed(
+        String eventId,
+        String eventType,
+        String topic,
+        Long orderId,
+        Long userId,
+        String correlationKeys,
+        String payload,
+        Instant occurredAt,
+        Instant receivedAt,
+        String seedBatch
+    ) {
+        return new BusinessActivity(null, eventId, eventType, topic, orderId, userId, correlationKeys,
+                payload, occurredAt, receivedAt, seedBatch);
     }
 }

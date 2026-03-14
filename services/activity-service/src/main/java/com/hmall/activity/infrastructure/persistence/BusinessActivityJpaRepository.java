@@ -64,4 +64,23 @@ public interface BusinessActivityJpaRepository extends JpaRepository<BusinessAct
     @Modifying
     @Query("DELETE FROM BusinessActivityEntity e WHERE e.orderId = :orderId")
     void deleteByOrderId(@Param("orderId") Long orderId);
+
+    @Modifying
+    @Query("DELETE FROM BusinessActivityEntity e WHERE e.seedBatch = :seedBatch")
+    void deleteBySeedBatch(@Param("seedBatch") String seedBatch);
+
+    @Modifying
+    @Query("DELETE FROM BusinessActivityEntity e WHERE e.seedBatch IS NOT NULL")
+    void deleteAllSeedData();
+
+    @Modifying
+    @Query("DELETE FROM BusinessActivityEntity e WHERE e.seedBatch IS NOT NULL AND e.occurredAt >= :from AND e.occurredAt < :to")
+    void deleteSeedDataInRange(@Param("from") Instant from, @Param("to") Instant to);
+
+    @Query("SELECT e.seedBatch, COUNT(e), COUNT(DISTINCT e.orderId), MIN(e.occurredAt), MAX(e.occurredAt) " +
+           "FROM BusinessActivityEntity e WHERE e.seedBatch IS NOT NULL GROUP BY e.seedBatch ORDER BY MAX(e.occurredAt) DESC")
+    List<Object[]> findSeedBatchSummaries();
+
+    @Query("SELECT DISTINCT e.orderId FROM BusinessActivityEntity e WHERE e.orderId IS NOT NULL")
+    List<Long> findDistinctOrderIds();
 }

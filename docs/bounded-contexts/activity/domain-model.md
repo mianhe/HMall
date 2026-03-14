@@ -158,6 +158,72 @@ Activity BC 对"事件类型"这一领域概念的认知中心，集中管理所
 
 ---
 
+## 四-B、订单事实读模型（来自智能运营 Step 3）
+
+来自业务需求 [智能运营 Step 3](../../business-requirements/intelligent-ops-step3/overview.md)。从 BusinessActivity 事件流投影而来的 CQRS 读模型，面向运营分析场景。
+
+### OrderFact（值对象 — 订单事实）
+
+以订单为中心的宽表视图，每个 orderId 一条记录。
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| orderId | Long | 订单 ID，主键 |
+| userId | Long | 下单用户 ID |
+| totalAmountCents | long | 订单总金额（分） |
+| itemCount | int | 商品行数 |
+| totalQuantity | int | 商品总数量 |
+| hasEngraving | boolean | 是否含镭雕（由 EngravingCompleted 事件存在推导） |
+| hasWarranty | boolean | 是否含保障服务（由 ServiceActivated 事件存在推导） |
+| currentStage | String | 当前阶段：CREATED / PAID / FULFILLING / SHIPPED / DELIVERED / COMPLETED / CANCELLED |
+| cancelReason | String（可空） | 取消原因：TIMEOUT（支付超时）/ MANUAL（手动取消） |
+| isAbnormal | boolean | 是否异常（存在 PaymentFailed 或 PaymentExpired） |
+| createdAt | Instant | 订单创建时间 |
+| paidAt | Instant（可空） | 支付完成时间 |
+| shippedAt | Instant（可空） | 发货时间 |
+| deliveredAt | Instant（可空） | 签收时间 |
+| completedAt | Instant（可空） | 订单完成时间 |
+| cancelledAt | Instant（可空） | 取消时间 |
+| paymentDurationSec | Long（可空） | 支付耗时（秒） |
+| fulfillmentDurationSec | Long（可空） | 履约耗时（秒，paidAt → deliveredAt） |
+| createdDate | LocalDate | 创建日期（按天分析维度） |
+| createdHour | int | 创建小时（按时段分析维度） |
+| seedBatch | String（可空） | 种子数据批次标记 |
+
+### OrderItemFact（值对象 — 订单行项事实）
+
+以商品行为中心的明细表，每个订单的每个 SKU 一条记录。
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| id | Long | 自增主键 |
+| orderId | Long | 所属订单 ID |
+| userId | Long | 下单用户 ID |
+| skuId | Long | SKU ID |
+| spuId | Long（可空） | SPU ID |
+| quantity | int | 购买数量 |
+| unitPriceCents | long | 单价（分） |
+| lineTotalCents | long | 行小计（= quantity * unitPriceCents） |
+| orderTotalAmountCents | long | 订单总金额（冗余，便于行级分析） |
+| orderCurrentStage | String | 订单当前阶段（级联更新） |
+| orderHasEngraving | boolean | 订单是否含镭雕（级联更新） |
+| orderHasWarranty | boolean | 订单是否含保障服务（级联更新） |
+| createdDate | LocalDate | 创建日期 |
+| seedBatch | String（可空） | 种子数据批次标记 |
+
+### OrderFactProjection（领域服务 — 订单事实投影）
+
+将 BusinessActivity 事件流投影为 OrderFact + OrderItemFact。
+
+| 方法 | 说明 |
+|------|------|
+| `projectOrder(orderId)` | 根据 orderId 的所有 BusinessActivity 事件重新计算并 upsert OrderFact + OrderItemFact |
+| `rebuildAll()` | 全量重建：遍历所有 distinct orderId，逐个调用 projectOrder |
+
+**阶段推导优先级**（高到低）：CANCELLED > COMPLETED > DELIVERED > SHIPPED > FULFILLING > PAID > CREATED
+
+---
+
 ## 五、不变式
 
 - `eventId`、`eventType`、`topic` 不可为空

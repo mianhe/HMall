@@ -55,44 +55,66 @@ public class SeedDataGenerator {
         {"碎屏险 两年期", "2年"},
     };
 
-    private static final double ENGRAVING_RATIO = 0.10;
-    private static final double WARRANTY_RATIO = 0.10;
-
     public SeedDataGenerator(ActivityRepository repository, ObjectMapper objectMapper) {
         this.repository = repository;
         this.objectMapper = objectMapper;
     }
 
-    public record SeedResult(int ordersGenerated, int eventsGenerated, String timeRange) {}
+    public record SeedResult(int ordersGenerated, int eventsGenerated, String timeRange, String batchTag) {}
 
-    /**
-     * @param maxOrders 最大订单数，≤0 表示不限制（按 days * ordersPerDay 自然生成）
-     */
+    /** 向后兼容的旧入口：从今天往前推 days 天 */
     @Transactional
     public SeedResult generate(int days, int ordersPerDay, int maxOrders) {
-        ThreadLocalRandom rng = ThreadLocalRandom.current();
         LocalDate today = LocalDate.now();
+        SeedRequest request = new SeedRequest(
+            today.minusDays(days - 1), today,
+            ordersPerDay, maxOrders, null,
+            null, null, null, null, null, null
+        );
+        return generate(request);
+    }
+
+    @Transactional
+    public SeedResult generate(SeedRequest request) {
+        ThreadLocalRandom rng = ThreadLocalRandom.current();
         ZoneId zone = ZoneId.systemDefault();
+
+        LocalDate startDate = request.startDate() != null ? request.startDate() : LocalDate.now().minusDays(29);
+        LocalDate endDate = request.endDate() != null ? request.endDate() : LocalDate.now();
+        int ordersPerDay = request.ordersPerDay() > 0 ? request.ordersPerDay() : 5;
+        int maxOrders = request.maxOrders();
+        String batchTag = request.batchTag() != null && !request.batchTag().isBlank()
+            ? request.batchTag()
+            : "seed-" + LocalDate.now() + "-" + UUID.randomUUID().toString().substring(0, 6);
+
+        double cancelThreshold = request.cancelRatioOrDefault();
+        double paymentExpiredThreshold = cancelThreshold + request.paymentExpiredRatioOrDefault();
+        double paymentFailedThreshold = paymentExpiredThreshold + request.paymentFailedRatioOrDefault();
+        double engravingRatio = request.engravingRatioOrDefault();
+        double warrantyRatio = request.warrantyRatioOrDefault();
+        double multiItemRatio = request.multiItemRatioOrDefault();
+
         List<BusinessActivity> batch = new ArrayList<>();
         long orderIdBase = System.currentTimeMillis() % 100000 + 10000;
         int totalOrders = 0;
         boolean capped = maxOrders > 0;
 
-        for (int d = days - 1; d >= 0; d--) {
+        for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
             if (capped && totalOrders >= maxOrders) break;
-            LocalDate date = today.minusDays(d);
             Instant dayStart = date.atStartOfDay(zone).toInstant();
             int count = ordersPerDay + rng.nextInt(-ordersPerDay / 3, ordersPerDay / 3 + 1);
             if (count < 1) count = 1;
+
+            long daysUntilEnd = endDate.toEpochDay() - date.toEpochDay();
 
             for (int o = 0; o < count; o++) {
                 if (capped && totalOrders >= maxOrders) break;
                 long orderId = orderIdBase++;
                 long userId = SAMPLE_USER_IDS[rng.nextInt(SAMPLE_USER_IDS.length)];
-                int itemCount = rng.nextDouble() < 0.25 ? rng.nextInt(2, 4) : 1;
+                int itemCount = rng.nextDouble() < multiItemRatio ? rng.nextInt(2, 4) : 1;
 
-                boolean hasEngraving = rng.nextDouble() < ENGRAVING_RATIO;
-                boolean hasWarranty = rng.nextDouble() < WARRANTY_RATIO;
+                boolean hasEngraving = rng.nextDouble() < engravingRatio;
+                boolean hasWarranty = rng.nextDouble() < warrantyRatio;
 
                 List<Map<String, Object>> itemsList = new ArrayList<>();
                 long totalCents = 0;
@@ -130,52 +152,49 @@ public class SeedDataGenerator {
 
                 double fate = rng.nextDouble();
 
-                batch.add(orderEvent("OrderCreated", "order.created", orderId, userId, corrKeys, orderTime,
+                batch.add(seedOrderEvent("OrderCreated", "order.created", orderId, userId, corrKeys, orderTime, batchTag,
                     Map.of("eventType", "OrderCreated", "orderId", orderId, "userId", userId,
                            "totalAmountCents", totalCents, "items", itemsList)));
 
                 Instant t = orderTime.plusSeconds(rng.nextLong(1, 5));
-                batch.add(nonOrderEvent("StockReserved", "inventory.stock.reserved", orderId, corrKeys, t,
+                batch.add(seedNonOrderEvent("StockReserved", "inventory.stock.reserved", orderId, corrKeys, t, batchTag,
                     Map.of("eventType", "StockReserved", "orderId", orderId, "items", stockItems)));
 
-                if (fate < 0.08) {
-                    // ~8% cancel before payment
+                if (fate < cancelThreshold) {
                     t = t.plusSeconds(rng.nextLong(60, 600));
-                    batch.add(orderEvent("OrderCancelled", "order.cancelled", orderId, userId, corrKeys, t,
+                    batch.add(seedOrderEvent("OrderCancelled", "order.cancelled", orderId, userId, corrKeys, t, batchTag,
                         Map.of("eventType", "OrderCancelled", "orderId", orderId, "userId", userId,
                                "totalAmountCents", totalCents, "items", itemsList)));
-                    batch.add(nonOrderEvent("StockReleased", "inventory.stock.released", orderId, corrKeys, t.plusSeconds(1),
+                    batch.add(seedNonOrderEvent("StockReleased", "inventory.stock.released", orderId, corrKeys, t.plusSeconds(1), batchTag,
                         Map.of("eventType", "StockReleased", "orderId", orderId)));
                     totalOrders++;
                     continue;
                 }
 
-                if (fate < 0.12) {
-                    // ~4% payment expired → auto cancel
+                if (fate < paymentExpiredThreshold) {
                     t = t.plus(Duration.ofMinutes(rng.nextLong(15, 30)));
-                    batch.add(nonOrderEvent("PaymentExpired", "payment.expired", orderId, corrKeys, t,
+                    batch.add(seedNonOrderEvent("PaymentExpired", "payment.expired", orderId, corrKeys, t, batchTag,
                         Map.of("eventType", "PaymentExpired", "orderId", orderId)));
-                    batch.add(orderEvent("OrderCancelled", "order.cancelled", orderId, userId, corrKeys, t.plusSeconds(1),
+                    batch.add(seedOrderEvent("OrderCancelled", "order.cancelled", orderId, userId, corrKeys, t.plusSeconds(1), batchTag,
                         Map.of("eventType", "OrderCancelled", "orderId", orderId, "userId", userId,
                                "totalAmountCents", totalCents, "items", itemsList)));
-                    batch.add(nonOrderEvent("StockReleased", "inventory.stock.released", orderId, corrKeys, t.plusSeconds(2),
+                    batch.add(seedNonOrderEvent("StockReleased", "inventory.stock.released", orderId, corrKeys, t.plusSeconds(2), batchTag,
                         Map.of("eventType", "StockReleased", "orderId", orderId)));
                     totalOrders++;
                     continue;
                 }
 
-                if (fate < 0.15) {
-                    // ~3% payment failed (user retries then gives up → eventually expires)
+                if (fate < paymentFailedThreshold) {
                     t = t.plusSeconds(rng.nextLong(10, 300));
-                    batch.add(nonOrderEvent("PaymentFailed", "payment.failed", orderId, corrKeys, t,
+                    batch.add(seedNonOrderEvent("PaymentFailed", "payment.failed", orderId, corrKeys, t, batchTag,
                         Map.of("eventType", "PaymentFailed", "orderId", orderId)));
                     t = t.plus(Duration.ofMinutes(rng.nextLong(15, 30)));
-                    batch.add(nonOrderEvent("PaymentExpired", "payment.expired", orderId, corrKeys, t,
+                    batch.add(seedNonOrderEvent("PaymentExpired", "payment.expired", orderId, corrKeys, t, batchTag,
                         Map.of("eventType", "PaymentExpired", "orderId", orderId)));
-                    batch.add(orderEvent("OrderCancelled", "order.cancelled", orderId, userId, corrKeys, t.plusSeconds(1),
+                    batch.add(seedOrderEvent("OrderCancelled", "order.cancelled", orderId, userId, corrKeys, t.plusSeconds(1), batchTag,
                         Map.of("eventType", "OrderCancelled", "orderId", orderId, "userId", userId,
                                "totalAmountCents", totalCents, "items", itemsList)));
-                    batch.add(nonOrderEvent("StockReleased", "inventory.stock.released", orderId, corrKeys, t.plusSeconds(2),
+                    batch.add(seedNonOrderEvent("StockReleased", "inventory.stock.released", orderId, corrKeys, t.plusSeconds(2), batchTag,
                         Map.of("eventType", "StockReleased", "orderId", orderId)));
                     totalOrders++;
                     continue;
@@ -183,24 +202,24 @@ public class SeedDataGenerator {
 
                 // === Happy Path: PaymentCompleted ===
                 t = t.plusSeconds(rng.nextLong(3, 30));
-                batch.add(nonOrderEvent("PaymentCompleted", "payment.completed", orderId, corrKeys, t,
+                batch.add(seedNonOrderEvent("PaymentCompleted", "payment.completed", orderId, corrKeys, t, batchTag,
                     Map.of("eventType", "PaymentCompleted", "orderId", orderId,
                            "paymentId", paymentId, "amountCents", totalCents)));
 
                 t = t.plusSeconds(rng.nextLong(1, 10));
                 long fulfillmentOrderId = orderId * 10 + 2;
-                batch.add(nonOrderEvent("FulfillmentOrderCreated", "fulfillment.order.created", orderId, corrKeys, t,
+                batch.add(seedNonOrderEvent("FulfillmentOrderCreated", "fulfillment.order.created", orderId, corrKeys, t, batchTag,
                     Map.of("eventType", "FulfillmentOrderCreated", "orderId", orderId,
                            "fulfillmentOrderIds", List.of(fulfillmentOrderId))));
 
                 t = t.plus(Duration.ofMinutes(rng.nextLong(30, 360)));
-                batch.add(nonOrderEvent("FulfillmentOrderAllocated", "fulfillment.order.allocated", orderId, corrKeys, t,
+                batch.add(seedNonOrderEvent("FulfillmentOrderAllocated", "fulfillment.order.allocated", orderId, corrKeys, t, batchTag,
                     Map.of("eventType", "FulfillmentOrderAllocated", "orderId", orderId,
                            "fulfillmentOrderId", fulfillmentOrderId)));
 
                 if (hasEngraving) {
                     t = t.plus(Duration.ofMinutes(rng.nextLong(10, 120)));
-                    batch.add(nonOrderEvent("EngravingCompleted", "fulfillment.engraving.completed", orderId, corrKeys, t,
+                    batch.add(seedNonOrderEvent("EngravingCompleted", "fulfillment.engraving.completed", orderId, corrKeys, t, batchTag,
                         Map.of("eventType", "EngravingCompleted", "orderId", orderId,
                                "fulfillmentOrderId", fulfillmentOrderId, "completedAt", t.toString())));
                 }
@@ -210,7 +229,7 @@ public class SeedDataGenerator {
                     long serviceSkuId = 300 + rng.nextLong(1, 5);
                     String actIso = t.toString();
                     String expIso = t.plus(Duration.ofDays(365)).toString();
-                    batch.add(nonOrderEvent("ServiceActivated", "fulfillment.service.activated", orderId, corrKeys, t,
+                    batch.add(seedNonOrderEvent("ServiceActivated", "fulfillment.service.activated", orderId, corrKeys, t, batchTag,
                         Map.of("eventType", "ServiceActivated", "orderId", orderId,
                                "fulfillmentOrderId", fulfillmentOrderId, "serviceSkuId", serviceSkuId,
                                "activatedAt", actIso, "expiresAt", expIso)));
@@ -218,27 +237,28 @@ public class SeedDataGenerator {
 
                 // === FulfillmentShipped ===
                 t = t.plus(Duration.ofHours(rng.nextLong(2, 24)));
-                if (d < 2 && rng.nextDouble() < 0.4) {
+                if (daysUntilEnd < 2 && rng.nextDouble() < 0.4) {
                     totalOrders++;
                     continue;
                 }
-                batch.add(nonOrderEvent("FulfillmentShipped", "fulfillment.shipped", orderId, corrKeys, t,
+                batch.add(seedNonOrderEvent("FulfillmentShipped", "fulfillment.shipped", orderId, corrKeys, t, batchTag,
                     Map.of("eventType", "FulfillmentShipped", "orderId", orderId,
                            "fulfillmentOrderId", fulfillmentOrderId)));
 
                 // === FulfillmentDelivered ===
                 t = t.plus(Duration.ofDays(rng.nextLong(1, 5)));
-                if (t.isAfter(Instant.now())) {
+                Instant endBoundary = endDate.plusDays(1).atStartOfDay(zone).toInstant();
+                if (t.isAfter(endBoundary)) {
                     totalOrders++;
                     continue;
                 }
-                batch.add(nonOrderEvent("FulfillmentDelivered", "fulfillment.delivered", orderId, corrKeys, t,
+                batch.add(seedNonOrderEvent("FulfillmentDelivered", "fulfillment.delivered", orderId, corrKeys, t, batchTag,
                     Map.of("eventType", "FulfillmentDelivered", "orderId", orderId,
                            "fulfillmentOrderId", fulfillmentOrderId)));
 
                 // === OrderCompleted (Order BC → userId ✅) ===
                 t = t.plusSeconds(rng.nextLong(1, 60));
-                batch.add(orderEvent("OrderCompleted", "order.completed", orderId, userId, corrKeys, t,
+                batch.add(seedOrderEvent("OrderCompleted", "order.completed", orderId, userId, corrKeys, t, batchTag,
                     Map.of("eventType", "OrderCompleted", "orderId", orderId, "userId", userId,
                            "totalAmountCents", totalCents, "items", itemsList)));
 
@@ -252,25 +272,25 @@ public class SeedDataGenerator {
             }
         }
 
-        String range = today.minusDays(days - 1) + " ~ " + today;
-        log.info("种子数据生成完成：{} 订单，{} 事件，范围 {}", totalOrders, batch.size(), range);
-        return new SeedResult(totalOrders, batch.size(), range);
+        String range = startDate + " ~ " + endDate;
+        log.info("种子数据生成完成：{} 订单，{} 事件，范围 {}，批次 {}", totalOrders, batch.size(), range, batchTag);
+        return new SeedResult(totalOrders, batch.size(), range, batchTag);
     }
 
-    /** Order BC 事件：携带 userId（与真实管道一致） */
-    private BusinessActivity orderEvent(String eventType, String topic, long orderId, long userId,
-                                         String corrKeys, Instant occurredAt, Map<String, Object> payload) {
+    private BusinessActivity seedOrderEvent(String eventType, String topic, long orderId, long userId,
+                                             String corrKeys, Instant occurredAt, String batchTag,
+                                             Map<String, Object> payload) {
         String eventId = UUID.randomUUID().toString();
-        return BusinessActivity.of(eventId, eventType, topic, orderId, userId, corrKeys,
-            toJson(payload), occurredAt, occurredAt.plusSeconds(1));
+        return BusinessActivity.seed(eventId, eventType, topic, orderId, userId, corrKeys,
+            toJson(payload), occurredAt, occurredAt.plusSeconds(1), batchTag);
     }
 
-    /** 非 Order BC 事件：userId 为 null（与真实管道一致） */
-    private BusinessActivity nonOrderEvent(String eventType, String topic, long orderId,
-                                            String corrKeys, Instant occurredAt, Map<String, Object> payload) {
+    private BusinessActivity seedNonOrderEvent(String eventType, String topic, long orderId,
+                                                String corrKeys, Instant occurredAt, String batchTag,
+                                                Map<String, Object> payload) {
         String eventId = UUID.randomUUID().toString();
-        return BusinessActivity.of(eventId, eventType, topic, orderId, null, corrKeys,
-            toJson(payload), occurredAt, occurredAt.plusSeconds(1));
+        return BusinessActivity.seed(eventId, eventType, topic, orderId, null, corrKeys,
+            toJson(payload), occurredAt, occurredAt.plusSeconds(1), batchTag);
     }
 
     private Map<String, Object> buildEngravingAttributes(ThreadLocalRandom rng) {

@@ -39,6 +39,9 @@ public class BusinessActivityEntity {
     @Column(nullable = false)
     private Instant receivedAt;
 
+    @Column(name = "seed_batch", length = 64, nullable = true)
+    private String seedBatch;
+
     public static BusinessActivityEntity from(BusinessActivity domain) {
         BusinessActivityEntity e = new BusinessActivityEntity();
         e.eventId = domain.eventId();
@@ -50,11 +53,13 @@ public class BusinessActivityEntity {
         e.payload = domain.payload();
         e.occurredAt = domain.occurredAt();
         e.receivedAt = domain.receivedAt();
+        e.seedBatch = domain.seedBatch();
         return e;
     }
 
     public BusinessActivity toDomain() {
-        return new BusinessActivity(id, eventId, eventType, topic, orderId, userId, correlationKeys, payload, occurredAt, receivedAt);
+        return new BusinessActivity(id, eventId, eventType, topic, orderId, userId, correlationKeys,
+                payload, occurredAt, receivedAt, seedBatch);
     }
 
     public Long getId() { return id; }
@@ -67,4 +72,5 @@ public class BusinessActivityEntity {
     public String getPayload() { return payload; }
     public Instant getOccurredAt() { return occurredAt; }
     public Instant getReceivedAt() { return receivedAt; }
+    public String getSeedBatch() { return seedBatch; }
 }
