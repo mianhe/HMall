@@ -266,4 +266,4 @@ PROGRESSION 事件：OrderCompleted（每次成交贡献商品销售数据）
 | 用户复购率 | order_fact_query stats → repeatBuyerCount / distinctBuyerCount |
 | 查看某用户含 VAS 订单 | order_fact_query list userId=42 hasEngraving=true |
 | 按日 VAS 趋势 | order_fact_query stats_daily → vasOrders / totalOrders 逐日 |
-| 商品名称查询 | 先 order_fact_query product_ranking 获取 spuId，再 catalog_query 获取名称 |
+| 商品名称查询 | 先 order_fact_query product_ranking 获取 spuId，再 catalog_products get 获取名称 |
