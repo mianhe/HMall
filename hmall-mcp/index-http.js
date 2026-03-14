@@ -16,6 +16,7 @@ import { registerOrderTools } from './tools/order.js'
 import { registerFulfillmentTools } from './tools/fulfillment.js'
 import { registerUserTools } from './tools/user.js'
 import { registerActivityTools } from './tools/activity.js'
+import { registerOrderFactTools } from './tools/order-fact.js'
 import { registerOpsCanvasTools } from './tools/ops-canvas.js'
 import { registerCatalogResources } from './resources/catalog-domain.js'
 import { registerInventoryResources } from './resources/inventory-domain.js'
@@ -37,6 +38,7 @@ function createServer() {
   registerFulfillmentTools(server)
   registerUserTools(server)
   registerActivityTools(server)
+  registerOrderFactTools(server)
   registerOpsCanvasTools(server)
   registerCatalogResources(server)
   registerInventoryResources(server)
