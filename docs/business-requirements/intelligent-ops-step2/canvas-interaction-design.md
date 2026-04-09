@@ -408,7 +408,7 @@ Step 2 MVP 暴露两个系统性问题：
 | 改动 | 说明 |
 |------|------|
 | **Base Prompt 注入日期** | `AiChatService.buildDefaultSystemPrompt` 增加 `当前日期：YYYY-MM-DD（星期X）`，系统级改动，所有场景受益 |
-| **事件本体文档** | 新增 `docs/intelligent-ops-ontology.md`，定义事件类型全表、Payload 结构、状态机、因果链、健康指标推导 |
+| **事件本体文档** | 新增 `docs/ontology/events-and-processes.md`，定义事件类型全表、Payload 结构、状态机、因果链、健康指标推导 |
 | **MCP Resource 重构** | `intelligent-ops-domain.js` 改为从 Markdown 文件读取（与 `ontology.js` 模式一致），领域知识可读可维护 |
 | **ops_canvas 精简** | Tool description 从 ~300 字精简为 ~80 字，操作策略移至 Skill Prompt |
 | **智能运营助手 Skill** | 新增 Skill：两步工作流 + 多面板策略 + 图表选择指南 + data 结构约定 + few-shot 示例 |

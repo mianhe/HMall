@@ -1,13 +1,13 @@
 /**
  * HMall 电商本体（Ontology）— 系统级统一业务模型。
- * 内容维护在 docs/ontology.md，此文件仅负责加载并注册为 MCP Resource。
+ * 内容维护在 docs/ontology/hmall-ontology.md，此文件仅负责加载并注册为 MCP Resource。
  */
 import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const ONTOLOGY_PATH = resolve(__dirname, '../../docs/ontology.md')
+const ONTOLOGY_PATH = resolve(__dirname, '../../docs/ontology/hmall-ontology.md')
 
 export const ONTOLOGY_URI = 'hmall://ontology/schema'
 

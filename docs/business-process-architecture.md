@@ -5,7 +5,7 @@
 > **与其他文档的关系**：
 > - [business-flows.md](business-flows.md)：当前交易流程的事件流与路径枚举（本文档的子集，聚焦 N2O/O2F）
 > - [context-map.md](context-map.md)：BC 结构与集成方式
-> - [ontology.md](ontology.md)：业务对象与关联关系
+> - [ontology/hmall-ontology.md](ontology/hmall-ontology.md)：业务对象与关联关系
 > - [design-principles.md](design-principles.md)：架构与实现约定（含 EDA 技术规范）
 >
 > 本文档回答的问题：**系统的业务流程是什么、事件如何组织、智能化如何分层、系统向何处演进。**

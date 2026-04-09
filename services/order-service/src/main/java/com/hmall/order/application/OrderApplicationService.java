@@ -3,6 +3,7 @@ package com.hmall.order.application;
 import com.hmall.order.application.event.ItemSnapshot;
 import com.hmall.order.application.event.OrderCancelledEvent;
 import com.hmall.order.application.event.OrderCreatedEvent;
+import com.hmall.order.application.event.PricingSnapshot;
 import com.hmall.order.application.port.*;
 import com.hmall.order.api.dto.OrderCreateDto;
 import com.hmall.order.api.dto.OrderDto;
@@ -32,6 +33,8 @@ public class OrderApplicationService {
     private final CancelFulfillmentPort cancelFulfillmentPort;
     private final OrderOutboundEventPublisher outboundEventPublisher;
     private final CatalogServiceQueryPort catalogServiceQueryPort;
+    private final PromotionPricePort promotionPricePort;
+    private final CouponLifecyclePort couponLifecyclePort;
 
     public OrderApplicationService(OrderRepository orderRepository, SkuInfoPort skuInfoPort,
             UserExistsPort userExistsPort,
@@ -39,7 +42,9 @@ public class OrderApplicationService {
             ReleaseInventoryPort releaseInventoryPort, RefundPaymentPort refundPaymentPort,
             CancelFulfillmentPort cancelFulfillmentPort,
             OrderOutboundEventPublisher outboundEventPublisher,
-            CatalogServiceQueryPort catalogServiceQueryPort) {
+            CatalogServiceQueryPort catalogServiceQueryPort,
+            PromotionPricePort promotionPricePort,
+            CouponLifecyclePort couponLifecyclePort) {
         this.orderRepository = orderRepository;
         this.skuInfoPort = skuInfoPort;
         this.userExistsPort = userExistsPort;
@@ -50,6 +55,8 @@ public class OrderApplicationService {
         this.cancelFulfillmentPort = cancelFulfillmentPort;
         this.outboundEventPublisher = outboundEventPublisher;
         this.catalogServiceQueryPort = catalogServiceQueryPort;
+        this.promotionPricePort = promotionPricePort;
+        this.couponLifecyclePort = couponLifecyclePort;
     }
 
     @Transactional
@@ -96,7 +103,24 @@ public class OrderApplicationService {
 
         validateSupplementaryPurchase(dto.userId(), items);
 
-        Order order = new Order(dto.userId(), address, items);
+        Long couponId = dto.couponId();
+        List<PromotionPricePort.LineItem> priceLineItems = items.stream()
+                .map(li -> new PromotionPricePort.LineItem(li.getSkuId(), li.getUnitPriceCents(), li.getQuantity()))
+                .toList();
+        PromotionPricePort.PriceResult priceResult =
+                promotionPricePort.calculatePrice(priceLineItems, dto.userId(), couponId);
+        Map<Long, List<DiscountDetail>> discountsBySkuId = priceResult.lineItems().stream()
+                .collect(Collectors.toMap(PromotionPricePort.LineDiscount::skuId,
+                        PromotionPricePort.LineDiscount::discounts, (left, right) -> left));
+        items = items.stream()
+                .map(li -> {
+                    List<DiscountDetail> discounts = discountsBySkuId.getOrDefault(li.getSkuId(), List.of());
+                    return discounts.isEmpty() ? li : li.withDiscounts(discounts);
+                })
+                .toList();
+        long payableAmountCents = priceResult.payableAmountCents();
+
+        Order order = new Order(dto.userId(), address, items, couponId, payableAmountCents);
         Order saved = orderRepository.save(order);
 
         List<OccupyInventoryPort.ItemQuantity> occupyItems = items.stream()
@@ -111,9 +135,23 @@ public class OrderApplicationService {
             }
         }
 
+        if (couponId != null) {
+            try {
+                couponLifecyclePort.lock(couponId, saved.getOrderId());
+            } catch (Exception e) {
+                if (!occupyItems.isEmpty()) {
+                    releaseInventoryPort.release(saved.getOrderId());
+                }
+                throw new OrderBadRequestException("锁定优惠券失败");
+            }
+        }
+
         try {
             createPaymentPort.createPayment(saved.getOrderId(), saved.getTotalAmountCents());
         } catch (Exception e) {
+            if (couponId != null) {
+                couponLifecyclePort.release(couponId);
+            }
             if (!occupyItems.isEmpty()) {
                 releaseInventoryPort.release(saved.getOrderId());
             }
@@ -123,8 +161,9 @@ public class OrderApplicationService {
         List<ItemSnapshot> itemSnapshots = saved.getItems().stream()
                 .map(li -> new ItemSnapshot(li.getSkuId(), li.getSpuId(), li.getQuantity(), li.getUnitPriceCents()))
                 .toList();
+        PricingSnapshot pricingSnapshot = buildPricingSnapshot(saved);
         outboundEventPublisher.publish(new OrderCreatedEvent(saved.getOrderId(), saved.getUserId(),
-                saved.getTotalAmountCents(), itemSnapshots));
+                saved.getTotalAmountCents(), saved.getCouponId(), pricingSnapshot, itemSnapshots));
 
         return toDto(saved);
     }
@@ -154,6 +193,9 @@ public class OrderApplicationService {
         }
 
         releaseInventoryPort.release(orderId);
+        if (order.getCouponId() != null) {
+            couponLifecyclePort.release(order.getCouponId());
+        }
         if (order.getStatus() != OrderStatus.PENDING_PAYMENT) {
             refundPaymentPort.refund(orderId);
         }
@@ -171,14 +213,16 @@ public class OrderApplicationService {
                 order.isPhysicalDelivered(),
                 order.isServiceActivated(),
                 order.getCreatedAt(),
-                Instant.now()
+                Instant.now(),
+                order.getCouponId()
         );
         orderRepository.save(cancelled);
         List<ItemSnapshot> cancelSnapshots = order.getItems().stream()
                 .map(li -> new ItemSnapshot(li.getSkuId(), li.getSpuId(), li.getQuantity(), li.getUnitPriceCents()))
                 .toList();
+        PricingSnapshot pricingSnapshot = buildPricingSnapshot(order);
         outboundEventPublisher.publish(new OrderCancelledEvent(orderId, order.getUserId(),
-                order.getTotalAmountCents(), cancelSnapshots));
+                order.getTotalAmountCents(), order.getCouponId(), pricingSnapshot, cancelSnapshots));
     }
 
     @Transactional(readOnly = true)
@@ -302,10 +346,13 @@ public class OrderApplicationService {
         List<OrderDto.OrderLineItemDto> itemDtos = order.getItems().stream()
             .map(li -> {
                 String displayName = resolveDisplayName(li.getSkuId(), li.getDisplayName());
+                List<OrderDto.DiscountDetailDto> discountDtos = li.getDiscounts().stream()
+                    .map(d -> new OrderDto.DiscountDetailDto(d.type(), d.sourceId(), d.amountCents(), d.description()))
+                    .toList();
                 return new OrderDto.OrderLineItemDto(
                     li.getLineItemId(), li.getSkuId(), li.getQuantity(),
                     li.getUnitPriceCents(), li.getTotalPriceCents(), displayName, li.getItemType().name(),
-                    li.getServiceAttributes()
+                    li.getServiceAttributes(), discountDtos
                 );
             })
             .toList();
@@ -324,6 +371,7 @@ public class OrderApplicationService {
             order.getOrderId(),
             order.getStatus().name(),
             order.getTotalAmountCents(),
+            order.getCouponId(),
             itemDtos,
             addr,
             order.getCreatedAt(),
@@ -342,5 +390,32 @@ public class OrderApplicationService {
             // Catalog 不可用或 SKU 已删除时沿用存储的展示名
         }
         return storedDisplayName != null ? storedDisplayName : "商品";
+    }
+
+    private PricingSnapshot buildPricingSnapshot(Order order) {
+        long originalAmountCents = order.getItems().stream()
+            .mapToLong(OrderLineItem::getTotalPriceCents)
+            .sum();
+        long activityDiscountAmountCents = order.getItems().stream()
+            .flatMap(li -> li.getDiscounts().stream())
+            .filter(d -> "ACTIVITY".equalsIgnoreCase(d.type()))
+            .mapToLong(DiscountDetail::amountCents)
+            .sum();
+        long couponDiscountAmountCents = order.getItems().stream()
+            .flatMap(li -> li.getDiscounts().stream())
+            .filter(d -> "COUPON".equalsIgnoreCase(d.type()))
+            .mapToLong(DiscountDetail::amountCents)
+            .sum();
+        long discountAmountCents = order.getItems().stream()
+            .flatMap(li -> li.getDiscounts().stream())
+            .mapToLong(DiscountDetail::amountCents)
+            .sum();
+        return new PricingSnapshot(
+            originalAmountCents,
+            activityDiscountAmountCents,
+            couponDiscountAmountCents,
+            discountAmountCents,
+            order.getTotalAmountCents()
+        );
     }
 }

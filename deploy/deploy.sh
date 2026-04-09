@@ -150,7 +150,7 @@ case "${1:-}" in
     if echo "$CHANGED" | grep -qE '^(frontend/|deploy/Dockerfile\.nginx|deploy/nginx/)'; then
       REBUILD_NGINX=true
     fi
-    if echo "$CHANGED" | grep -qE '^(hmall-mcp/|deploy/Dockerfile\.mcp|docs/ontology\.md)'; then
+    if echo "$CHANGED" | grep -qE '^(hmall-mcp/|deploy/Dockerfile\.mcp|docs/ontology/)'; then
       REBUILD_MCP=true
     fi
 

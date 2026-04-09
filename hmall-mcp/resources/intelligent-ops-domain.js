@@ -1,13 +1,13 @@
 /**
  * 智能运营领域知识 Resource。
- * 内容维护在 docs/intelligent-ops-ontology.md，此文件仅负责加载并注册为 MCP Resource。
+ * 内容维护在 docs/ontology/events-and-processes.md，此文件仅负责加载并注册为 MCP Resource。
  */
 import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const ONTOLOGY_PATH = resolve(__dirname, '../../docs/intelligent-ops-ontology.md')
+const ONTOLOGY_PATH = resolve(__dirname, '../../docs/ontology/events-and-processes.md')
 
 export const INTELLIGENT_OPS_DOMAIN_URI = 'hmall://intelligent-ops/domain-knowledge'
 

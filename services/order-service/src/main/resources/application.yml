@@ -56,3 +56,6 @@ payment:
 
 fulfillment:
   base-url: http://localhost:8088
+
+promotion:
+  base-url: http://localhost:8090

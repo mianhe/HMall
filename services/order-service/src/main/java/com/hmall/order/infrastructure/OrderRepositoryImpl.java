@@ -7,6 +7,8 @@ import com.hmall.order.infrastructure.persistence.OrderEntity;
 import com.hmall.order.infrastructure.persistence.OrderJpaRepository;
 import com.hmall.order.infrastructure.persistence.OrderLineItemEntity;
 import com.hmall.order.infrastructure.persistence.OrderLineItemJpaRepository;
+
+import java.util.Collections;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -115,6 +117,7 @@ public class OrderRepositoryImpl implements OrderRepository {
             e.setDistrict(addr.district());
             e.setDetail(addr.detail());
         }
+        e.setCouponId(order.getCouponId());
         e.setPhysicalDelivered(order.isPhysicalDelivered());
         e.setServiceActivated(order.isServiceActivated());
         e.setCreatedAt(order.getCreatedAt());
@@ -143,6 +146,13 @@ public class OrderRepositoryImpl implements OrderRepository {
                 throw new IllegalStateException("Failed to serialize serviceAttributes", ex);
             }
         }
+        if (item.getDiscounts() != null && !item.getDiscounts().isEmpty()) {
+            try {
+                e.setDiscountsJson(objectMapper.writeValueAsString(item.getDiscounts()));
+            } catch (Exception ex) {
+                throw new IllegalStateException("Failed to serialize discounts", ex);
+            }
+        }
         return e;
     }
 
@@ -162,7 +172,8 @@ public class OrderRepositoryImpl implements OrderRepository {
             addr, lineItemsWithIds,
             entity.isPhysicalDelivered(),
             entity.isServiceActivated(),
-            entity.getCreatedAt(), entity.getUpdatedAt()
+            entity.getCreatedAt(), entity.getUpdatedAt(),
+            entity.getCouponId()
         );
     }
 
@@ -175,12 +186,20 @@ public class OrderRepositoryImpl implements OrderRepository {
                 throw new IllegalStateException("Failed to deserialize serviceAttributes", ex);
             }
         }
+        List<DiscountDetail> discounts = Collections.emptyList();
+        if (e.getDiscountsJson() != null && !e.getDiscountsJson().isBlank()) {
+            try {
+                discounts = objectMapper.readValue(e.getDiscountsJson(), new TypeReference<List<DiscountDetail>>() {});
+            } catch (Exception ex) {
+                throw new IllegalStateException("Failed to deserialize discounts", ex);
+            }
+        }
         return new OrderLineItem(
             e.getId(), e.getOrderId(), e.getSkuId(),
             e.getQuantity(), e.getUnitPriceCents().longValue(), e.getTotalPriceCents().longValue(),
             e.getDisplayName(),
             OrderItemType.valueOf(e.getItemType()),
-            e.getRelatedSkuId(), e.getSpuId(), attrs
+            e.getRelatedSkuId(), e.getSpuId(), attrs, discounts
         );
     }
 }

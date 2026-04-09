@@ -50,6 +50,9 @@ public class BffRoutingService {
         if (path.startsWith("/api/fulfillment")) {
             return new Downstream("fulfillment", props.fulfillment().baseUrl());
         }
+        if (path.startsWith("/api/promotion")) {
+            return new Downstream("promotion", props.promotion().baseUrl());
+        }
         return null;
     }
 

@@ -99,11 +99,11 @@ Order 发布的三个事件直接发送至 Kafka，供其他应用（如 Invento
 
 | Topic | 事件 | 消息体（JSON） |
 |-------|------|----------------|
-| `order.created` | OrderCreated | eventType, orderId, userId, totalAmountCents, items: [{ skuId, spuId, quantity, unitPriceCents }], occurredAt |
-| `order.cancelled` | OrderCancelled | eventType, orderId, userId, totalAmountCents, items: [{ skuId, spuId, quantity, unitPriceCents }], occurredAt |
-| `order.completed` | OrderCompleted | eventType, orderId, userId, totalAmountCents, items: [{ skuId, spuId, quantity, unitPriceCents }], occurredAt |
+| `order.created` | OrderCreated | eventType, orderId, userId, totalAmountCents, couponId?, pricingSnapshot{originalAmountCents,activityDiscountAmountCents,couponDiscountAmountCents,discountAmountCents,payableAmountCents}, items: [{ skuId, spuId, quantity, unitPriceCents }], occurredAt |
+| `order.cancelled` | OrderCancelled | eventType, orderId, userId, totalAmountCents, couponId?, pricingSnapshot{originalAmountCents,activityDiscountAmountCents,couponDiscountAmountCents,discountAmountCents,payableAmountCents}, items: [{ skuId, spuId, quantity, unitPriceCents }], occurredAt |
+| `order.completed` | OrderCompleted | eventType, orderId, userId, totalAmountCents, couponId?, pricingSnapshot{originalAmountCents,activityDiscountAmountCents,couponDiscountAmountCents,discountAmountCents,payableAmountCents}, items: [{ skuId, spuId, quantity, unitPriceCents }], occurredAt |
 
-> 以上 payload 增强来自业务需求 [智能运营 Step 1](../../business-requirements/intelligent-ops-step1/overview.md)：userId、totalAmountCents、items 含价格快照，供多流程分析（用户发展、商品运营）使用。
+> 以下变更来自业务需求 [用户定向与满件折扣](../../business-requirements/promotion-theme/user-targeting/overview.md)：为支持“交易全链路回溯”，Order 三个事件统一升级为同构 payload（couponId + pricingSnapshot）。`totalAmountCents` 保留为兼容字段，语义等于 `pricingSnapshot.payableAmountCents`。
 
 配置：`application.yml` 中 `spring.kafka.bootstrap-servers`、`order.kafka.topic.*`。运行前需启动 Kafka（如 `docker compose -f infra/docker-compose.yml up -d`）。Kafka 默认启用，测试中排除 `KafkaAutoConfiguration`。
 

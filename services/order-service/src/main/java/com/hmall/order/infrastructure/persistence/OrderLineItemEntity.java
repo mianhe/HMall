@@ -40,6 +40,9 @@ public class OrderLineItemEntity {
     @Column(name = "service_attributes", length = 2048)
     private String serviceAttributesJson;
 
+    @Column(name = "discounts_json", length = 2048)
+    private String discountsJson;
+
     public OrderLineItemEntity() {}
 
     public Long getId() { return id; }
@@ -64,4 +67,6 @@ public class OrderLineItemEntity {
     public void setSpuId(Long spuId) { this.spuId = spuId; }
     public String getServiceAttributesJson() { return serviceAttributesJson; }
     public void setServiceAttributesJson(String serviceAttributesJson) { this.serviceAttributesJson = serviceAttributesJson; }
+    public String getDiscountsJson() { return discountsJson; }
+    public void setDiscountsJson(String discountsJson) { this.discountsJson = discountsJson; }
 }

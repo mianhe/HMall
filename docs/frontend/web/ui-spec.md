@@ -19,10 +19,12 @@
 
 | 路由 | 页面 | 功能 | 后端 API |
 |------|------|------|----------|
-| `/` | HomePage | 首页：类目导航 + 商品展示（两层类目，参考 VMALL） | `GET /api/categories`、`GET /api/products` |
-| `/products/:id` | ProductDetailPage | 商品详情（图廊、规格、价格、详情/参数）；「立即购买」与「加入购物车」 | `GET /api/products/{id}`、`/dimensions`、`/skus`；`POST /api/cart/items` |
-| `/cart` | CartPage | 购物车：列表、改数量、删除、全选、去结算 | `GET /api/cart`、`POST/PUT/DELETE /api/cart/items`、`POST /api/cart/checkout-preview` |
-| `/checkout` | CheckoutPage | 结账：单件或购物车多件；选地址、提交订单 | `POST /api/orders`、`GET /api/users/{userId}/addresses`、Cart API |
+| `/` | HomePage | 首页：类目导航 + 商品展示（两层类目，参考 VMALL）；商品卡片可展示活动价；🔄 支持“专享/满件”标签 | `GET /api/categories`、`GET /api/products`、`POST /api/promotion/preview-sku-prices` |
+| `/products/:id` | ProductDetailPage | 商品详情（图廊、规格、价格、详情/参数）；展示活动价/活动标签；「立即购买」与「加入购物车」；🔄 显示命中条件/不命中原因 | `GET /api/products/{id}`、`/dimensions`、`/skus`；`POST /api/cart/items`、`POST /api/promotion/preview-sku-prices` |
+| `/cart` | CartPage | 购物车：列表、改数量、删除、全选、去结算；合计展示活动优惠后实付 | `GET /api/cart`、`POST/PUT/DELETE /api/cart/items`、`POST /api/cart/checkout-preview`、`POST /api/promotion/calculate-price` |
+| `/checkout` | CheckoutPage | 结账：单件或购物车多件；选地址、提交订单；展示活动优惠与券优惠分项；🔄 展示 pricingSnapshot（原价/活动/券/实付） | `POST /api/orders`、`GET /api/users/{userId}/addresses`、Cart API、Promotion API |
+
+> 以下变更来自业务需求 [用户定向与满件折扣](../../business-requirements/promotion-theme/user-targeting/overview.md)。
 | `/addresses` | AddressPage | 收货地址管理：列表、新增、编辑、删除 | `GET/POST/PUT/DELETE /api/users/{userId}/addresses/{id}` |
 | `/orders` | OrderListPage | 订单列表：按状态筛选（待付款/待收货/待评价） | `GET /api/orders?userId=xxx` |
 | `/orders/:id` | OrderDetailPage | 订单详情：订单信息、取消、模拟支付 | `GET /api/orders/{id}`、`POST /api/orders/{id}/cancel` |

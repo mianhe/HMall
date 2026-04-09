@@ -13,5 +13,5 @@ scripts
 *.iml
 
 # MCP 构建需要这些文件
-!docs/ontology.md
-!docs/intelligent-ops-ontology.md
+!docs/ontology/hmall-ontology.md
+!docs/ontology/events-and-processes.md

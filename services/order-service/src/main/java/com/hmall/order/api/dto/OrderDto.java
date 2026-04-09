@@ -8,6 +8,7 @@ public record OrderDto(
     Long orderId,
     String status,
     Long totalAmountCents,
+    Long couponId,
     List<OrderLineItemDto> items,
     OrderCreateDto.ShippingAddressDto shippingAddress,
     Instant createdAt,
@@ -21,6 +22,14 @@ public record OrderDto(
         Long totalPriceCents,
         String displayName,
         String itemType,
-        Map<String, Object> serviceAttributes
+        Map<String, Object> serviceAttributes,
+        List<DiscountDetailDto> discounts
+    ) {}
+
+    public record DiscountDetailDto(
+        String type,
+        Long sourceId,
+        long amountCents,
+        String description
     ) {}
 }

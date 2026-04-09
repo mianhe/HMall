@@ -12,6 +12,9 @@ const routes = [
   { path: '/events', name: 'Events', component: () => import('../pages/EventsPage.vue'), meta: { title: '事件' } },
   { path: '/events/journey/:orderId?', redirect: '/events' },
   { path: '/activity/journey/:orderId?', redirect: '/events' },
+  { path: '/coupon-templates', name: 'CouponTemplates', component: () => import('../pages/CouponTemplatePage.vue'), meta: { title: '券模板管理' } },
+  { path: '/promotion-activities', name: 'PromotionActivities', component: () => import('../pages/PromotionActivityPage.vue'), meta: { title: '促销活动管理' } },
+  { path: '/user-segmentation', name: 'UserSegmentation', component: () => import('../pages/UserSegmentationPage.vue'), meta: { title: '用户分群管理' } },
   { path: '/settings', name: 'Settings', component: () => import('../pages/SettingsPage.vue'), meta: { title: '系统设置' } },
 ]
 

@@ -129,12 +129,25 @@
               镭雕：{{ engravingPreview(item.serviceAttributes) }}
             </p>
           </div>
-          <p class="text-vmall-red font-medium shrink-0">
-            ¥{{ formatPrice(item.totalPriceCents || item.unitPriceCents * item.quantity) }}
-          </p>
+          <div class="shrink-0 text-right">
+            <p class="text-vmall-red font-medium">
+              ¥{{ formatPrice(item.totalPriceCents || item.unitPriceCents * item.quantity) }}
+            </p>
+            <p v-if="item.discounts?.length" class="text-xs text-green-600">
+              -¥{{ formatPrice(item.discounts.reduce((s, d) => s + d.amountCents, 0)) }}
+            </p>
+          </div>
+        </div>
+        <div v-if="order.couponId" class="pt-3 mt-3 border-t border-vmall-gray-border text-sm text-right space-y-1">
+          <div class="text-vmall-gray-text">
+            商品原价：¥{{ formatPrice(orderOriginalAmountCents) }}
+          </div>
+          <div class="text-green-600">
+            优惠券抵扣：-¥{{ formatPrice(orderOriginalAmountCents - order.totalAmountCents) }}
+          </div>
         </div>
         <div class="pt-4 text-right">
-          合计：<span class="text-xl font-bold text-vmall-red">¥{{ formatPrice(order.totalAmountCents) }}</span>
+          实付：<span class="text-xl font-bold text-vmall-red">¥{{ formatPrice(order.totalAmountCents) }}</span>
         </div>
       </div>
 
@@ -301,6 +314,11 @@ function findEventTime(eventTypes) {
 function formatPrice(cents) {
   return ((cents || 0) / 100).toFixed(2)
 }
+
+const orderOriginalAmountCents = computed(() => {
+  if (!order.value?.items) return 0
+  return order.value.items.reduce((sum, item) => sum + (item.totalPriceCents || item.unitPriceCents * item.quantity), 0)
+})
 
 function hasEngravingContent(item) {
   const attrs = item?.serviceAttributes

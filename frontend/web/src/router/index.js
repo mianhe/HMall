@@ -10,6 +10,8 @@ const routes = [
   { path: '/addresses', name: 'AddressList', component: () => import('../pages/AddressPage.vue'), meta: { title: '收货地址', requiresAuth: true } },
   { path: '/orders', name: 'OrderList', component: () => import('../pages/OrderListPage.vue'), meta: { title: '我的订单', requiresAuth: true } },
   { path: '/orders/:id', name: 'OrderDetail', component: () => import('../pages/OrderDetailPage.vue'), meta: { title: '订单详情', requiresAuth: true } },
+  { path: '/coupons', name: 'CouponCenter', component: () => import('../pages/CouponCenterPage.vue'), meta: { title: '领券中心', requiresAuth: true } },
+  { path: '/my/coupons', name: 'MyCoupons', component: () => import('../pages/MyCouponsPage.vue'), meta: { title: '我的优惠券', requiresAuth: true } },
   { path: '/login', name: 'Login', component: () => import('../pages/LoginPage.vue'), meta: { title: '登录' } },
   { path: '/register', name: 'Register', component: () => import('../pages/RegisterPage.vue'), meta: { title: '注册' } },
 ]

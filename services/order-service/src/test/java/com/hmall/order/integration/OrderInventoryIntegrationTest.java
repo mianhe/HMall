@@ -60,6 +60,7 @@ class OrderInventoryIntegrationTest {
         registry.add("inventory.base-url", () -> base);
         registry.add("payment.base-url", () -> base);
         registry.add("fulfillment.base-url", () -> base);
+        registry.add("promotion.base-url", () -> base);
     }
 
     @BeforeAll
@@ -90,6 +91,20 @@ class OrderInventoryIntegrationTest {
                         .withBody("{\"paymentId\":1}")));
         wireMock.stubFor(post(urlPathEqualTo("/api/fulfillment/cancel"))
                 .willReturn(aResponse().withStatus(200)));
+        wireMock.stubFor(post(urlPathEqualTo("/api/promotion/calculate-price"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {
+                                  "originalAmountCents": 1199800,
+                                  "discountAmountCents": 0,
+                                  "payableAmountCents": 1199800,
+                                  "lineItems": [
+                                    { "skuId": 123, "discounts": [] }
+                                  ]
+                                }
+                                """)));
     }
 
     @AfterAll

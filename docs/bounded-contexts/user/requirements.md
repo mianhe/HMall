@@ -68,3 +68,25 @@ flowchart LR
 | 1. 管理用户 | user.feature | 1.1～1.7 | ✅ 已实现 |
 | 2. 登录 | login.feature | 2.1～2.5 | ✅ 已实现 |
 | 3. 收货地址管理 | address.feature | 3.1～3.7 | ✅ 已实现 |
+
+---
+
+## 4. 用户分群查询（来自业务需求 [用户定向与满件折扣](../../business-requirements/promotion-theme/user-targeting/overview.md)）
+`user-segment.feature`
+
+- 🔲 4.1 按 userId 查询用户分群信息应返回 level 与 tags
+- 🔲 4.2 用户无标签时应返回空 tags（非错误）
+- 🔲 4.3 用户不存在时返回 404
+
+---
+
+## 5. 用户分群与圈选管理（来自业务需求 [用户分群与圈选](../../business-requirements/user-management-theme/user-segmentation/overview.md)）
+`user-segmentation-management.feature`
+
+- 🔲 5.1 按用户 ID 更新等级应成功并立即可查询
+- 🔲 5.2 按用户 ID 覆盖标签集合应成功并立即可查询
+- 🔲 5.3 创建圈选规则成功后状态为 DRAFT
+- 🔲 5.4 预览圈选规则应返回命中人数、示例用户与未命中原因统计
+- 🔲 5.5 命中人数为 0 时激活规则应失败并返回可解释错误
+- 🔲 5.6 规则条件冲突（如 tagsAny 与 excludeTags 同值）应创建失败
+- 🔲 5.7 激活成功后规则状态变为 ACTIVE

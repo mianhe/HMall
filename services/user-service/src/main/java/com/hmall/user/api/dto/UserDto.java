@@ -1,3 +1,5 @@
 package com.hmall.user.api.dto;
 
-public record UserDto(Long id, String username) {}
+import java.util.Set;
+
+public record UserDto(Long id, String username, String level, Set<String> tags) {}

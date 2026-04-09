@@ -27,6 +27,11 @@
 | `/engraving-patterns` | EngravingPatternPage | 镭雕图案库：列表展示图案（ID、缩略图、名称、排序、启用状态、操作）；过滤（启用状态）；新增/编辑/删除图案；图片上传或手动输入 URL | `GET/POST /api/engraving-patterns`、`GET/PUT/DELETE /api/engraving-patterns/{id}`、`POST /api/files/upload` |
 | `/activity` | ActivityPage | 活动监控仪表盘：统计卡片 + 最近事件流水 | `GET /api/activities/stats`、`GET /api/activities/recent` |
 | `/activity/journey/:orderId?` | OrderJourneyPage | 订单旅程回放：按 BC 分组的事件时间线，展示交易全生命周期与 Saga 补偿路径 | `GET /api/activities?orderId={id}` |
+| `/coupon-templates` | CouponTemplatePage | 券模板管理：列表展示（ID、名称、类型、门槛、优惠、库存、限领、有效期、状态、操作）；新增满减/折扣券模板（弹窗表单）；停用模板；🔄 可配置定向规则（等级/标签） | `GET/POST /api/promotion/coupon-templates`、`POST /api/promotion/coupon-templates/{id}/deactivate` |
+| `/promotion-activities` | PromotionActivityPage | 促销活动管理：活动列表（类型、互斥组、有效期、状态）；创建活动（单品直降/订单满减/满件折扣）；活动上下线；🔄 可配置定向规则与满件规则 | `GET/POST /api/promotion/activities`、`POST /api/promotion/activities/{id}/activate`、`POST /api/promotion/activities/{id}/deactivate` |
+| `/user-segmentation` | UserSegmentationPage | 用户分群管理：按 userId 维护等级/标签；创建圈选规则；预览命中人数与原因；激活规则 | `GET /api/users/{id}`、`PUT /api/users/{id}/level`、`PUT /api/users/{id}/tags`、`POST/GET /api/users/segment-rules`、`POST /api/users/segment-rules/{id}/preview`、`POST /api/users/segment-rules/{id}/activate` |
+
+> 以下变更来自业务需求 [用户定向与满件折扣](../../business-requirements/promotion-theme/user-targeting/overview.md)。
 | `/settings` | SettingsPage | 系统设置：按分类展示配置项（当前含「支付设置」） | `GET/PUT /api/payments/settings` |
 
 ### 2.2 Catalog 页
@@ -161,6 +166,7 @@ AI Chat 以全局 Drawer 形式存在，从右侧滑出，所有路由页面共�
 | 活动监控 | AppHeader + 时间范围选择器（pill tabs + 日期）+ 统计卡片组 + 最近活动表格 + 订单旅程入口 |
 | 订单旅程 | AppHeader + 面包屑 + 顶部概要卡片 + 分组垂直时间线（BC 彩色 badge、事件详情可展开） |
 | 系统设置 | AppHeader + 分类卡片（支付设置：输入框 + 保存按钮） |
+| 用户分群管理 | AppHeader + 用户画像编辑区（等级/标签）+ 规则编辑区（levels/tags）+ 预览区（命中数/样例/原因）+ 规则列表区 |
 
 ### 3.5 AI Chat 组件
 

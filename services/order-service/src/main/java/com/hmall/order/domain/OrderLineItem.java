@@ -1,6 +1,7 @@
 package com.hmall.order.domain;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -17,6 +18,7 @@ public class OrderLineItem {
     private final Long relatedSkuId;
     private final Long spuId;
     private final Map<String, Object> serviceAttributes;
+    private final List<DiscountDetail> discounts;
 
     public OrderLineItem(Long skuId, int quantity, long unitPriceCents, String displayName, OrderItemType itemType) {
         this(skuId, quantity, unitPriceCents, displayName, itemType, null, null, null);
@@ -40,17 +42,27 @@ public class OrderLineItem {
         this.relatedSkuId = relatedSkuId;
         this.spuId = spuId;
         this.serviceAttributes = serviceAttributes != null ? Map.copyOf(serviceAttributes) : null;
+        this.discounts = List.of();
     }
 
     public OrderLineItem(Long lineItemId, Long orderId, Long skuId, int quantity,
                           long unitPriceCents, long totalPriceCents, String displayName,
                           OrderItemType itemType, Long relatedSkuId, Long spuId) {
-        this(lineItemId, orderId, skuId, quantity, unitPriceCents, totalPriceCents, displayName, itemType, relatedSkuId, spuId, null);
+        this(lineItemId, orderId, skuId, quantity, unitPriceCents, totalPriceCents,
+                displayName, itemType, relatedSkuId, spuId, null, List.of());
     }
 
     public OrderLineItem(Long lineItemId, Long orderId, Long skuId, int quantity,
                           long unitPriceCents, long totalPriceCents, String displayName,
                           OrderItemType itemType, Long relatedSkuId, Long spuId, Map<String, Object> serviceAttributes) {
+        this(lineItemId, orderId, skuId, quantity, unitPriceCents, totalPriceCents,
+                displayName, itemType, relatedSkuId, spuId, serviceAttributes, List.of());
+    }
+
+    public OrderLineItem(Long lineItemId, Long orderId, Long skuId, int quantity,
+                          long unitPriceCents, long totalPriceCents, String displayName,
+                          OrderItemType itemType, Long relatedSkuId, Long spuId,
+                          Map<String, Object> serviceAttributes, List<DiscountDetail> discounts) {
         this.lineItemId = lineItemId;
         this.orderId = orderId;
         this.skuId = skuId;
@@ -62,6 +74,15 @@ public class OrderLineItem {
         this.relatedSkuId = relatedSkuId;
         this.spuId = spuId;
         this.serviceAttributes = serviceAttributes != null ? Map.copyOf(serviceAttributes) : null;
+        this.discounts = discounts != null ? List.copyOf(discounts) : List.of();
+    }
+
+    public OrderLineItem withDiscounts(List<DiscountDetail> discounts) {
+        return new OrderLineItem(
+                this.lineItemId, this.orderId, this.skuId, this.quantity,
+                this.unitPriceCents, this.totalPriceCents, this.displayName,
+                this.itemType, this.relatedSkuId, this.spuId,
+                this.serviceAttributes, discounts);
     }
 
     public Long getLineItemId() { return lineItemId; }
@@ -75,4 +96,5 @@ public class OrderLineItem {
     public Long getRelatedSkuId() { return relatedSkuId; }
     public Long getSpuId() { return spuId; }
     public Map<String, Object> getServiceAttributes() { return serviceAttributes != null ? Collections.unmodifiableMap(serviceAttributes) : null; }
+    public List<DiscountDetail> getDiscounts() { return discounts; }
 }

@@ -11,6 +11,9 @@
         <router-link to="/events" class="hover:underline opacity-95">事件</router-link>
         <router-link to="/activity" class="hover:underline opacity-95">监控</router-link>
         <router-link to="/ops" class="hover:underline opacity-95">智能运营</router-link>
+        <router-link to="/coupon-templates" class="hover:underline opacity-95">券模板</router-link>
+        <router-link to="/promotion-activities" class="hover:underline opacity-95">促销活动</router-link>
+        <router-link to="/user-segmentation" class="hover:underline opacity-95">用户分群</router-link>
         <router-link to="/settings" class="hover:underline opacity-95">设置</router-link>
       </nav>
     </div>

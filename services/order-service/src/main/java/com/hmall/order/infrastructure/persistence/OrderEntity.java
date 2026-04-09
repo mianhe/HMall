@@ -32,6 +32,9 @@ public class OrderEntity {
     private String district;
     @Column(name = "detail")
     private String detail;
+    @Column(name = "coupon_id")
+    private Long couponId;
+
     @Column(name = "physical_delivered", nullable = false)
     private boolean physicalDelivered;
     @Column(name = "service_activated", nullable = false)
@@ -72,4 +75,6 @@ public class OrderEntity {
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public Long getCouponId() { return couponId; }
+    public void setCouponId(Long couponId) { this.couponId = couponId; }
 }

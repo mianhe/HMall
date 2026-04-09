@@ -19,6 +19,7 @@
     <div v-else class="space-y-4">
       <UserProfileCard :username="username" @logout="handleLogout" />
       <MyOrdersCard />
+      <MyCouponsCard />
     </div>
   </div>
 </template>
@@ -28,6 +29,7 @@ import { useRouter } from 'vue-router'
 import { useAuth } from '../shared/auth.js'
 import UserProfileCard from '../shared/ui/organisms/UserProfileCard.vue'
 import MyOrdersCard from '../shared/ui/organisms/MyOrdersCard.vue'
+import MyCouponsCard from '../shared/ui/organisms/MyCouponsCard.vue'
 
 const router = useRouter()
 const { isLoggedIn, username, logout } = useAuth()

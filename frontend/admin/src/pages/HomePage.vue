@@ -35,6 +35,12 @@
         >
           系统设置
         </router-link>
+        <router-link
+          to="/user-segmentation"
+          class="inline-flex items-center px-4 py-3 rounded-lg bg-white border border-vmall-gray-border text-vmall-gray-text hover:bg-vmall-gray-bg transition-colors"
+        >
+          用户分群管理
+        </router-link>
       </div>
     </main>
   </div>

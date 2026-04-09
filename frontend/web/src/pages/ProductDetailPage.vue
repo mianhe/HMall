@@ -46,6 +46,19 @@
           <div class="mb-6">
             <template v-if="matchedSku">
               <span class="text-2xl font-bold text-vmall-red">{{ formatPrice(matchedSku.priceCents) }}</span>
+              <p
+                v-if="matchedSkuActivityPreview && matchedSkuActivityPreview.activityDiscountCents > 0"
+                class="text-sm text-vmall-red mt-1"
+              >
+                活动价 {{ formatPrice(matchedSkuActivityPreview.activityPriceCents) }}
+                <span class="text-xs text-vmall-gray-text ml-1">({{ matchedSkuActivityPreview.activityLabel || '促销活动' }})</span>
+              </p>
+              <p
+                v-else-if="matchedSkuActivityPreview && matchedSkuActivityPreview.ineligibleReason"
+                class="text-sm text-vmall-gray-text mt-1"
+              >
+                {{ matchedSkuActivityPreview.ineligibleReason }}
+              </p>
               <p v-if="!matchedSkuInStock" class="text-sm text-amber-600 mt-1">该规格暂无库存</p>
             </template>
             <template v-else-if="priceRange">
@@ -158,14 +171,14 @@
           <!-- 立即购买 / 加入购物车（V-Mall：缺货时禁用并显示提示） -->
           <div class="mt-6 flex flex-wrap gap-3 items-center">
             <button
-              :disabled="!matchedSku || !matchedSkuInStock || (selectedEngravingOption && !!engravingValidationError)"
+              :disabled="!matchedSku || !matchedSkuInStock"
               @click="goCheckout"
               class="px-8 py-3 rounded-lg bg-vmall-red text-white font-medium hover:bg-vmall-red-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               立即购买
             </button>
             <button
-              :disabled="!matchedSku || !matchedSkuInStock || addingToCart || (selectedEngravingOption && !!engravingValidationError)"
+              :disabled="!matchedSku || !matchedSkuInStock || addingToCart"
               @click="addToCart"
               class="px-8 py-3 rounded-lg border-2 border-vmall-red text-vmall-red font-medium hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
@@ -217,6 +230,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { getProduct, getDimensions, getSkus, getAvailableServices, getEngravingPatterns } from '../shared/api/catalog.js'
 import { batchGetStock } from '../shared/api/inventory.js'
 import { addCartItem } from '../shared/api/cart.js'
+import { previewSkuPrices } from '../shared/api/promotion.js'
 import { useAuth } from '../shared/auth.js'
 import { formatPrice } from '../shared/utils/price.js'
 import { isEngravingService, buildEngravingAttributes, validateEngravingContent } from '../shared/utils/engraving.js'
@@ -227,6 +241,7 @@ const { isLoggedIn } = useAuth()
 const product = ref(null)
 const dimensions = ref([])
 const skus = ref([])
+const skuActivityPreviewById = ref({})
 const stockBySkuId = ref({})
 const availableServices = ref([])
 const selectedServiceKey = ref(null)
@@ -299,10 +314,19 @@ const matchedSkuInStock = computed(() => {
   return stock.available > 0
 })
 
+const matchedSkuActivityPreview = computed(() => {
+  const sku = matchedSku.value
+  if (!sku) return null
+  return skuActivityPreviewById.value[sku.id] || null
+})
+
 /** 未选规格时的价格区间（用于占位展示） */
 const priceRange = computed(() => {
   if (!skus.value.length) return null
-  const prices = skus.value.map((s) => s.priceCents)
+  const prices = skus.value.map((s) => {
+    const preview = skuActivityPreviewById.value[s.id]
+    return preview?.activityPriceCents ?? s.priceCents
+  })
   return { min: Math.min(...prices), max: Math.max(...prices) }
 })
 
@@ -419,7 +443,6 @@ function goCheckout() {
     router.push({ path: '/login', query: { redirect: `/products/${id.value}` } })
     return
   }
-  if (selectedEngravingOption.value && engravingValidationError.value) return
   const items = [
     {
       skuId: sku.id,
@@ -489,6 +512,7 @@ async function load() {
   product.value = null
   dimensions.value = []
   skus.value = []
+  skuActivityPreviewById.value = {}
   availableServices.value = []
   stockBySkuId.value = {}
   selectedOptionIds.value = {}
@@ -509,6 +533,12 @@ async function load() {
     product.value = p
     dimensions.value = dims?.length ? dims : []
     skus.value = skuList?.length ? skuList : []
+    if (skuList?.length) {
+      const previews = await previewSkuPrices(
+        skuList.map((s) => ({ skuId: s.id, unitPriceCents: s.priceCents }))
+      ).catch(() => [])
+      skuActivityPreviewById.value = Object.fromEntries(previews.map((x) => [x.skuId, x]))
+    }
     if (p.productType !== 'SERVICE') {
       availableServices.value = services
       engravingPatterns.value = services.some(isEngravingService) ? patterns : []

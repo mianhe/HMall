@@ -66,6 +66,7 @@ class OrderPaymentIntegrationTest {
         registry.add("inventory.base-url", () -> base);
         registry.add("payment.base-url", () -> base);
         registry.add("fulfillment.base-url", () -> base);
+        registry.add("promotion.base-url", () -> base);
     }
 
     @BeforeAll
@@ -95,6 +96,20 @@ class OrderPaymentIntegrationTest {
                 .willReturn(aResponse().withStatus(200)));
         wireMock.stubFor(post(urlPathEqualTo("/api/fulfillment/cancel"))
                 .willReturn(aResponse().withStatus(200)));
+        wireMock.stubFor(post(urlPathEqualTo("/api/promotion/calculate-price"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {
+                                  "originalAmountCents": 1199800,
+                                  "discountAmountCents": 0,
+                                  "payableAmountCents": 1199800,
+                                  "lineItems": [
+                                    { "skuId": 123, "discounts": [] }
+                                  ]
+                                }
+                                """)));
     }
 
     @AfterAll
@@ -155,7 +170,7 @@ class OrderPaymentIntegrationTest {
                 order.getOrderId(), order.getUserId(), OrderStatus.PAID,
                 order.getTotalAmountCents(), order.getShippingAddress(), order.getItems(),
                 order.isPhysicalDelivered(), order.isServiceActivated(),
-                order.getCreatedAt(), Instant.now());
+                order.getCreatedAt(), Instant.now(), order.getCouponId());
         orderRepository.save(paidOrder);
 
         ResponseEntity<Void> cancelResp = restTemplate.postForEntity(

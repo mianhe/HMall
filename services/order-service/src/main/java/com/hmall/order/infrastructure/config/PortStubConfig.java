@@ -8,6 +8,8 @@ import com.hmall.order.infrastructure.inventory.NoOpReleaseInventoryAdapter;
 import com.hmall.order.infrastructure.kafka.NoOpOrderOutboundEventPublisher;
 import com.hmall.order.infrastructure.payment.NoOpCreatePaymentAdapter;
 import com.hmall.order.infrastructure.payment.NoOpRefundPaymentAdapter;
+import com.hmall.order.infrastructure.promotion.NoOpCouponLifecycleAdapter;
+import com.hmall.order.infrastructure.promotion.NoOpPromotionPriceAdapter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -58,5 +60,17 @@ public class PortStubConfig {
     @Bean(name = "noOpOrderOutboundEventPublisher")
     public OrderOutboundEventPublisher noOpOrderOutboundEventPublisher() {
         return new NoOpOrderOutboundEventPublisher();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(PromotionPricePort.class)
+    public PromotionPricePort promotionPricePort() {
+        return new NoOpPromotionPriceAdapter();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(CouponLifecyclePort.class)
+    public CouponLifecyclePort couponLifecyclePort() {
+        return new NoOpCouponLifecycleAdapter();
     }
 }

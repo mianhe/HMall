@@ -15,6 +15,7 @@
 
 - ✅ 1.1 提交订单（含明细、收货地址）时应成功并返回 orderId 及 PENDING_PAYMENT 状态
 - ✅ 1.1a 创建成功时应发布 OrderCreated 领域事件
+- 🔄 1.1c OrderCreated payload 使用统一 pricingSnapshot（含 original/activity/coupon/payable）并携带 couponId（来自业务需求 [用户定向与满件折扣](../../business-requirements/promotion-theme/user-targeting/overview.md)）
 - ✅ 1.1b 库存占用成功后订单才落库并返回成功；库存不足时应失败并返回库存不足错误（可打桩实现）
 - ✅ 1.2 订单明细为空时创建订单应失败并返回错误
 - ✅ 1.3 收货地址缺省或格式不合法时应失败并返回错误
@@ -31,6 +32,7 @@
 `order-cancel.feature`
 
 - ✅ 2.1 待支付（已占用库存）状态下取消应成功并发布 OrderCancelled，同步释放库存
+- 🔄 2.1a OrderCancelled payload 与 OrderCreated/OrderCompleted 同构（含 couponId + pricingSnapshot）
 - ✅ 2.2 已支付时取消应触发退款、释放库存等补偿
 - ✅ 2.2a 已履约（FULFILLING）或已支付（PAID）状态取消应同步取消履约单（若已创建）+ 退款 + 释放库存
 - ✅ 2.2b 已发货（SHIPPED）状态下取消应失败并返回错误
@@ -57,6 +59,7 @@
 - ✅ 4.3 收到 FulfillmentOrderAllocated 后应将 status 置为 FULFILLING（履约已开始配货，订单页可显示「正在配货」）
 - ✅ 4.4 收到 FulfillmentShipped 后应更新 status 为 SHIPPED
 - ✅ 4.5 收到 FulfillmentDelivered 后应将 status 置为 DELIVERED 并发布 OrderCompleted
+- 🔄 4.5a OrderCompleted payload 与 OrderCreated/OrderCancelled 同构（含 couponId + pricingSnapshot）
 - 🔲 4.6 收到 ServiceActivated 后应等效 FulfillmentDelivered 处理；混合订单按最慢原则——实体 Delivered + 虚拟 Activated 全部到达才推进 OrderCompleted（来自业务需求 [虚拟商品](../../business-requirements/virtual-product/overview.md)）
 
 ---

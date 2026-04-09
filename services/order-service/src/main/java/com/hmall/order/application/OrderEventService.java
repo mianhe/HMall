@@ -2,6 +2,8 @@ package com.hmall.order.application;
 
 import com.hmall.order.application.event.ItemSnapshot;
 import com.hmall.order.application.event.OrderCompletedEvent;
+import com.hmall.order.application.event.PricingSnapshot;
+import com.hmall.order.application.port.CouponLifecyclePort;
 import com.hmall.order.application.port.CreateFulfillmentPort;
 import com.hmall.order.application.port.OrderOutboundEventPublisher;
 import com.hmall.order.application.port.ReleaseInventoryPort;
@@ -24,6 +26,7 @@ public class OrderEventService {
     private final OrderRepository orderRepository;
     private final CreateFulfillmentPort createFulfillmentPort;
     private final ReleaseInventoryPort releaseInventoryPort;
+    private final CouponLifecyclePort couponLifecyclePort;
     private final OrderOutboundEventPublisher outboundEventPublisher;
     private final TransactionTemplate txTemplate;
 
@@ -31,11 +34,13 @@ public class OrderEventService {
             OrderRepository orderRepository,
             CreateFulfillmentPort createFulfillmentPort,
             ReleaseInventoryPort releaseInventoryPort,
+            CouponLifecyclePort couponLifecyclePort,
             OrderOutboundEventPublisher outboundEventPublisher,
             TransactionTemplate txTemplate) {
         this.orderRepository = orderRepository;
         this.createFulfillmentPort = createFulfillmentPort;
         this.releaseInventoryPort = releaseInventoryPort;
+        this.couponLifecyclePort = couponLifecyclePort;
         this.outboundEventPublisher = outboundEventPublisher;
         this.txTemplate = txTemplate;
     }
@@ -66,6 +71,10 @@ public class OrderEventService {
                 order.getShippingAddress().district(),
                 order.getShippingAddress().detail());
 
+        if (order.getCouponId() != null) {
+            couponLifecyclePort.redeem(order.getCouponId());
+        }
+
         createFulfillmentPort.createFulfillment(orderId, items, addr);
     }
 
@@ -83,8 +92,13 @@ public class OrderEventService {
 
     @Transactional
     public void onPaymentExpired(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("订单不存在: " + orderId));
         releaseInventoryPort.release(orderId);
-        updateOrderStatus(orderId, OrderStatus.CANCELLED);
+        if (order.getCouponId() != null) {
+            couponLifecyclePort.release(order.getCouponId());
+        }
+        updateOrderStatus(order, OrderStatus.CANCELLED);
     }
 
     @Transactional
@@ -106,8 +120,9 @@ public class OrderEventService {
             List<ItemSnapshot> snapshots = updated.getItems().stream()
                     .map(li -> new ItemSnapshot(li.getSkuId(), li.getSpuId(), li.getQuantity(), li.getUnitPriceCents()))
                     .toList();
+            PricingSnapshot pricingSnapshot = buildPricingSnapshot(updated);
             outboundEventPublisher.publish(new OrderCompletedEvent(orderId, updated.getUserId(),
-                    updated.getTotalAmountCents(), snapshots));
+                    updated.getTotalAmountCents(), updated.getCouponId(), pricingSnapshot, snapshots));
         } else {
             log.info("onFulfillmentDelivered: orderId={}, 等待 ServiceActivated 到达后再发布 OrderCompleted", orderId);
         }
@@ -128,8 +143,9 @@ public class OrderEventService {
             List<ItemSnapshot> snapshots = updated.getItems().stream()
                     .map(li -> new ItemSnapshot(li.getSkuId(), li.getSpuId(), li.getQuantity(), li.getUnitPriceCents()))
                     .toList();
+            PricingSnapshot pricingSnapshot = buildPricingSnapshot(updated);
             outboundEventPublisher.publish(new OrderCompletedEvent(orderId, updated.getUserId(),
-                    updated.getTotalAmountCents(), snapshots));
+                    updated.getTotalAmountCents(), updated.getCouponId(), pricingSnapshot, snapshots));
         } else {
             log.info("onServiceActivated: orderId={}, 等待 FulfillmentDelivered 到达后再发布 OrderCompleted", orderId);
         }
@@ -156,8 +172,36 @@ public class OrderEventService {
             physicalDelivered,
             serviceActivated,
             order.getCreatedAt(),
-            Instant.now()
+            Instant.now(),
+            order.getCouponId()
         );
         return orderRepository.save(updated);
+    }
+
+    private PricingSnapshot buildPricingSnapshot(Order order) {
+        long originalAmountCents = order.getItems().stream()
+            .mapToLong(OrderLineItem::getTotalPriceCents)
+            .sum();
+        long activityDiscountAmountCents = order.getItems().stream()
+            .flatMap(li -> li.getDiscounts().stream())
+            .filter(d -> "ACTIVITY".equalsIgnoreCase(d.type()))
+            .mapToLong(DiscountDetail::amountCents)
+            .sum();
+        long couponDiscountAmountCents = order.getItems().stream()
+            .flatMap(li -> li.getDiscounts().stream())
+            .filter(d -> "COUPON".equalsIgnoreCase(d.type()))
+            .mapToLong(DiscountDetail::amountCents)
+            .sum();
+        long discountAmountCents = order.getItems().stream()
+            .flatMap(li -> li.getDiscounts().stream())
+            .mapToLong(DiscountDetail::amountCents)
+            .sum();
+        return new PricingSnapshot(
+            originalAmountCents,
+            activityDiscountAmountCents,
+            couponDiscountAmountCents,
+            discountAmountCents,
+            order.getTotalAmountCents()
+        );
     }
 }

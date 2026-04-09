@@ -2,6 +2,7 @@ package com.hmall.order.infrastructure.kafka;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.hmall.order.application.event.OrderCancelledEvent;
+import com.hmall.order.application.event.PricingSnapshot;
 
 import java.time.Instant;
 import java.util.List;
@@ -14,6 +15,8 @@ public record OrderCancelledMessage(
     long orderId,
     long userId,
     long totalAmountCents,
+    Long couponId,
+    PricingSnapshot pricingSnapshot,
     List<OrderCreatedMessage.ItemSnapshotPayload> items,
     @JsonFormat(shape = JsonFormat.Shape.STRING)
     Instant occurredAt
@@ -29,6 +32,8 @@ public record OrderCancelledMessage(
             event.orderId(),
             event.userId(),
             event.totalAmountCents(),
+            event.couponId(),
+            event.pricingSnapshot(),
             list,
             Instant.now()
         );

@@ -30,7 +30,7 @@ Needs ──→ Paid Order ──→ Fulfillment
 
 | 段 | 简称 | 范围 | 分界事件 | 涉及 BC |
 |----|------|------|---------|---------|
-| **Needs → Paid Order** | N2O | 用户明确需求 → 支付完成 | PaymentCompleted | Cart、Catalog、User、Order、Inventory、Payment |
+| **Needs → Paid Order** | N2O | 用户明确需求 → 支付完成 | PaymentCompleted | Cart、Catalog、User、Order、Inventory、Payment、Promotion |
 | **Paid Order → Fulfillment** | O2F | 已支付订单 → 履约完成 | OrderCompleted | Fulfillment、Order |
 
 **N2O ⊥ O2F**：两段通过"已支付的订单"解耦。不管用户从哪个入口下单，生成的订单结构相同，O2F 看不到入口来源。两段可独立验证、独立扩展。
@@ -63,11 +63,11 @@ PlaceOrder 之前，用户经历"选品与决策"阶段——浏览商品、选�
 
 | 步骤 | 做什么 | 数据依赖 | 来源 BC |
 |------|--------|---------|---------|
-| **商品详情页** | 展示 SPU/SKU 信息、规格选择、可选增值服务列表 | SPU、SpecDimension/Option、SKU、ProductImage；ServiceBinding（哪些服务可选）+ 服务 SKU 信息（名称、价格、服务类型/类目） | Catalog |
+| **商品详情页** | 展示 SPU/SKU 信息、规格选择、可选增值服务列表、活动价 | SPU、SpecDimension/Option、SKU、ProductImage；ServiceBinding（哪些服务可选）+ 服务 SKU 信息（名称、价格、服务类型/类目）；SKU 活动价预估 | Catalog、Promotion |
 | **选规格/服务** | 用户选 SKU、勾选增值服务、填写服务相关内容 | 所选 SKU 的库存状态（可选）；服务特有数据（如图案库列表） | Catalog（图案等配置数据）、Inventory（可选） |
 | **加购**（路径 B） | 将所选商品+服务写入购物车 | 所选 SKU + 服务 SKU + 数量 + 关联关系 | 前端 → Cart |
-| **购物车页**（路径 B） | 展示已加购商品，服务项与实体商品分组，实时价格 | CartItem 列表；SKU 实时价格与名称 | Cart、Catalog |
-| **结账页** | 汇总待下单商品、选择地址、确认服务内容 | 选中项（SKU + 服务 + 数量）；用户地址列表 | Cart（路径 B）或前端直传（路径 A）、User |
+| **购物车页**（路径 B） | 展示已加购商品，服务项与实体商品分组，实时价格与活动优惠 | CartItem 列表；SKU 实时价格与名称；统一算价结果（活动优惠、实付） | Cart、Catalog、Promotion |
+| **结账页** | 汇总待下单商品、选择地址、确认服务内容、选择优惠券 | 选中项（SKU + 服务 + 数量）；用户地址列表；统一算价结果（活动优惠、券优惠、实付）；可用券列表 | Cart（路径 B）或前端直传（路径 A）、User、Promotion |
 
 **路径 C：补购服务**
 
@@ -117,7 +117,7 @@ flowchart LR
     OC -.-> PF
 ```
 
-- **主流程**：⌘ PlaceOrder → 同步占库存 → StockReserved → 同步创建支付单 → OrderCreated → 用户支付 → PaymentCompleted
+- **主流程**：⌘ PlaceOrder → 同步调用 Promotion 统一算价（活动+券）→ 同步占库存 → StockReserved → 同步创建支付单（实付金额）→ OrderCreated → 用户支付 → PaymentCompleted
 - **补偿**：支付超时 → PaymentExpired ⟳ 取消订单 → OrderCancelled ⟳ 释放库存 → StockReleased
 - **重试**：PaymentFailed 不触发取消，用户可重试支付
 - **补购**：补购进入 PlaceOrder 后的事件流与上述主流程相同。区别仅在入口（已交付订单详情页）和订单内容（纯服务商品，无实体库存占用）。
@@ -190,6 +190,24 @@ flowchart LR
 
 > **需求分析检查点**：新需求是否引入新的管理操作？是否修改已有操作的前置条件（如发货前必须完成某步骤）？若是，该操作应作为独立场景盘点。
 
+### 4.3 促销运营管理（支撑 N2O）
+
+| 操作 | BC | 说明 | 产生事件 |
+|------|-----|------|---------|
+| 券模板管理 | Promotion | 创建/停用券模板，定义券门槛与优惠参数 | — |
+| 活动管理 | Promotion | 创建单品直降/订单满减活动，配置有效期、互斥组、优先级 | — |
+| 活动上下线 | Promotion | 控制活动是否参与实时算价（DRAFT/ACTIVE/INACTIVE） | — |
+
+### 4.4 用户分群运营管理（支撑 N2O）
+
+| 操作 | BC | 说明 | 产生事件 |
+|------|-----|------|---------|
+| 用户等级维护 | User | 运营按用户更新等级（L1/L2/L3），即时影响定向命中 | — |
+| 用户标签维护 | User | 运营覆盖用户标签集合，立即影响圈选与定向 | — |
+| 圈选规则管理 | User | 创建规则（DRAFT）、预览命中人数与原因、激活规则 | — |
+
+> 来源：业务需求 [用户分群与圈选](business-requirements/user-management-theme/user-segmentation/overview.md)。
+
 ---
 
 ## 五、事件总表
@@ -202,9 +220,9 @@ flowchart LR
 
 | 事件 | 触发 | Topic | 订阅方 | 关键 Payload |
 |------|------|-------|--------|-------------|
-| OrderCreated | ⌘ PlaceOrder | `order.created` | — | orderId, userId, totalAmountCents, items[{skuId, spuId, quantity, unitPriceCents}], occurredAt |
-| OrderCancelled | ⟳ PaymentExpired 或 ⌘ CancelOrder | `order.cancelled` | — | orderId, userId, totalAmountCents, items[{skuId, spuId, quantity, unitPriceCents}], occurredAt |
-| OrderCompleted | ⟳ 全部履约单完成 | `order.completed` | — | orderId, userId, totalAmountCents, items[{skuId, spuId, quantity, unitPriceCents}], occurredAt |
+| OrderCreated | ⌘ PlaceOrder | `order.created` | — | orderId, userId, totalAmountCents, couponId?, pricingSnapshot{original/activity/coupon/discount/payable}, items[{skuId, spuId, quantity, unitPriceCents}], occurredAt |
+| OrderCancelled | ⟳ PaymentExpired 或 ⌘ CancelOrder | `order.cancelled` | — | orderId, userId, totalAmountCents, couponId?, pricingSnapshot{original/activity/coupon/discount/payable}, items[{skuId, spuId, quantity, unitPriceCents}], occurredAt |
+| OrderCompleted | ⟳ 全部履约单完成 | `order.completed` | — | orderId, userId, totalAmountCents, couponId?, pricingSnapshot{original/activity/coupon/discount/payable}, items[{skuId, spuId, quantity, unitPriceCents}], occurredAt |
 
 ### Payment 发布
 

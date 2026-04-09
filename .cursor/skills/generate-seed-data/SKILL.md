@@ -12,7 +12,7 @@ description: 生成或修复 Activity BC 的演示种子数据（SeedDataGenerat
 种子数据的正确性取决于三份权威文档的一致：
 
 ```
-docs/intelligent-ops-ontology.md     ← Payload 字段定义（什么字段该有）
+docs/ontology/events-and-processes.md ← Payload 字段定义（什么字段该有）
 docs/business-process-architecture.md ← 因果链与流程（事件的先后关系）
 EventMetadataRegistry.java           ← 已注册的事件类型（哪些事件合法）
 ```
@@ -33,7 +33,7 @@ EventMetadataRegistry.java           ← 已注册的事件类型（哪些事件
 
 ### 2. Payload 字段对齐 Ontology
 
-对照 `intelligent-ops-ontology.md` 第二章「事件类型全表」的 Payload 字段列：
+对照 `docs/ontology/events-and-processes.md` 第二章「事件类型全表」的 Payload 字段列：
 
 | 事件 | 必须包含的 payload 字段 |
 |------|----------------------|
@@ -60,7 +60,7 @@ EventMetadataRegistry.java           ← 已注册的事件类型（哪些事件
 
 ### 4. 因果链（流程正确性）
 
-对照 `intelligent-ops-ontology.md` 第三章「因果链」：
+对照 `docs/ontology/events-and-processes.md` 第三章「因果链」：
 
 **Happy Path:**
 ```
@@ -135,7 +135,7 @@ API 参数：`POST /api/activities/seed?days=<天数>&ordersPerDay=<每日均值
 
 当 Ontology 新增事件类型后，种子数据需要同步更新：
 
-1. 读取 `intelligent-ops-ontology.md` 确认新事件的 payload 字段
+1. 读取 `docs/ontology/events-and-processes.md` 确认新事件的 payload 字段
 2. 读取 `EventMetadataRegistry.java` 确认新事件已注册
 3. 确定新事件在哪条流程路径中出现
 4. 在 `SeedDataGenerator` 的对应路径中插入新事件

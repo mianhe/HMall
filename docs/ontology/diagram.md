@@ -1,6 +1,6 @@
 # HMall 电商本体 — 对象关系图
 
-> 对象类型与关联关系的可视化表达。文本版本见 [ontology.md](./ontology.md)。
+> 对象类型与关联关系的可视化表达。文本版本见 [hmall-ontology.md](./hmall-ontology.md)。
 
 ## 全景图
 

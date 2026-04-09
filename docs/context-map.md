@@ -14,7 +14,7 @@
 | 方式 | 用途 | 技术 |
 |------|------|------|
 | **BFF** | 前端统一 API 入口，按路径前缀代理到各 BC | HTTP 透传（端口 8085），Vite proxy `/api` → BFF |
-| **REST** | BC 间同步调用（Order → Catalog/User/Inventory/Payment/Fulfillment） | HTTP + JSON |
+| **REST** | BC 间同步调用（Order/Cart → Promotion，Order → Catalog/User/Inventory/Payment/Fulfillment） | HTTP + JSON |
 | **事件** | BC 间异步编排（PaymentCompleted、FulfillmentDelivered 等） | **Kafka**（支持事件持久化、重放、多消费者） |
 
 事件的完整定义（事件流、事件总表、约定）见 [business-flows.md](business-flows.md)。
@@ -40,7 +40,7 @@ flowchart TB
     Order[Order<br/>订单编排]
     Inventory[Inventory<br/>库存]
     Payment[Payment<br/>支付]
-    Pricing[Pricing<br/>算价]
+    Promotion[Promotion<br/>促销/算价]
     Fulfillment[Fulfillment<br/>履约]
     Activity[Activity<br/>业务活动]
 
@@ -49,15 +49,17 @@ flowchart TB
     BFF --> Order
     BFF --> Cart
     BFF --> Fulfillment
+    BFF --> Promotion
     SmartInteraction -->|LLM + MCP| BFF
     User -->|userId/地址| Order
     Catalog -->|SKU/价格| Order
     User -->|userId| Cart
     Catalog -->|SKU| Cart
     Cart -->|结算| Order
+    Cart -->|预估算价| Promotion
     Order -->|同步占用/释放| Inventory
     Order -->|同步创建支付/退款| Payment
-    Order -->|算价| Pricing
+    Order -->|算价/优惠| Promotion
     Order -->|同步创建/取消履约单| Fulfillment
     Payment -->|Kafka 事件| Order
     Fulfillment -->|Kafka 事件 Allocated/Shipped/Delivered| Order
@@ -81,7 +83,7 @@ flowchart TB
 | **Cart** | 购物车增删改查、结算预览；结算由前端编排到 Order |
 | **Inventory** | 库存占用与释放 |
 | **Payment** | 扣款、退款、支付超时检测 |
-| **Pricing** | 算价、优惠 |
+| **Promotion** | 优惠券、促销活动、价格计算（端口 8090） |
 | **Fulfillment** | 拆单、配货、发货、配送、镭雕完成与事件通知 |
 | **Activity** | 消费各 BC 事件，构建业务活动记录（审计、统计、监控） |
 
@@ -93,9 +95,11 @@ flowchart TB
 |------|------|----------|------|
 | BFF | Catalog | REST | 代理 /api/categories、/api/products 等 |
 | BFF | User | REST | 代理 /api/users、/api/login |
+| BFF | User | REST | 🔄 代理用户管理新路由：/api/users/{id}/level、/api/users/{id}/tags、/api/users/segment-rules**（来自用户分群与圈选需求） |
 | BFF | Order | REST | 代理 /api/orders |
 | BFF | Cart | REST | 代理 /api/cart |
 | BFF | Fulfillment | REST | 代理 /api/fulfillment |
+| BFF | Promotion | REST | 代理 /api/promotion（券模板、活动管理、算价、活动价预估） |
 | Smart Interaction | BFF | LLM + MCP Tool Calling | Smart Interaction 调 LLM API → MCP Server → BFF API（与前端相同入口） |
 | Catalog | Order | REST | Order 创建时按 skuId 拉取 SKU 与价格；按 spuId 查可选服务 |
 | User | Order | REST | userId、收货地址 |
@@ -104,7 +108,10 @@ flowchart TB
 | Cart | Order | 前端编排 | 前端从 Cart 取选中项 → 调用 Order API 创建订单 → 清理已下单项 |
 | Order | Inventory | REST/同步 | 创建订单时同步占用；取消时同步释放 |
 | Order | Payment | REST/同步 | 创建订单时同步创建支付单；取消时同步退款 |
-| Order | Pricing | 同步调用 | 创建订单时算价 |
+| Cart | Promotion | 同步调用 | 结算预览时调用统一算价，返回活动优惠与实付 |
+| Order | Promotion | 同步调用 | 创建订单时统一算价（活动+券）、锁定/核销/释放优惠券 |
+| Promotion | User | 同步调用 | 🔄 用户定向算价时查询 user level/tags（来自用户定向与满件折扣需求） |
+| User | Promotion | 领域数据供给 | 🔄 User 作为分群主数据源，Promotion 只消费实时分群结果（来自用户分群与圈选需求） |
 | Order | Fulfillment | REST/同步 | 创建履约单（PaymentCompleted 后同步调用，返回 fulfillmentOrderIds）；取消履约单（Order 补偿时同步调用） |
 | Payment | Order | Kafka 事件 | PaymentCompleted / Failed / Expired（Order 通过 KafkaPaymentEventConsumer 消费）；PaymentFailed 不影响订单状态（用户可重试），仅 PaymentExpired 触发取消 |
 | Fulfillment | Order | Kafka 事件 | FulfillmentOrderAllocated / Shipped / Delivered（Order 消费后推进状态）；FulfillmentOrderCreated 仅 Activity 消费 |

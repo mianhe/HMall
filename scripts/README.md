@@ -25,6 +25,7 @@
 - **cart-service** — Cart 微服务（端口 8087），购物车管理
 - **fulfillment-service** — Fulfillment 微服务（端口 8088），履约管理（创建/发货/签收/取消）
 - **smart-interaction-service** — Smart Interaction 微服务（端口 8089），LLM + MCP 智能交互
+- **promotion-service** — Promotion 微服务（端口 8090），优惠券、促销活动、价格计算
 - **bff-web** — BFF 微服务（端口 8085），frontend/admin、frontend/web 经此代理调用后端
 - **frontend-admin** — 管理后台（Vite，端口 5173），目录 `frontend/admin`
 - **frontend-web** — 消费者端（Vite，端口 5174），目录 `frontend/web`
@@ -69,9 +70,9 @@
   - `./scripts/hmall.sh seed-inventory` — 为 1～20 设置库存
   - `./scripts/hmall.sh seed-inventory 1 2 3` — 仅为 skuId 1、2、3 设置
 
-### test [--cucumber-only] [--clean] [--ui-smoke] [--bc catalog|user|order|inventory|payment|activity|cart|fulfillment|smart-interaction|bff|all]
+### test [--cucumber-only] [--clean] [--ui-smoke] [--bc catalog|user|order|inventory|payment|activity|cart|fulfillment|smart-interaction|promotion|bff|all]
 
-- 执行全部微服务测试（catalog-service + user-service + order-service + inventory-service + payment-service + activity-service + cart-service + fulfillment-service + smart-interaction-service + bff-web）；执行前会检查数据库是否已启动。
+- 执行全部微服务测试（catalog-service + user-service + order-service + inventory-service + payment-service + activity-service + cart-service + fulfillment-service + smart-interaction-service + promotion-service + bff-web）；执行前会检查数据库是否已启动。
 - **测试与生产数据隔离**：验收测试使用 H2 内存库（`application-test.yml`），与 PostgreSQL 完全隔离，测试结束后不会清空生产/开发库。
 - 参数：
   - 无参数：`mvn test`（单元 + Cucumber 验收）

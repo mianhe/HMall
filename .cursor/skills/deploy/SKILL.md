@@ -105,7 +105,7 @@ description: 部署 HMall 到阿里云 ECS：本地测试 → 提交推送 → �
 - 仅后端 `services/<svc>/` 改动 → 只重建该服务
 - `Dockerfile.service` 或 `docker-compose.prod.yml` 改动 → 重建所有后端
 - `frontend/`、`deploy/nginx/` 改动 → 重建 Nginx
-- `hmall-mcp/`、`Dockerfile.mcp`、`docs/ontology.md` 改动 → 重建 MCP
+- `hmall-mcp/`、`Dockerfile.mcp`、`docs/ontology/` 改动 → 重建 MCP
 - 仅文档/脚本改动 → 跳过部署
 
 滚动更新流程：先构建所有新镜像（旧容器保持运行），再按依赖顺序逐个替换容器。
@@ -161,7 +161,7 @@ description: 部署 HMall 到阿里云 ECS：本地测试 → 提交推送 → �
 |------|---------|
 | 容器状态为 Created（未启动） | 检查 `depends_on` 中的依赖服务是否 healthy。依赖链：基础设施 → 后端服务 → BFF/MCP → Nginx |
 | 后端 healthy 但 BFF/Nginx 仍 Created | `docker compose up -d` 再次触发依赖检查。若 Kafka 仍 unhealthy，可能是健康检查超时不足 |
-| MCP 循环重启（ENOENT ontology.md） | 确认 `.dockerignore` 中有 `!docs/ontology.md` 例外，`Dockerfile.mcp` 中 COPY 到 `/docs/ontology.md`（绝对路径） |
+| MCP 循环重启（ENOENT ontology.md） | 确认 `.dockerignore` 中有 `!docs/ontology/hmall-ontology.md` 例外，`Dockerfile.mcp` 中 COPY 到 `/docs/ontology/hmall-ontology.md`（绝对路径） |
 | Nginx 启动失败 host not found | MCP upstream 使用了变量 + resolver（`deploy/nginx/default.conf`），若仍失败检查 Docker DNS `127.0.0.11` 是否可用 |
 | 服务启动后 MCP 403 Forbidden | MCP SDK 的 Host 头校验拒绝了请求。检查 `docker-compose.prod.yml` 中 `MCP_ALLOWED_HOSTS` 是否包含公网 IP |
 | `apt-get upgrade` 卡住 | 阿里云访问海外 PPA 可能很慢。`kill` 卡住的 apt 进程，跳过 upgrade 手动继续后续安装步骤 |

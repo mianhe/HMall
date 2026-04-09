@@ -214,6 +214,224 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /api/users/{id}/segments:
+    get:
+      summary: 按 ID 查询用户分群信息
+      description: 返回用户当前 level 与 tags，供 Promotion 等下游实时消费。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 用户分群信息
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSegments'
+        '404':
+          description: 用户不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/users/{id}/level:
+    put:
+      summary: 更新用户等级
+      description: 覆盖指定用户的等级信息，更新后应立即可查询。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserLevelRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: 等级不合法或参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 用户不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/users/{id}/tags:
+    put:
+      summary: 覆盖用户标签集合
+      description: 全量覆盖用户标签集合，更新后应立即可查询并影响圈选结果。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserTagsRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: 标签参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 用户不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/users/segment-rules:
+    post:
+      summary: 创建圈选规则
+      description: 创建规则并进入 DRAFT 状态。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSegmentRuleRequest'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SegmentRule'
+        '400':
+          description: 规则条件不合法或冲突
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      summary: 查询圈选规则列表
+      responses:
+        '200':
+          description: 规则列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SegmentRule'
+
+  /api/users/segment-rules/{ruleId}:
+    get:
+      summary: 查询圈选规则详情
+      parameters:
+        - name: ruleId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 规则详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SegmentRule'
+        '404':
+          description: 规则不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/users/segment-rules/{ruleId}/preview:
+    post:
+      summary: 预览圈选规则命中结果
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SegmentRulePreviewRequest'
+      parameters:
+        - name: ruleId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 预览成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SegmentRulePreviewResult'
+        '404':
+          description: 规则不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/users/segment-rules/{ruleId}/activate:
+    post:
+      summary: 激活圈选规则
+      parameters:
+        - name: ruleId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 激活成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SegmentRule'
+        '400':
+          description: 激活门禁不通过（如命中人数为 0）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: 规则不存在
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/login:
     post:
       summary: 用户登录
@@ -255,6 +473,27 @@ components:
           format: int64
         username:
           type: string
+        level:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+    UserSegments:
+      type: object
+      required: [userId, tags]
+      properties:
+        userId:
+          type: integer
+          format: int64
+        level:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
     UserCreate:
       type: object
       required: [username, password]
@@ -263,6 +502,106 @@ components:
           type: string
         password:
           type: string
+    UpdateUserLevelRequest:
+      type: object
+      required: [level]
+      properties:
+        level:
+          type: string
+          description: 目标等级（如 L1/L2/L3）
+    UpdateUserTagsRequest:
+      type: object
+      required: [tags]
+      properties:
+        tags:
+          type: array
+          items:
+            type: string
+    SegmentCondition:
+      type: object
+      properties:
+        levelsIn:
+          type: array
+          items:
+            type: string
+        tagsAny:
+          type: array
+          items:
+            type: string
+        tagsAll:
+          type: array
+          items:
+            type: string
+        excludeTags:
+          type: array
+          items:
+            type: string
+    CreateSegmentRuleRequest:
+      type: object
+      required: [name, conditions]
+      properties:
+        name:
+          type: string
+        conditions:
+          $ref: '#/components/schemas/SegmentCondition'
+    SegmentRule:
+      type: object
+      required: [ruleId, name, status, conditions]
+      properties:
+        ruleId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        status:
+          type: string
+          enum: [DRAFT, ACTIVE, INACTIVE]
+        conditions:
+          $ref: '#/components/schemas/SegmentCondition'
+        lastPreviewCount:
+          type: integer
+          format: int64
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+    SegmentRulePreviewRequest:
+      type: object
+      properties:
+        sampleSize:
+          type: integer
+          format: int32
+          default: 20
+          minimum: 1
+          maximum: 200
+    SegmentRulePreviewResult:
+      type: object
+      required: [ruleId, hitCount, sampleUserIds, reasonStats]
+      properties:
+        ruleId:
+          type: integer
+          format: int64
+        hitCount:
+          type: integer
+          format: int64
+        sampleUserIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        reasonStats:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReasonStat'
+    ReasonStat:
+      type: object
+      required: [reason, count]
+      properties:
+        reason:
+          type: string
+        count:
+          type: integer
+          format: int64
     LoginRequest:
       type: object
       required: [username, password]

@@ -10,7 +10,7 @@ COMPOSE_FILE="${ROOT}/infra/docker-compose.yml"
 CONTAINER_NAME="hmall-postgres"
 PID_DIR="${ROOT}/.hmall/pids"
 LOG_DIR="${ROOT}/.hmall/logs"
-ALL_COMPONENTS="db catalog-service user-service order-service inventory-service payment-service activity-service cart-service fulfillment-service smart-interaction-service bff-web frontend-admin frontend-web mcp"
+ALL_COMPONENTS="db catalog-service user-service order-service inventory-service payment-service activity-service cart-service fulfillment-service smart-interaction-service promotion-service bff-web frontend-admin frontend-web mcp"
 
 # 确保目录存在
 mkdir -p "$PID_DIR" "$LOG_DIR"
@@ -112,6 +112,14 @@ status_smart_interaction_service() {
   fi
 }
 
+status_promotion_service() {
+  if is_port_listen 8090; then
+    echo "  promotion-service   up      http://127.0.0.1:8090"
+  else
+    echo "  promotion-service   down    -"
+  fi
+}
+
 status_bff_web() {
   if is_port_listen 8085; then
     echo "  bff-web       up      http://127.0.0.1:8085"
@@ -156,6 +164,7 @@ cmd_status() {
   status_cart_service
   status_fulfillment_service
   status_smart_interaction_service
+  status_promotion_service
   status_bff_web
   status_frontend_admin
   status_frontend_web
@@ -351,6 +360,20 @@ start_smart_interaction_service() {
   wait_for_port 8089 "smart-interaction-service" || true
   sleep 2
   echo "Smart-interaction-service started."
+}
+
+start_promotion_service() {
+  if is_port_listen 8090; then
+    echo "Promotion-service already running on 8090."
+    return 0
+  fi
+  echo "Starting promotion-service..."
+  (cd "${ROOT}/services/promotion-service" && mvn spring-boot:run >> "${LOG_DIR}/promotion-service.log" 2>&1 &)
+  echo $! > "${PID_DIR}/promotion-service.pid"
+  echo "Waiting for promotion-service (8090)..."
+  wait_for_port 8090 "promotion-service" || true
+  sleep 2
+  echo "Promotion-service started."
 }
 
 start_bff_web() {
@@ -583,6 +606,30 @@ stop_smart_interaction_service() {
   echo "Smart-interaction-service stopped."
 }
 
+stop_promotion_service() {
+  local pid_file="${PID_DIR}/promotion-service.pid"
+  if [ -f "$pid_file" ]; then
+    local pid
+    pid=$(cat "$pid_file")
+    if kill -0 "$pid" 2>/dev/null; then
+      echo "Stopping promotion-service (PID $pid)..."
+      kill "$pid" 2>/dev/null || true
+      sleep 2
+      kill -9 "$pid" 2>/dev/null || true
+    fi
+    rm -f "$pid_file"
+  fi
+  if is_port_listen 8090; then
+    local p
+    p=$(lsof -i :8090 -sTCP:LISTEN -t 2>/dev/null | head -1)
+    if [ -n "$p" ]; then
+      echo "Killing process on 8090 (PID $p)..."
+      kill "$p" 2>/dev/null || kill -9 "$p" 2>/dev/null || true
+    fi
+  fi
+  echo "Promotion-service stopped."
+}
+
 stop_bff_web() {
   local pid_file="${PID_DIR}/bff-web.pid"
   if [ -f "$pid_file" ]; then
@@ -773,6 +820,12 @@ launch_smart_interaction_service() {
   (cd "${ROOT}/services/smart-interaction-service" && mvn spring-boot:run >> "${LOG_DIR}/smart-interaction-service.log" 2>&1 &)
   echo $! > "${PID_DIR}/smart-interaction-service.pid"
 }
+launch_promotion_service() {
+  is_port_listen 8090 && return 0
+  echo "Launching promotion-service..."
+  (cd "${ROOT}/services/promotion-service" && mvn spring-boot:run >> "${LOG_DIR}/promotion-service.log" 2>&1 &)
+  echo $! > "${PID_DIR}/promotion-service.pid"
+}
 launch_bff_web() {
   is_port_listen 8085 && return 0
   echo "Launching bff-web..."
@@ -810,6 +863,7 @@ port_of() {
     cart-service) echo 8087 ;;
     fulfillment-service) echo 8088 ;;
     smart-interaction-service) echo 8089 ;;
+    promotion-service) echo 8090 ;;
     bff-web) echo 8085 ;;
     frontend-admin) echo 5173 ;;
     frontend-web) echo 5174 ;;
@@ -841,6 +895,7 @@ run_start() {
       cart-service) launch_cart_service; wait_list="$wait_list $c" ;;
       fulfillment-service) launch_fulfillment_service; wait_list="$wait_list $c" ;;
       smart-interaction-service) launch_smart_interaction_service; wait_list="$wait_list $c" ;;
+      promotion-service) launch_promotion_service; wait_list="$wait_list $c" ;;
       bff-web) launch_bff_web; wait_list="$wait_list $c" ;;
       frontend-admin) launch_frontend_admin; wait_list="$wait_list $c" ;;
       frontend-web) launch_frontend_web; wait_list="$wait_list $c" ;;
@@ -875,7 +930,7 @@ run_start() {
 
 run_stop() {
   local components="$*"
-  [ -z "$components" ] && components="mcp frontend-web frontend-admin bff-web smart-interaction-service fulfillment-service cart-service activity-service payment-service inventory-service order-service user-service catalog-service db"
+  [ -z "$components" ] && components="mcp frontend-web frontend-admin bff-web promotion-service smart-interaction-service fulfillment-service cart-service activity-service payment-service inventory-service order-service user-service catalog-service db"
   for c in $components; do
     case "$c" in
       db) stop_db ;;
@@ -888,6 +943,7 @@ run_stop() {
       cart-service) stop_cart_service ;;
       fulfillment-service) stop_fulfillment_service ;;
       smart-interaction-service) stop_smart_interaction_service ;;
+      promotion-service) stop_promotion_service ;;
       bff-web) stop_bff_web ;;
       frontend-admin) stop_frontend_admin ;;
       frontend-web) stop_frontend_web ;;
@@ -923,6 +979,7 @@ print_test_summary() {
       cart-service) name="Cart" ;;
       fulfillment-service) name="Fulfillment" ;;
       smart-interaction-service) name="SmartInteraction" ;;
+      promotion-service) name="Promotion" ;;
       bff-web) name="BFF" ;;
       *) name="$key" ;;
     esac
@@ -958,7 +1015,7 @@ cmd_test() {
       --bc)
         shift
         if [ -z "${1:-}" ]; then
-          echo "Error: --bc requires a value (catalog|user|order|inventory|payment|activity|cart|fulfillment|smart-interaction|bff|all)" >&2
+          echo "Error: --bc requires a value (catalog|user|order|inventory|payment|activity|cart|fulfillment|smart-interaction|promotion|bff|all)" >&2
           exit 1
         fi
         case "$1" in
@@ -971,10 +1028,11 @@ cmd_test() {
           cart) bc_filter="@cart" ;;
           fulfillment) bc_filter="@fulfillment" ;;
           smart-interaction) bc_filter="@ai-chat" ;;
+          promotion) bc_filter="@promotion" ;;
           bff) bc_filter="@bff" ;;
           all) bc_filter="" ;;
           *)
-            echo "Error: --bc must be catalog, user, order, inventory, payment, activity, cart, fulfillment, smart-interaction, bff, or all" >&2
+            echo "Error: --bc must be catalog, user, order, inventory, payment, activity, cart, fulfillment, smart-interaction, promotion, bff, or all" >&2
             exit 1
             ;;
         esac
@@ -1042,6 +1100,8 @@ cmd_test() {
     run_service_test "fulfillment-service" "fulfillment-service (Fulfillment)"
   elif [ "$bc_filter" = "@ai-chat" ]; then
     run_service_test "smart-interaction-service" "smart-interaction-service (Smart Interaction)"
+  elif [ "$bc_filter" = "@promotion" ]; then
+    run_service_test "promotion-service" "promotion-service (Promotion)"
   elif [ "$bc_filter" = "@bff" ]; then
     run_service_test "bff-web" "bff-web (BFF)"
   else
@@ -1054,6 +1114,7 @@ cmd_test() {
     run_service_test "cart-service" "cart-service (Cart)"
     run_service_test "fulfillment-service" "fulfillment-service (Fulfillment)"
     run_service_test "smart-interaction-service" "smart-interaction-service (Smart Interaction)"
+    run_service_test "promotion-service" "promotion-service (Promotion)"
     run_service_test "bff-web" "bff-web (BFF)"
     print_test_summary || overall_rc=1
   fi
@@ -1086,9 +1147,9 @@ seed_inventory() {
 usage() {
   echo "Usage: $0 <command> [options] [components]"
   echo "  command:  start | stop | status | restart | test | seed-inventory"
-  echo "  components: db | catalog-service | user-service | order-service | inventory-service | payment-service | activity-service | cart-service | fulfillment-service | smart-interaction-service | bff-web | frontend-admin | frontend-web | mcp (default: all for start/stop/restart)"
+  echo "  components: db | catalog-service | user-service | order-service | inventory-service | payment-service | activity-service | cart-service | fulfillment-service | smart-interaction-service | promotion-service | bff-web | frontend-admin | frontend-web | mcp (default: all for start/stop/restart)"
   echo "  seed-inventory: 可选 skuId 列表，不传则对 1～50 设置 available=99"
-  echo "  test options: [--cucumber-only] [--clean] [--ui-smoke] [--bc catalog|user|order|inventory|payment|activity|cart|fulfillment|smart-interaction|bff|all]"
+  echo "  test options: [--cucumber-only] [--clean] [--ui-smoke] [--bc catalog|user|order|inventory|payment|activity|cart|fulfillment|smart-interaction|promotion|bff|all]"
   echo "See scripts/README.md for details."
 }
 

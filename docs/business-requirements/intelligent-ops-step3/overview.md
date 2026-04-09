@@ -435,7 +435,7 @@ server.tool('order_fact_query', '订单事实分析：以订单为中心的多�
 
 #### Ontology 更新
 
-在 `docs/intelligent-ops-ontology.md` 新增第七章「订单事实分析（Order Fact）」：
+在 `docs/ontology/events-and-processes.md` 新增第七章「订单事实分析（Order Fact）」：
 
 - OrderFact 概念说明
 - 可分析维度表（VAS / 阶段 / 时效 / 用户 / 商品）
@@ -528,7 +528,7 @@ hmall-mcp catalog_query（已有）→ Catalog API
 - 或：提供 API 触发全量重建投影
 
 **文档/配置**：
-- `docs/intelligent-ops-ontology.md` 新增第七章
+- `docs/ontology/events-and-processes.md` 新增第七章
 - 更新「智能运营助手」Skill（allowedTools + System Prompt）
 - 通过 `/api/ai/skills` API 更新线上 Skill
 
@@ -579,7 +579,7 @@ hmall-mcp catalog_query（已有）→ Catalog API
 
 | # | 工作项 | Skill | 依赖 | 状态 |
 |---|--------|-------|------|------|
-| 5 | Ontology: intelligent-ops-ontology.md 第七章 | — | 迭代 1 | ✅ 完成 |
+| 5 | Ontology: events-and-processes.md 第七章 | — | 迭代 1 | ✅ 完成 |
 | 6 | Smart Interaction: 智能运营助手 Skill 更新 | — | #5 | ✅ 完成 |
 | 7 | E2E 交付门禁 (BIZ-IO3-001) | deliver-requirement | #1–#6 | ✅ 完成 |
 

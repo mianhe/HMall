@@ -61,7 +61,7 @@ public class SupplementaryPurchaseStepDefinitions {
         ShippingAddress addr = new ShippingAddress("测试", "13800000000", "北京", "北京", "海淀", "测试地址");
         Instant now = Instant.now();
         Order order = new Order(null, userId, OrderStatus.DELIVERED, 599900L,
-                addr, List.of(item), true, false, now, now);
+                addr, List.of(item), true, false, now, now, null);
         Order saved = orderRepository.save(order);
         deliveredOrderId = saved.getOrderId();
     }
@@ -78,7 +78,7 @@ public class SupplementaryPurchaseStepDefinitions {
         ShippingAddress addr = new ShippingAddress("测试", "13800000000", "北京", "北京", "海淀", "测试地址");
         Instant now = Instant.now();
         Order order = new Order(null, userId, OrderStatus.PENDING_PAYMENT, 599900L,
-                addr, List.of(item), false, false, now, now);
+                addr, List.of(item), false, false, now, now, null);
         Order saved = orderRepository.save(order);
         deliveredOrderId = saved.getOrderId();
     }
@@ -92,7 +92,7 @@ public class SupplementaryPurchaseStepDefinitions {
                 OrderItemType.SERVICE, relatedSkuId, null);
         Instant now = Instant.now();
         Order order = new Order(null, userId, OrderStatus.PENDING_PAYMENT, 29900L,
-                null, List.of(item), false, false, now, now);
+                null, List.of(item), false, false, now, now, null);
         orderRepository.save(order);
     }
 

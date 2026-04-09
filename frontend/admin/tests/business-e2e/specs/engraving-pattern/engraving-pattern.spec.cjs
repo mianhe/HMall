@@ -9,7 +9,7 @@ const { EngravingPatternPage } = require('../../pages/engraving-pattern.page.cjs
 const PLACEHOLDER_IMAGE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
 
 function uniqueName() {
-  return `图案_E2E_${Date.now()}`
+  return `图案_E2E_${Date.now()}_${Math.floor(Math.random() * 100000)}`
 }
 
 test('BIZ-LE-001 图案库: 进入页面 -> 新增图案 -> 列表展示', async ({ page }) => {

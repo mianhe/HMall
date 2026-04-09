@@ -11,6 +11,7 @@ public class Order {
     private final Long userId;
     private final OrderStatus status;
     private final long totalAmountCents;
+    private final Long couponId;
     private final ShippingAddress shippingAddress;
     private final List<OrderLineItem> items;
     private final boolean physicalDelivered;
@@ -19,10 +20,17 @@ public class Order {
     private final Instant updatedAt;
 
     public Order(Long userId, ShippingAddress shippingAddress, List<OrderLineItem> items) {
+        this(userId, shippingAddress, items, null,
+                items.stream().mapToLong(OrderLineItem::getTotalPriceCents).sum());
+    }
+
+    public Order(Long userId, ShippingAddress shippingAddress, List<OrderLineItem> items,
+                 Long couponId, long totalAmountCents) {
         this.orderId = null;
         this.userId = Objects.requireNonNull(userId, "userId");
         this.status = OrderStatus.PENDING_PAYMENT;
-        this.totalAmountCents = items.stream().mapToLong(OrderLineItem::getTotalPriceCents).sum();
+        this.totalAmountCents = totalAmountCents;
+        this.couponId = couponId;
         this.shippingAddress = shippingAddress;
         this.items = new ArrayList<>(items);
         this.physicalDelivered = false;
@@ -34,11 +42,12 @@ public class Order {
     public Order(Long orderId, Long userId, OrderStatus status, long totalAmountCents,
                  ShippingAddress shippingAddress, List<OrderLineItem> items,
                  boolean physicalDelivered, boolean serviceActivated,
-                 Instant createdAt, Instant updatedAt) {
+                 Instant createdAt, Instant updatedAt, Long couponId) {
         this.orderId = orderId;
         this.userId = userId;
         this.status = status;
         this.totalAmountCents = totalAmountCents;
+        this.couponId = couponId;
         this.shippingAddress = shippingAddress;
         this.items = new ArrayList<>(items);
         this.physicalDelivered = physicalDelivered;
@@ -51,6 +60,7 @@ public class Order {
     public Long getUserId() { return userId; }
     public OrderStatus getStatus() { return status; }
     public long getTotalAmountCents() { return totalAmountCents; }
+    public Long getCouponId() { return couponId; }
     public ShippingAddress getShippingAddress() { return shippingAddress; }
     public List<OrderLineItem> getItems() { return List.copyOf(items); }
     public boolean isPhysicalDelivered() { return physicalDelivered; }

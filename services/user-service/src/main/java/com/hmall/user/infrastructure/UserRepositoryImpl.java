@@ -8,6 +8,8 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Repository
 public class UserRepositoryImpl implements UserRepository {
@@ -55,10 +57,18 @@ public class UserRepositoryImpl implements UserRepository {
         if (domain.getId() != null) e.setId(domain.getId());
         e.setUsername(domain.getUsername());
         e.setPasswordHash(domain.getPasswordHash());
+        e.setLevel(domain.getLevel());
+        e.setTagsCsv(domain.getTags().isEmpty() ? null : String.join(",", domain.getTags()));
         return e;
     }
 
     private User toDomain(UserEntity entity) {
-        return new User(entity.getId(), entity.getUsername(), entity.getPasswordHash());
+        Set<String> tags = entity.getTagsCsv() == null || entity.getTagsCsv().isBlank()
+            ? Set.of()
+            : java.util.Arrays.stream(entity.getTagsCsv().split(","))
+                .map(String::trim)
+                .filter(s -> !s.isBlank())
+                .collect(Collectors.toSet());
+        return new User(entity.getId(), entity.getUsername(), entity.getPasswordHash(), entity.getLevel(), tags);
     }
 }

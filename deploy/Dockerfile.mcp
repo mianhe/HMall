@@ -3,7 +3,7 @@ WORKDIR /app
 COPY hmall-mcp/package*.json ./
 RUN npm ci --omit=dev
 COPY hmall-mcp/ .
-COPY docs/ontology.md /docs/ontology.md
-COPY docs/intelligent-ops-ontology.md /docs/intelligent-ops-ontology.md
+COPY docs/ontology/hmall-ontology.md /docs/ontology/hmall-ontology.md
+COPY docs/ontology/events-and-processes.md /docs/ontology/events-and-processes.md
 EXPOSE 3000
 CMD ["node", "index-http.js"]

@@ -23,7 +23,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * 生成演示用种子数据。为智能运营仪表盘提供可视化的历史事件序列。
  * 仅用于开发/演示环境，不影响真实业务数据。
  *
- * Payload 结构严格对齐 docs/intelligent-ops-ontology.md 声明。
+ * Payload 结构严格对齐 docs/ontology/events-and-processes.md 声明。
  * userId 覆盖范围与真实 Kafka 管道一致：仅 Order BC 事件携带 userId。
  */
 @Service

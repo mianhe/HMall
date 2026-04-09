@@ -79,10 +79,20 @@
           <span class="text-gray-800">全选</span>
         </label>
         <div class="flex items-center gap-6">
-          <span class="text-gray-800">
-            已选 <span class="font-medium text-vmall-red">{{ selectedIds.length }}</span> 件，
-            合计：<span class="text-xl font-bold text-vmall-red">¥ {{ totalSelected }}</span>
-          </span>
+          <div class="text-gray-800">
+            <span>
+              已选 <span class="font-medium text-vmall-red">{{ selectedIds.length }}</span> 件，
+              合计：<span class="text-xl font-bold text-vmall-red">¥ {{ totalSelected }}</span>
+            </span>
+            <p v-if="activityDiscountDisplay" class="text-xs text-vmall-red mt-0.5">已包含活动优惠 ¥{{ activityDiscountDisplay }}</p>
+            <p
+              v-for="msg in activityExplainMessages"
+              :key="msg"
+              class="text-xs text-vmall-gray-text mt-0.5"
+            >
+              {{ msg }}
+            </p>
+          </div>
           <button
             :disabled="selectedIds.length === 0"
             @click="goCheckout"
@@ -97,9 +107,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { getCart, updateCartItem, deleteCartItem } from '../shared/api/cart.js'
+import { calculatePrice } from '../shared/api/promotion.js'
 import { formatApiError } from '../shared/utils/errorMessage.js'
 
 const router = useRouter()
@@ -107,6 +118,7 @@ const items = ref([])
 const selectedIds = ref([])
 const loading = ref(true)
 const error = ref('')
+const pricePreview = ref(null)
 
 const availableItems = computed(() => items.value.filter((i) => i.available !== false))
 
@@ -131,12 +143,31 @@ const selectAll = computed({
 })
 
 const totalSelected = computed(() => {
+  if (pricePreview.value) {
+    return (pricePreview.value.payableAmountCents / 100).toFixed(2)
+  }
   let sum = 0
   selectedIds.value.forEach((id) => {
     const item = items.value.find((i) => i.cartItemId === id)
     if (item && item.skuPrice != null) sum += Number(item.skuPrice) * (item.quantity || 0)
   })
   return sum.toFixed(2)
+})
+
+const activityDiscountDisplay = computed(() => {
+  if (!pricePreview.value) return null
+  const activityDiscount = Number(pricePreview.value.activityDiscountAmountCents || 0)
+  if (activityDiscount <= 0) return null
+  return (activityDiscount / 100).toFixed(2)
+})
+
+const activityExplainMessages = computed(() => {
+  const list = pricePreview.value?.activityExplanations
+  if (!Array.isArray(list) || !list.length) return []
+  return list
+    .filter(item => !item.applied && item.message)
+    .slice(0, 2)
+    .map(item => `${item.activityName}：${item.message}`)
 })
 
 function formatPrice(p) {
@@ -150,6 +181,7 @@ async function load() {
   try {
     items.value = await getCart()
     selectedIds.value = availableItems.value.map((i) => i.cartItemId)
+    await refreshPricePreview()
   } catch (e) {
     error.value = formatApiError(e, '加载失败')
   } finally {
@@ -163,6 +195,25 @@ async function reloadCartPreserveSelection() {
   items.value = data
   const availableIdSet = new Set(availableItems.value.map((i) => i.cartItemId))
   selectedIds.value = [...prevSelected].filter((id) => availableIdSet.has(id))
+  await refreshPricePreview()
+}
+
+async function refreshPricePreview() {
+  const selectedItems = items.value.filter((i) => selectedIds.value.includes(i.cartItemId))
+  if (!selectedItems.length) {
+    pricePreview.value = null
+    return
+  }
+  try {
+    const lineItems = selectedItems.map((item) => ({
+      skuId: item.skuId,
+      unitPriceCents: Math.round((item.skuPrice || 0) * 100),
+      quantity: item.quantity || 1,
+    }))
+    pricePreview.value = await calculatePrice(lineItems, null)
+  } catch {
+    pricePreview.value = null
+  }
 }
 
 async function updateQty(item, newQty) {
@@ -195,4 +246,8 @@ function goCheckout() {
 }
 
 onMounted(load)
+
+watch(selectedIds, () => {
+  refreshPricePreview()
+}, { deep: true })
 </script>

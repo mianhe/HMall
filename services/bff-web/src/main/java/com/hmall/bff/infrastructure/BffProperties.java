@@ -14,6 +14,7 @@ public record BffProperties(
     Activity activity,
     Cart cart,
     Fulfillment fulfillment,
+    Promotion promotion,
     Proxy proxy
 ) {
     public record Catalog(String baseUrl) {}
@@ -24,6 +25,7 @@ public record BffProperties(
     public record Activity(String baseUrl) {}
     public record Cart(String baseUrl) {}
     public record Fulfillment(String baseUrl) {}
+    public record Promotion(String baseUrl) {}
 
     public record Proxy(
         List<String> allowedOrigins,

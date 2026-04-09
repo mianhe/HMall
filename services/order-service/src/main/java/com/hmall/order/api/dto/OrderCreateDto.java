@@ -11,7 +11,8 @@ import java.util.Map;
 public record OrderCreateDto(
     @NotNull Long userId,
     @NotEmpty(message = "商品明细不能为空") @Valid List<LineItemCreateDto> items,
-    @Valid ShippingAddressDto shippingAddress
+    @Valid ShippingAddressDto shippingAddress,
+    Long couponId
 ) {
     public record LineItemCreateDto(
         @NotNull Long skuId,

@@ -77,6 +77,7 @@ docs/
 | [business-process-architecture.md](./business-process-architecture.md) | 业务流程体系是什么、事件如何组织、智能化如何分层、系统向何处演进 |
 | [design-principles.md](./design-principles.md) | 怎么设计和实现 |
 | [project-status.md](./project-status.md) | 做到哪了 |
+| [promotion-operations-guide.md](./promotion-operations-guide.md) | Promotion 交付整理、活动/用户配置操作与团队技能准则 |
 | `business-requirements/<name>/overview.md` | 某个业务需求的方案、设计决策、迭代计划 |
 
 ## 各 BC 文档
@@ -93,6 +94,7 @@ docs/
 | Activity | [requirements.md](./bounded-contexts/activity/requirements.md) | [domain-model.md](./bounded-contexts/activity/domain-model.md) | [api.yaml](./bounded-contexts/activity/api.yaml) | — |
 | Cart | [requirements.md](./bounded-contexts/cart/requirements.md) | [domain-model.md](./bounded-contexts/cart/domain-model.md) | [api.yaml](./bounded-contexts/cart/api.yaml) | — |
 | Fulfillment | [requirements.md](./bounded-contexts/fulfillment/requirements.md) | [domain-model.md](./bounded-contexts/fulfillment/domain-model.md) | [api.yaml](./bounded-contexts/fulfillment/api.yaml) | event-flow |
+| Promotion | [requirements.md](./bounded-contexts/promotion/requirements.md) | [domain-model.md](./bounded-contexts/promotion/domain-model.md) | [api.yaml](./bounded-contexts/promotion/api.yaml) | — |
 | Frontend-admin | [ui-spec.md](./frontend/admin/ui-spec.md) | — | — | — |
 | Frontend-web | [ui-spec.md](./frontend/web/ui-spec.md) | — | — | [testing.md](./frontend/web/testing.md) |
 

@@ -15,7 +15,7 @@ HMall 是一个以 DDD + ATDD 驱动的电商系统练习项目，覆盖商品�
 ### 推进顺序
 
 ```
-Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Activity ✅ → Cart ✅ → Fulfillment ✅ → Smart Interaction ✅ → [Pricing 按需]
+Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Activity ✅ → Cart ✅ → Fulfillment ✅ → Smart Interaction ✅ → Promotion ✅
 ```
 
 ### 各 BC 状态
@@ -23,7 +23,7 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 | BC | 职责 | 状态 | 说明 |
 |----|------|------|------|
 | **Catalog** | 类目、SPU、规格维度、SKU、展示图、商品类型与服务绑定、镭雕图案库 | ✅ 已完成 | 6 feature，72 scenario |
-| **User** | 注册、登录(JWT)、收货地址 | ✅ 已完成 | 3 feature，19 scenario |
+| **User** | 注册、登录(JWT)、收货地址、用户分群（等级/标签/圈选规则） | ✅ 已完成 | 4 feature，26 scenario |
 | **Order** | 创建、取消、查询、事件驱动状态流转、补购服务 | ✅ 已完成 | 5 feature，32 scenario |
 | **Inventory** | 同步占用/释放、库存管理 | ✅ 已完成 | 3 feature，14 scenario |
 | **Payment** | 扣款/退款/超时检测 | ✅ 已完成 | 5 feature，19 scenario |
@@ -32,7 +32,7 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 | **Fulfillment** | 创建、配货、发货、签收、取消、查询 | ✅ 已完成 | 6 feature，24 scenario |
 | **Smart Interaction** | LLM + MCP 智能交互、Skill 管理与自动匹配 | 🔄 演进中 | 4 feature，24 scenario |
 | **BFF** | 前端统一 API 入口 | ✅ POC | 透传代理，端口 8085 |
-| **Pricing** | 算价、优惠 | 🔲 规划中 | — |
+| **Promotion** | 优惠券、促销活动、价格计算 | ✅ 迭代 2 已完成 | 端口 8090，4 feature，25 scenario |
 
 ### BC 间集成总览
 
@@ -71,7 +71,8 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 #### 其他待推进
 
 1. **Smart Interaction 后续**：对话历史持久化、User MCP 工具、Fulfillment/Address MCP 工具扩展
-2. **Pricing BC**：创建订单时同步算价（规划中）
+2. **Promotion BC**：优惠券 + 促销活动 + 价格计算（业务需求 1&2 已交付）。[业务需求方案](business-requirements/promotion-theme/promotion-activity/overview.md)
+3. **User Management Theme**：用户分群与圈选（等级/标签维护 + 圈选规则预览/激活 + admin 配置页）已交付。[业务需求方案](business-requirements/user-management-theme/user-segmentation/overview.md)
 
 ---
 
@@ -129,6 +130,11 @@ Catalog ✅ → User ✅ → Order ✅ → Inventory ✅ → Payment ✅ → Act
 
 | 日期 | 变更内容 |
 |------|---------|
+| 2026-03-16 | 用户管理 Theme（用户分群与圈选）迭代 0/1/2 全部交付：User 新增等级/标签维护与圈选规则创建/预览/激活能力；frontend/admin 新增用户分群管理页；新增 E2E `BIZ-UM-001/002/003` 并通过；web Smoke P0 与 promotion/user `mvn test -q` 通过。 |
+| 2026-03-16 | 用户管理 Theme（用户分群与圈选）完成 Phase A + Phase B 文档：补齐迭代计划；同步 User BC（requirements/domain-model/api）、Promotion BC（requirements/domain-model）、frontend/admin UI 规格、context-map 与 business-flows；进入开发中状态。 |
+| 2026-03-16 | Promotion 业务需求 3（用户定向与满件折扣）交付完成：Promotion 增加券模板定向规则、算价可解释输出（活动命中/未命中原因）与 SKU 预估不命中提示；frontend/admin 完成定向/满件配置表单闭环；frontend/web 在首页/详情/购物车/结账展示可解释信息；验证通过（promotion/user/order `mvn test -q`、frontend admin/web `npm run build`、web Smoke P0）。 |
+| 2026-03-15 | Promotion 业务需求 3（用户定向与满件折扣）完成 Phase A + Phase B 文档落地并启动开发：同步更新 Promotion/User/Order/前端与系统文档；Order 事件 payload 启动统一化优化（OrderCreated/OrderCancelled/OrderCompleted 增加 couponId + pricingSnapshot，同构契约用于交易回溯）。 |
+| 2026-03-15 | Promotion 业务需求 2（促销活动与价格引擎）完成交付：Promotion 新增活动模型与管理 API（创建/列表/上线/下线）+ SKU 活动价预估接口；价格引擎支持活动互斥组择优、跨组叠加与券后置抵扣；Order 下单统一调用算价并落 ACTIVITY 折扣明细；frontend/admin 新增促销活动管理页；frontend/web 首页/详情/购物车/结账接入活动价与优惠展示；验证通过（promotion-service `mvn test -q`、order-service `mvn test -q`、web Smoke P0、web Business E2E）。 |
 | 2026-03-12 | 智能运营 Step 2 交付：`/ops` 智能运营页面（三区域布局：固定指标栏 + 动态画布 + 常驻 AI 侧边栏）；`activity_query` 扩展多维参数 + `_raw` 结构化返回；`useOpsCanvas` 画布状态机 + 对话-画布联动；McpToolBridge `_raw` 透传；新增 `intelligent-ops-domain` MCP Resource；「智能运营助手」Skill；BIZ-IO2-001 E2E 3 用例全绿 |
 | 2026-03-12 | 智能运营演进路线重整：取消 Step 1.5 编号，整理为 Step 1→7；Smart Interaction 接入提前为 Step 2，Step 3/4 各自包含 AI 同步增强交付物；business-process-architecture.md 完整重写第七章 |
 | 2026-03-11 | 智能运营路线调整：Step 1.5 插入「Smart Interaction 接入」，保证每步可见结果 |

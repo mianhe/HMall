@@ -2,6 +2,7 @@ package com.hmall.user.acceptance.config;
 
 import com.hmall.user.acceptance.*;
 import com.hmall.user.infrastructure.persistence.AddressJpaRepository;
+import com.hmall.user.infrastructure.persistence.SegmentRuleJpaRepository;
 import com.hmall.user.infrastructure.persistence.UserJpaRepository;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.context.annotation.Bean;
@@ -55,8 +56,11 @@ public class UserAcceptanceTestConfig {
 
     @Bean
     @Primary
-    public DatabaseResetHook databaseResetHook(UserJpaRepository userJpaRepository, AddressJpaRepository addressJpaRepository) {
-        return new DatabaseResetHook(userJpaRepository, addressJpaRepository);
+    public DatabaseResetHook databaseResetHook(
+            UserJpaRepository userJpaRepository,
+            AddressJpaRepository addressJpaRepository,
+            SegmentRuleJpaRepository segmentRuleJpaRepository) {
+        return new DatabaseResetHook(userJpaRepository, addressJpaRepository, segmentRuleJpaRepository);
     }
 }
 

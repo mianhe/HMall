@@ -137,6 +137,68 @@
         </div>
       </div>
 
+      <!-- 优惠券 -->
+      <div class="bg-white rounded-lg border border-vmall-gray-border p-4 mb-6">
+        <h2 class="text-lg font-medium text-gray-800 mb-3">优惠券</h2>
+        <div v-if="couponsLoading" class="text-sm text-vmall-gray-text">加载优惠券中…</div>
+        <div v-else-if="availableCoupons.length === 0" class="text-sm text-vmall-gray-text">暂无可用优惠券</div>
+        <div v-else class="space-y-2">
+          <label
+            class="flex items-center gap-3 p-3 rounded border cursor-pointer transition-colors"
+            :class="!selectedCouponId ? 'border-vmall-red bg-red-50/30' : 'border-vmall-gray-border hover:border-vmall-red/50'"
+          >
+            <input v-model="selectedCouponId" type="radio" :value="null" />
+            <span class="text-sm text-gray-700">不使用优惠券</span>
+          </label>
+          <label
+            v-for="coupon in availableCoupons"
+            :key="coupon.id"
+            class="flex items-center gap-3 p-3 rounded border cursor-pointer transition-colors"
+            :class="selectedCouponId === coupon.id ? 'border-vmall-red bg-red-50/30' : 'border-vmall-gray-border hover:border-vmall-red/50'"
+          >
+            <input v-model="selectedCouponId" type="radio" :value="coupon.id" />
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-xs px-1.5 py-0.5 rounded font-medium"
+                  :class="coupon.type === 'AMOUNT_OFF' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'">
+                  {{ coupon.type === 'AMOUNT_OFF' ? '满减' : '折扣' }}
+                </span>
+                <span class="font-medium text-gray-800 truncate">{{ coupon.name }}</span>
+              </div>
+              <p class="text-xs text-vmall-gray-text mt-1">
+                满 ¥{{ (coupon.thresholdCents / 100).toFixed(2) }} 可用
+                <template v-if="coupon.type === 'AMOUNT_OFF'">，减 ¥{{ (coupon.discountCents / 100).toFixed(2) }}</template>
+                <template v-else>，打 {{ ((coupon.discountRate || 0) * 10).toFixed(1) }} 折</template>
+              </p>
+            </div>
+          </label>
+        </div>
+        <div v-if="pricePreview" class="mt-3 pt-3 border-t border-vmall-gray-border text-sm">
+          <div class="flex justify-between text-vmall-gray-text">
+            <span>商品原价</span><span>¥{{ (pricePreview.originalAmountCents / 100).toFixed(2) }}</span>
+          </div>
+          <div v-if="pricePreview.activityDiscountAmountCents > 0" class="flex justify-between text-vmall-red font-medium">
+            <span>活动优惠</span><span>-¥{{ (pricePreview.activityDiscountAmountCents / 100).toFixed(2) }}</span>
+          </div>
+          <div v-if="pricePreview.couponDiscountAmountCents > 0" class="flex justify-between text-vmall-red font-medium">
+            <span>券优惠</span><span>-¥{{ (pricePreview.couponDiscountAmountCents / 100).toFixed(2) }}</span>
+          </div>
+          <div class="flex justify-between text-vmall-red font-medium">
+            <span>总优惠</span><span>-¥{{ (pricePreview.discountAmountCents / 100).toFixed(2) }}</span>
+          </div>
+          <div class="flex justify-between text-gray-800 font-bold mt-1">
+            <span>实付</span><span>¥{{ (pricePreview.payableAmountCents / 100).toFixed(2) }}</span>
+          </div>
+          <p
+            v-for="msg in activityExplainMessages"
+            :key="msg"
+            class="text-xs text-vmall-gray-text mt-1"
+          >
+            {{ msg }}
+          </p>
+        </div>
+      </div>
+
       <!-- 收货地址 -->
       <div class="bg-white rounded-lg border border-vmall-gray-border p-4 mb-6">
         <h2 class="text-lg font-medium text-gray-800 mb-3">收货地址</h2>
@@ -211,7 +273,7 @@
           合计：<span class="text-xl font-bold text-vmall-red">¥ {{ totalDisplay }}</span>
         </p>
         <button
-          :disabled="submitting || engravingValidationError"
+          :disabled="submitting"
           @click="submitOrder"
           class="px-6 py-3 rounded-lg bg-vmall-red text-white hover:bg-vmall-red-hover disabled:opacity-60 transition-colors"
         >
@@ -229,6 +291,7 @@ import { createOrder } from '../shared/api/order.js'
 import { getAddresses } from '../shared/api/user.js'
 import { checkoutPreview, deleteCartItems } from '../shared/api/cart.js'
 import { getSku, getAvailableServices, getEngravingPatterns } from '../shared/api/catalog.js'
+import { getAvailableCoupons, calculatePrice } from '../shared/api/promotion.js'
 import { useAuth } from '../shared/auth.js'
 import { formatApiError } from '../shared/utils/errorMessage.js'
 import { isEngravingService } from '../shared/utils/engraving.js'
@@ -253,6 +316,10 @@ const form = ref({
 })
 const submitting = ref(false)
 const error = ref('')
+const availableCoupons = ref([])
+const couponsLoading = ref(false)
+const selectedCouponId = ref(null)
+const pricePreview = ref(null)
 
 /** 镭雕服务项及展示信息，entryKey 为 cart-{cartItemId} 或 buy-{skuId}-{relatedSkuId} */
 const engravingFormItems = ref([])
@@ -263,7 +330,22 @@ const engravingByKey = ref({})
 
 const hasCheckoutData = computed(() => checkoutItem.value || checkoutItems.value?.length || checkoutPreviewData.value)
 
+const orderAmountCents = computed(() => {
+  if (checkoutPreviewData.value?.totalPrice != null) {
+    return Math.round(Number(checkoutPreviewData.value.totalPrice) * 100)
+  }
+  if (checkoutItems.value?.length) {
+    return checkoutItems.value.reduce((acc, row) => acc + (row.unitPriceCents || 0) * (row.quantity || 1), 0)
+  }
+  const item = checkoutItem.value
+  if (!item) return 0
+  return (item.unitPriceCents || 0) * (item.quantity || 1)
+})
+
 const totalDisplay = computed(() => {
+  if (pricePreview.value) {
+    return (pricePreview.value.payableAmountCents / 100).toFixed(2)
+  }
   if (checkoutPreviewData.value?.totalPrice != null) {
     return Number(checkoutPreviewData.value.totalPrice).toFixed(2)
   }
@@ -276,6 +358,64 @@ const totalDisplay = computed(() => {
   const item = checkoutItem.value
   if (!item) return '0.00'
   return ((item.unitPriceCents || 0) * (item.quantity || 1) / 100).toFixed(2)
+})
+
+const activityExplainMessages = computed(() => {
+  const list = pricePreview.value?.activityExplanations
+  if (!Array.isArray(list) || !list.length) return []
+  return list
+    .filter(item => !item.applied && item.message)
+    .slice(0, 3)
+    .map(item => `${item.activityName}：${item.message}`)
+})
+
+function buildPriceLineItems() {
+  if (checkoutPreviewData.value?.items?.length) {
+    return checkoutPreviewData.value.items
+      .map(i => ({ skuId: i.skuId, unitPriceCents: Math.round((i.price || 0) * 100), quantity: i.quantity || 1 }))
+  }
+  if (checkoutItems.value?.length) {
+    return checkoutItems.value.map(i => ({ skuId: i.skuId, unitPriceCents: i.unitPriceCents || 0, quantity: i.quantity || 1 }))
+  }
+  const item = checkoutItem.value
+  if (!item) return []
+  return [{ skuId: item.skuId, unitPriceCents: item.unitPriceCents || 0, quantity: item.quantity || 1 }]
+}
+
+async function loadAvailableCoupons() {
+  if (!userId.value) return
+  const couponBaseAmountCents = pricePreview.value?.payableAmountCents ?? orderAmountCents.value
+  if (couponBaseAmountCents <= 0) return
+  couponsLoading.value = true
+  try {
+    availableCoupons.value = await getAvailableCoupons(couponBaseAmountCents)
+  } catch {
+    availableCoupons.value = []
+  } finally {
+    couponsLoading.value = false
+  }
+}
+
+async function refreshPricePreview() {
+  const lineItems = buildPriceLineItems()
+  if (!lineItems.length || !userId.value) {
+    pricePreview.value = null
+    return
+  }
+  try {
+    pricePreview.value = await calculatePrice(lineItems, selectedCouponId.value)
+  } catch {
+    pricePreview.value = null
+  }
+}
+
+watch(selectedCouponId, () => {
+  refreshPricePreview()
+})
+
+watch(orderAmountCents, async () => {
+  await refreshPricePreview()
+  await loadAvailableCoupons()
 })
 
 function formatPrice(p) {
@@ -298,12 +438,6 @@ async function loadEngravingMetadata() {
   }
   const formItems = []
   const keys = new Set()
-  const addEngravingService = (svc, primarySkuName) => {
-    if (!engravingSkuIds.has(svc.skuId)) return
-    const key = `cart-${svc.cartItemId}`
-    keys.add(key)
-    formItems.push({ entryKey: key, primarySkuName, serviceSkuName: svc.skuName })
-  }
   for (const group of groups) {
     let spuId
     try {
@@ -326,7 +460,10 @@ async function loadEngravingMetadata() {
       }
     }
     for (const svc of group.serviceItems ?? []) {
-      addEngravingService(svc, group.primarySkuName)
+      if (!engravingSkuIds.has(svc.skuId)) continue
+      const key = `cart-${svc.cartItemId}`
+      keys.add(key)
+      formItems.push({ entryKey: key, primarySkuName: group.primarySkuName, serviceSkuName: svc.skuName })
     }
   }
   if (formItems.length === 0 && flatItems.length > 0) {
@@ -533,6 +670,9 @@ onMounted(async () => {
   } catch {
     addresses.value = []
   }
+
+  await refreshPricePreview()
+  await loadAvailableCoupons()
 })
 
 function toOrderItem(i) {
@@ -585,15 +725,10 @@ async function submitOrder() {
     router.push('/login')
     return
   }
-  if (engravingValidationError.value) {
-    error.value = '请完成镭雕内容填写（图案或文字至少选其一）'
-    return
-  }
-
   error.value = ''
   submitting.value = true
   try {
-    const order = await createOrder({
+    const orderBody = {
       userId: userId.value,
       items: orderItems,
       shippingAddress: {
@@ -604,7 +739,11 @@ async function submitOrder() {
         district: addr.district,
         detail: addr.detail,
       },
-    })
+    }
+    if (selectedCouponId.value) {
+      orderBody.couponId = selectedCouponId.value
+    }
+    const order = await createOrder(orderBody)
     if (!order?.orderId) {
       error.value = '订单创建异常，请重试'
       return

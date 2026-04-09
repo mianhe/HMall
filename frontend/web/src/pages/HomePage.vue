@@ -89,6 +89,9 @@
                 <p v-if="productMinPrice(p)" class="px-3 pb-3 text-sm text-vmall-red font-medium">
                   {{ productMinPrice(p) }} 起
                 </p>
+                <p v-if="productPromoHint(p)" class="px-3 pb-3 text-xs" :class="productPromoHintClass(p)">
+                  {{ productPromoHint(p) }}
+                </p>
               </router-link>
             </div>
           </main>
@@ -104,6 +107,7 @@
 import { ref, reactive, watch } from 'vue'
 import { useAuth } from '../shared/auth.js'
 import { getCategoryTree, getProducts } from '../shared/api/catalog.js'
+import { previewSkuPrices } from '../shared/api/promotion.js'
 import { formatPrice } from '../shared/utils/price.js'
 
 const { isLoggedIn, username } = useAuth()
@@ -118,14 +122,57 @@ const subLoading = ref(false)
 const selectedSubId = ref(null)
 const products = ref([])
 const productsLoading = ref(false)
+const activityPriceBySkuId = ref({})
 
 const productsCache = reactive({})
 
 function productMinPrice(p) {
   const skus = p.skus || []
   if (!skus.length) return null
-  const min = Math.min(...skus.map((s) => s.priceCents))
+  const min = Math.min(...skus.map((s) => {
+    const preview = activityPriceBySkuId.value[s.id]
+    return preview?.activityPriceCents ?? s.priceCents
+  }))
   return formatPrice(min)
+}
+
+function productPromoHint(product) {
+  const skus = product.skus || []
+  for (const sku of skus) {
+    const preview = activityPriceBySkuId.value[sku.id]
+    if (!preview) continue
+    if (preview.activityLabel) return preview.activityLabel
+    if (preview.ineligibleReason) return preview.ineligibleReason
+  }
+  return null
+}
+
+function productPromoHintClass(product) {
+  const skus = product.skus || []
+  for (const sku of skus) {
+    const preview = activityPriceBySkuId.value[sku.id]
+    if (!preview) continue
+    if (preview.activityLabel) return 'text-vmall-red'
+    if (preview.ineligibleReason) return 'text-vmall-gray-text'
+  }
+  return 'text-vmall-gray-text'
+}
+
+async function refreshSkuActivityPrices(productList) {
+  const skuItems = productList.flatMap((p) => (p.skus || []).map((s) => ({
+    skuId: s.id,
+    unitPriceCents: s.priceCents,
+  })))
+  if (!skuItems.length) {
+    activityPriceBySkuId.value = {}
+    return
+  }
+  try {
+    const result = await previewSkuPrices(skuItems)
+    activityPriceBySkuId.value = Object.fromEntries(result.map(i => [i.skuId, i]))
+  } catch {
+    activityPriceBySkuId.value = {}
+  }
 }
 
 async function loadCategoryTree() {
@@ -174,9 +221,11 @@ function selectSub(sub) {
     .then((list) => {
       productsCache[sub.id] = list
       products.value = list
+      refreshSkuActivityPrices(list)
     })
     .catch(() => {
       products.value = []
+      activityPriceBySkuId.value = {}
     })
     .finally(() => {
       productsLoading.value = false
