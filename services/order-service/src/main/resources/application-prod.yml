@@ -22,3 +22,6 @@ payment:
 
 fulfillment:
   base-url: http://fulfillment-service:8088
+
+promotion:
+  base-url: http://promotion-service:8090

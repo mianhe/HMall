@@ -1,0 +1,10 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/hmall
+    password: ${DB_PASSWORD:hmall_prod}
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+user:
+  base-url: http://user-service:8082

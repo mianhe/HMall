@@ -15,6 +15,8 @@ bff:
     base-url: http://cart-service:8087
   fulfillment:
     base-url: http://fulfillment-service:8088
+  promotion:
+    base-url: http://promotion-service:8090
   proxy:
     allowed-origins:
       - http://${PUBLIC_HOST:localhost}

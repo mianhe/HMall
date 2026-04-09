@@ -17,7 +17,7 @@ fi
 COMPOSE_CMD="docker compose -f ${COMPOSE_FILE} --env-file ${ENV_FILE}"
 
 # Upstream services first, BFF last (respects dependency order)
-SERVICE_ORDER="catalog-service user-service order-service inventory-service payment-service activity-service cart-service fulfillment-service smart-interaction-service bff-web"
+SERVICE_ORDER="catalog-service user-service order-service inventory-service payment-service activity-service cart-service fulfillment-service smart-interaction-service promotion-service bff-web"
 
 wait_for_api() {
   echo ""

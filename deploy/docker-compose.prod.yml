@@ -251,6 +251,29 @@ services:
       - hmall-net
     restart: unless-stopped
 
+  promotion-service:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        SERVICE_DIR: services/promotion-service
+    container_name: hmall-promotion
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_PASSWORD: ${DB_PASSWORD:-hmall_prod}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -o /dev/null --max-time 2 http://localhost:8090/"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 120s
+    networks:
+      - hmall-net
+    restart: unless-stopped
+
   smart-interaction-service:
     build:
       context: ..
