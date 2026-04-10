@@ -3,7 +3,7 @@
     <div class="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm">
       <TransitionGroup name="toast">
         <div
-          v-for="item in toast.items"
+          v-for="item in items"
           :key="item.id"
           class="flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border text-sm"
           :class="item.type === 'error' ? 'bg-white border-red-200 text-red-800' : 'bg-white border-green-200 text-green-800'"
@@ -14,7 +14,7 @@
             type="button"
             class="shrink-0 text-vmall-gray-text hover:text-gray-800"
             aria-label="关闭"
-            @click="toast.remove(item.id)"
+            @click="remove(item.id)"
           >
             ×
           </button>
@@ -27,7 +27,7 @@
 <script setup>
 import { inject } from 'vue'
 
-const toast = inject('toast')
+const { items, remove } = inject('toast')
 </script>
 
 <style scoped>
