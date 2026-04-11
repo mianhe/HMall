@@ -1,6 +1,7 @@
 package com.hmall.user.infrastructure.persistence;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.ColumnDefault;
 
 @Entity
 @Table(name = "user_account")
@@ -17,6 +18,7 @@ public class UserEntity {
     private String passwordHash;
 
     @Column(nullable = false)
+    @ColumnDefault("'L1'")
     private String level = "L1";
 
     @Column(name = "tags_csv", length = 1000)
